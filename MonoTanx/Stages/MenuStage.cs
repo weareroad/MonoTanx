@@ -73,7 +73,7 @@ namespace MonoTanx.Stages
                 {
                     Position = new Vector2(xPos, 0),
                     Bounds = bounds,
-                    Text = "Road MonoTanx Tech Demo",
+                    Text = "WeAreRoad MonoTanx Tech Demo",
                     PenColor = Color.Aquamarine
                 },
                 new BoundedLabel(baseFont)
