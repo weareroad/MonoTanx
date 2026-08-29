@@ -57,10 +57,7 @@ namespace MonoTanx
             ScreenScale = 1.0f / (DesignedHeight / GraphicsDevice.Viewport.Height);
 
             spriteBatch = new SpriteBatch(GraphicsDevice);
-            currentStage = new MenuStage(this, graphics.GraphicsDevice, Content);
-            //currentStage = new MapTestStage(this, graphics.GraphicsDevice, Content);
-            //currentStage = new SplashStage(this, graphics.GraphicsDevice, Content);
-            //currentStage = new GameStage(this, graphics.GraphicsDevice, Content);
+            currentStage = new GameStage(this, graphics.GraphicsDevice, Content);
 
         }
 

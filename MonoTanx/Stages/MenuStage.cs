@@ -54,6 +54,14 @@ namespace MonoTanx.Stages
             };
             layoutButton.Click += LayoutButton_Click;
 
+            var gameButton = new Button(buttonTexture, baseFont)
+            {
+                Position = new Vector2(300, 350),
+                Text = "Game Stage",
+                Scale = game.ScreenScale
+            };
+            gameButton.Click += GameButton_Click;
+
             var quitGameButton = new Button(buttonTexture, baseFont)
             {
                 Position = new Vector2(300, 400),
@@ -68,6 +76,7 @@ namespace MonoTanx.Stages
                 mapButton,
                 layoutButton,
                 aiButton,
+                gameButton,
                 quitGameButton,
                 new BoundedLabel(baseFont)
                 {
@@ -138,6 +147,11 @@ namespace MonoTanx.Stages
         private void MapButton_Click(object sender, EventArgs e)
         {
            game.ChangeStage(new MapTestStage(game, graphicsDevice, content));
+        }
+
+        private void GameButton_Click(object sender, EventArgs e)
+        {
+            game.ChangeStage(new GameStage(game, graphicsDevice, content));
         }
 
     }

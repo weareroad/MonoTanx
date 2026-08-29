@@ -124,7 +124,7 @@ namespace MonoTanx.Stages
             if (CountDown<=0)
             {
                 CountDown = 0;
-                game.ChangeStage(new GameStage(game, graphicsDevice, content));
+                game.ChangeStage(new OldGameStage(game, graphicsDevice, content));
                 return;
             }
             labelTimer.Text = $"{CountDown}";

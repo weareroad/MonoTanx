@@ -14,7 +14,7 @@ namespace MonoTanx.Stages
     public class MapTestStage : Stage
     {
         private SpriteBatch spriteBatch;
-        private TileMapManager tileMapManager;
+        private WorldMap worldMap;
 
         public MapTestStage(Tanx game, GraphicsDevice graphicsDevice, ContentManager content)
         : base(game, graphicsDevice, content)
@@ -25,14 +25,14 @@ namespace MonoTanx.Stages
 
         private void LoadStageResources()
         {
-            tileMapManager = new TileMapManager(content, "monosandpittest.tmx", "tmw_desert_spacing");
+            worldMap = new WorldMap(content, "monosandpittest.tmx", "tmw_desert_spacing");
 
         }
 
         public override void Draw(GameTime gameTime, SpriteBatch spriteBatch)
         {
             spriteBatch.Begin(SpriteSortMode.FrontToBack);
-            tileMapManager.Draw(spriteBatch, gameTime);
+            worldMap.Draw(spriteBatch);
             spriteBatch.End();
         }
 
