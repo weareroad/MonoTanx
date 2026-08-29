@@ -1,0 +1,8 @@
+* text=auto eol=lf
+
+*.png binary
+*.bmp binary
+*.ico binary
+*.aseprite binary
+*.ttf binary
+*.otf binary

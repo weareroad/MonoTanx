@@ -1,0 +1,106 @@
+{
+    "automappingRulesFile": "",
+    "commands": [
+    ],
+    "compatibilityVersion": 1100,
+    "extensionsPath": "extensions",
+    "folders": [
+        "."
+    ],
+    "properties": [
+        {
+            "name": "FuelCostMultiplier",
+            "type": "float",
+            "value": 0
+        },
+        {
+            "name": "MovementSpeedMultiplier",
+            "type": "float",
+            "value": 1
+        },
+        {
+            "name": "TerrainKind",
+            "type": "string",
+            "value": ""
+        }
+    ],
+    "propertyTypes": [
+        {
+            "color": "#ffa0a0a4",
+            "drawFill": true,
+            "id": 3,
+            "members": [
+                {
+                    "name": "AmmunitionId",
+                    "type": "string",
+                    "value": "standard-shell"
+                },
+                {
+                    "name": "SpriteAsset",
+                    "type": "string",
+                    "value": "Sprites/ammodrop_1"
+                }
+            ],
+            "name": "Ammunition",
+            "type": "class",
+            "useAs": [
+                "property",
+                "map",
+                "layer",
+                "object",
+                "tile",
+                "tileset",
+                "wangcolor",
+                "wangset",
+                "project"
+            ]
+        },
+        {
+            "id": 1,
+            "name": "TerrainKind",
+            "storageType": "string",
+            "type": "enum",
+            "values": [
+                "Ground",
+                "Water",
+                "Bridge",
+                "Wall",
+                "Ravine",
+                "Hill",
+                "Reflective",
+                "OutOfBounds"
+            ],
+            "valuesAsFlags": false
+        },
+        {
+            "color": "#ffa0a0a4",
+            "drawFill": true,
+            "id": 2,
+            "members": [
+                {
+                    "name": "Amount",
+                    "type": "int",
+                    "value": 50
+                },
+                {
+                    "name": "SpriteAsset",
+                    "type": "string",
+                    "value": "Sprites/fueldrop_1"
+                }
+            ],
+            "name": "Fuel",
+            "type": "class",
+            "useAs": [
+                "property",
+                "map",
+                "layer",
+                "object",
+                "tile",
+                "tileset",
+                "wangcolor",
+                "wangset",
+                "project"
+            ]
+        }
+    ]
+}

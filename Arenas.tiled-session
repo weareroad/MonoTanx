@@ -1,0 +1,58 @@
+{
+    "activeFile": "MonoTanx/Content/arena_01.tsx",
+    "expandedProjectPaths": [
+        "MonoTanx/Content",
+        ".",
+        "MonoTanx"
+    ],
+    "fileStates": {
+        "MonoTanx/Content/arena_01.tmx": {
+            "scale": 1,
+            "selectedLayer": 0,
+            "viewCenter": {
+                "x": 408.5,
+                "y": 142.5
+            }
+        },
+        "MonoTanx/Content/arena_01.tsx": {
+            "scaleInDock": 1,
+            "scaleInEditor": 1
+        },
+        "MonoTanx/Content/monogametest.tsx": {
+            "scaleInDock": 1,
+            "scaleInEditor": 1
+        },
+        "MonoTanx/Content/monosandpittest.tmx": {
+            "scale": 0.43496357960457854,
+            "selectedLayer": 0,
+            "viewCenter": {
+                "x": 480.50000000000006,
+                "y": 320.7165071770335
+            }
+        }
+    },
+    "last.externalTilesetPath": "C:/Dev/MonoTanx/MonoTanx/Content",
+    "last.imagePath": "C:/Dev/MonoTanx/MonoTanx/Aseprite",
+    "map.height": 40,
+    "map.lastUsedFormat": "tmx",
+    "map.tileHeight": 16,
+    "map.tileWidth": 16,
+    "map.width": 60,
+    "openFiles": [
+        "MonoTanx/Content/arena_01.tsx"
+    ],
+    "project": "Arenas.tiled-project",
+    "property.type": "string",
+    "recentFiles": [
+        "MonoTanx/Content/arena_01.tsx",
+        "MonoTanx/Content/arena_01.tmx",
+        "MonoTanx/Content/monogametest.tsx",
+        "MonoTanx/Content/monosandpittest.tmx"
+    ],
+    "tileset.lastUsedFilter": "Tiled tileset files (*.tsx *.xml)",
+    "tileset.lastUsedFormat": "tsx",
+    "tileset.tileSize": {
+        "height": 16,
+        "width": 16
+    }
+}
