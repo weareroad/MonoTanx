@@ -49,12 +49,13 @@ namespace MonoTanx
             base.Initialize();
 
             // this is what we want to show the screen at - we might allow the user to change this
-            graphics.PreferredBackBufferWidth = 1366;// 1024;
-            graphics.PreferredBackBufferHeight = 1024;// 768;
+            graphics.IsFullScreen = true;
+            graphics.PreferredBackBufferWidth = GraphicsAdapter.DefaultAdapter.CurrentDisplayMode.Width;
+            graphics.PreferredBackBufferHeight = GraphicsAdapter.DefaultAdapter.CurrentDisplayMode.Height;
             graphics.ApplyChanges();
 
             // this height is the 'designed' height
-            ScreenScale = 1.0f / (DesignedHeight / GraphicsDevice.Viewport.Height);
+            ScreenScale = Math.Min(GraphicsDevice.Viewport.Width / DesignedWidth, GraphicsDevice.Viewport.Height / DesignedHeight);
 
             spriteBatch = new SpriteBatch(GraphicsDevice);
             currentStage = new GameStage(this, graphics.GraphicsDevice, Content);
@@ -95,8 +96,17 @@ namespace MonoTanx
             GraphicsDevice.SetRenderTarget(null);
 
 
-            spriteBatch.Begin();
-            spriteBatch.Draw(renderTarget, Vector2.Zero, null, Color.White, 0, Vector2.Zero, ScreenScale, SpriteEffects.None, 0f);
+            var scale = Math.Min(GraphicsDevice.Viewport.Width / DesignedWidth, GraphicsDevice.Viewport.Height / DesignedHeight);
+            ScreenScale = scale;
+            var destinationWidth = (int)(DesignedWidth * scale);
+            var destinationHeight = (int)(DesignedHeight * scale);
+            var destination = new Rectangle(
+                (GraphicsDevice.Viewport.Width - destinationWidth) / 2,
+                (GraphicsDevice.Viewport.Height - destinationHeight) / 2,
+                destinationWidth,
+                destinationHeight);
+            spriteBatch.Begin(samplerState: SamplerState.PointClamp);
+            spriteBatch.Draw(renderTarget, destination, Color.White);
             spriteBatch.End();
 
             base.Draw(gameTime);

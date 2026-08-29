@@ -23,6 +23,23 @@ namespace MonoTanx.Core
         OutOfBounds
     }
 
+    public enum PickupKind { Fuel, Ammunition }
+
+    public sealed class PickupSpawn
+    {
+        public int Id { get; }
+        public PickupKind Kind { get; }
+        public Vector2 Position { get; }
+        public int Amount { get; }
+        public string AmmunitionId { get; }
+        public string SpriteAsset { get; }
+
+        public PickupSpawn(int id, PickupKind kind, Vector2 position, int amount, string ammunitionId, string spriteAsset)
+        {
+            Id = id; Kind = kind; Position = position; Amount = amount; AmmunitionId = ammunitionId; SpriteAsset = spriteAsset;
+        }
+    }
+
     public sealed class TerrainDefinition
     {
         public TerrainKind Kind { get; }
@@ -43,6 +60,7 @@ namespace MonoTanx.Core
         private Dictionary<int, TiledTileset> tilesets;
         private Texture2D tilesetTexture;
         private Dictionary<int, TerrainDefinition> terrainByGid;
+        public IReadOnlyList<PickupSpawn> PickupSpawns { get; }
 
         public Rectangle Bounds => new Rectangle(0, 0, map.Width * map.TileWidth, map.Height * map.TileHeight);
         public int TileWidth => map.TileWidth;
@@ -59,6 +77,7 @@ namespace MonoTanx.Core
             tilesets = map.GetTiledTilesets(contentDirectory + Path.DirectorySeparatorChar);
             tilesetTexture = contentManager.Load<Texture2D>(textureName);
             terrainByGid = LoadTerrainDefinitions(mapPath, contentDirectory);
+            PickupSpawns = LoadPickupSpawns(mapPath);
         }
 
         public Point WorldToTile(Vector2 worldPosition)
@@ -109,6 +128,34 @@ namespace MonoTanx.Core
         public bool ReflectsProjectiles(Vector2 worldPosition)
         {
             return GetTerrainAt(worldPosition) == TerrainKind.Reflective;
+        }
+
+        public bool ReflectiveSurfaceIsHorizontal(Vector2 worldPosition, Vector2 velocity)
+        {
+            var tile = WorldToTile(worldPosition);
+            var horizontalRun = ReflectsProjectiles(GetTileBounds(new Point(tile.X - 1, tile.Y)).Center.ToVector2())
+                || ReflectsProjectiles(GetTileBounds(new Point(tile.X + 1, tile.Y)).Center.ToVector2());
+            var verticalRun = ReflectsProjectiles(GetTileBounds(new Point(tile.X, tile.Y - 1)).Center.ToVector2())
+                || ReflectsProjectiles(GetTileBounds(new Point(tile.X, tile.Y + 1)).Center.ToVector2());
+
+            if (horizontalRun && !verticalRun)
+                return true;
+            if (verticalRun && !horizontalRun)
+                return false;
+            return Math.Abs(velocity.Y) >= Math.Abs(velocity.X);
+        }
+
+        public bool HasLineOfSight(Vector2 start, Vector2 end)
+        {
+            var distance = Vector2.Distance(start, end);
+            var steps = Math.Max(1, (int)Math.Ceiling(distance / 4.0f));
+            for (var step = 1; step < steps; step++)
+            {
+                var position = Vector2.Lerp(start, end, step / (float)steps);
+                if (BlocksVision(position))
+                    return false;
+            }
+            return true;
         }
 
         public float GetFuelCostMultiplier(Vector2 worldPosition)
@@ -213,6 +260,44 @@ namespace MonoTanx.Core
             }
 
             return terrainByGid;
+        }
+
+        private static IReadOnlyList<PickupSpawn> LoadPickupSpawns(string mapPath)
+        {
+            var spawns = new List<PickupSpawn>();
+            var document = XDocument.Load(mapPath);
+            var objectLayer = document.Root?.Elements("objectgroup")
+                .FirstOrDefault(x => (string)x.Attribute("name") == "Pickups");
+            foreach (var objectElement in objectLayer?.Elements("object") ?? Enumerable.Empty<XElement>())
+            {
+                var typeName = (string)objectElement.Attribute("type") ?? (string)objectElement.Attribute("class");
+                if (!Enum.TryParse(typeName, true, out PickupKind kind))
+                    continue;
+                var id = (int?)objectElement.Attribute("id") ?? 0;
+                var x = (float?)objectElement.Attribute("x") ?? 0.0f;
+                var y = (float?)objectElement.Attribute("y") ?? 0.0f;
+                var amount = ReadIntProperty(objectElement, "Amount", 0);
+                if (amount <= 0)
+                    amount = kind == PickupKind.Fuel ? 50 : 5;
+                var ammunitionId = ReadStringProperty(objectElement, "AmmunitionId", null);
+                var spriteAsset = ReadStringProperty(objectElement, "SpriteAsset", null);
+                if (string.IsNullOrWhiteSpace(spriteAsset))
+                    spriteAsset = kind == PickupKind.Fuel ? "Sprites/fueldrop_1" : "Sprites/ammodrop_1";
+                spawns.Add(new PickupSpawn(id, kind, new Vector2(x, y), amount, ammunitionId, spriteAsset));
+            }
+            return spawns;
+        }
+
+        private static int ReadIntProperty(XElement element, string propertyName, int defaultValue)
+        {
+            var value = ReadStringProperty(element, propertyName, null);
+            return int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var result) ? result : defaultValue;
+        }
+
+        private static string ReadStringProperty(XElement element, string propertyName, string defaultValue)
+        {
+            return (string)element.Element("properties")?.Elements("property")
+                .FirstOrDefault(x => (string)x.Attribute("name") == propertyName)?.Attribute("value") ?? defaultValue;
         }
 
         private static float ReadFloatProperty(XElement tileElement, string propertyName, float defaultValue)
