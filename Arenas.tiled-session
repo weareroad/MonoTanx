@@ -1,17 +1,17 @@
 {
     "activeFile": "MonoTanx/Content/arena_01.tsx",
     "expandedProjectPaths": [
-        "MonoTanx/Content",
+        "MonoTanx",
         ".",
-        "MonoTanx"
+        "MonoTanx/Content"
     ],
     "fileStates": {
         "MonoTanx/Content/arena_01.tmx": {
             "scale": 1,
-            "selectedLayer": 0,
+            "selectedLayer": 1,
             "viewCenter": {
-                "x": 408.5,
-                "y": 142.5
+                "x": 263.5,
+                "y": 370.5
             }
         },
         "MonoTanx/Content/arena_01.tsx": {
@@ -39,13 +39,14 @@
     "map.tileWidth": 16,
     "map.width": 60,
     "openFiles": [
-        "MonoTanx/Content/arena_01.tsx"
+        "MonoTanx/Content/arena_01.tsx",
+        "MonoTanx/Content/arena_01.tmx"
     ],
     "project": "Arenas.tiled-project",
     "property.type": "string",
     "recentFiles": [
-        "MonoTanx/Content/arena_01.tsx",
         "MonoTanx/Content/arena_01.tmx",
+        "MonoTanx/Content/arena_01.tsx",
         "MonoTanx/Content/monogametest.tsx",
         "MonoTanx/Content/monosandpittest.tmx"
     ],
