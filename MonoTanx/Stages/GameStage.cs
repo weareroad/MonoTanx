@@ -33,9 +33,6 @@ namespace MonoTanx.Stages
         private readonly List<Pickup> pickups = new List<Pickup>();
         private readonly List<Point> playerTwoRoute = new List<Point>();
         private Vector2 cameraPosition;
-        private float shakeTimeRemaining;
-        private float shakeDuration;
-        private float shakeMagnitude;
         private Vector2 lastPlayerOnePosition;
         private int playerTwoRouteIndex;
         private int playerTwoPickupTargetId = -1;
@@ -43,6 +40,7 @@ namespace MonoTanx.Stages
         private float playerTwoLongRangeHeading;
         private float playerTwoFireTimer;
         private float playerTwoRetaliationTimer;
+        private readonly ScreenShake shake = new ScreenShake();
         private bool debugOverlayVisible;
 
         public Player Player1 => playerOne;
@@ -85,7 +83,7 @@ namespace MonoTanx.Stages
 
         public override void Draw(GameTime gameTime, SpriteBatch spriteBatch)
         {
-            var shakeOffset = GetShakeOffset();
+            var shakeOffset = shake.Offset;
             // Snap the world translation to whole pixels. A fractional offset makes
             // point sampling land on tile-atlas texel boundaries and pick up
             // neighbouring (empty) atlas texels, which shows as thin dark seams.
@@ -148,7 +146,7 @@ namespace MonoTanx.Stages
             CollectPickups(playerOne);
             CollectPickups(playerTwo);
             UpdateCamera();
-            shakeTimeRemaining = Math.Max(0.0f, shakeTimeRemaining - elapsed);
+            shake.Update(elapsed, game.Random.Cosmetic);
             if (keyboard.IsKeyDown(Keys.Escape) && prevKeyboardState.IsKeyUp(Keys.Escape)) game.Exit();
             prevKeyboardState = keyboard;
         }
@@ -539,20 +537,7 @@ namespace MonoTanx.Stages
 
         private void StartShake(float duration, float magnitude)
         {
-            shakeTimeRemaining = Math.Max(shakeTimeRemaining, duration);
-            shakeDuration = Math.Max(shakeDuration, duration);
-            shakeMagnitude = Math.Max(shakeMagnitude, magnitude);
-        }
-
-        private Vector2 GetShakeOffset()
-        {
-            if (shakeTimeRemaining <= 0.0f || shakeDuration <= 0.0f)
-                return Vector2.Zero;
-
-            var strength = shakeTimeRemaining / shakeDuration;
-            return new Vector2(
-                ((float)game.Random.Cosmetic.NextDouble() * 2.0f - 1.0f) * shakeMagnitude * strength,
-                ((float)game.Random.Cosmetic.NextDouble() * 2.0f - 1.0f) * shakeMagnitude * strength);
+            shake.Start(duration, magnitude);
         }
 
         private void UpdateCamera()
