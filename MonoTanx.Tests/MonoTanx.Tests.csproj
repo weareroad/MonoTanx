@@ -15,6 +15,11 @@
     </PackageReference>
   </ItemGroup>
   <ItemGroup>
+    <None Include="Fixtures\*.tmx;Fixtures\*.tsx" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\MonoTanx\Content\arena_01.tmx" Link="Fixtures\arena\arena_01.tmx" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\MonoTanx\Content\arena_01.tsx" Link="Fixtures\arena\arena_01.tsx" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="..\MonoTanx\MonoTanx.csproj" />
   </ItemGroup>
 </Project>

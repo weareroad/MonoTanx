@@ -25,6 +25,7 @@ namespace MonoTanx.Stages
         private const float HitShakeMagnitude = 1.0f;
 
         private readonly WorldMap worldMap;
+        private readonly MapRenderer mapRenderer;
         private readonly SpriteFont debugFont;
         private readonly Texture2D placeholderShellTexture;
         private readonly Player playerOne;
@@ -51,7 +52,8 @@ namespace MonoTanx.Stages
 
         public GameStage(Tanx game, GraphicsDevice graphicsDevice, ContentManager content) : base(game, graphicsDevice, content)
         {
-            worldMap = new WorldMap(content, "arena_01.tmx", "arena_01");
+            worldMap = new WorldMap(WorldMap.ResolveMapPath(content.RootDirectory, "arena_01.tmx"));
+            mapRenderer = new MapRenderer(content, "arena_01.tmx", "arena_01");
             debugFont = content.Load<SpriteFont>("SpriteFonts/dogica");
             var tankTexture = content.Load<Texture2D>("Sprites/tank");
             var tankTwoTexture = LoadTankTwoTexture(content, tankTexture);
@@ -86,7 +88,7 @@ namespace MonoTanx.Stages
         {
             var shakeOffset = GetShakeOffset();
             spriteBatch.Begin(SpriteSortMode.FrontToBack, BlendState.AlphaBlend, SamplerState.PointClamp, transformMatrix: Matrix.CreateTranslation(-cameraPosition.X + shakeOffset.X, -cameraPosition.Y + HudHeight + shakeOffset.Y, 0.0f));
-            worldMap.Draw(spriteBatch);
+            mapRenderer.Draw(spriteBatch);
             DrawTank(spriteBatch, playerOne);
             DrawTank(spriteBatch, playerTwo);
             foreach (var pickup in pickups)
