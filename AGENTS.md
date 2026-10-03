@@ -1,5 +1,14 @@
 # AGENTS.md
 
+## Start here
+
+1. Read `README.md` for the current player-facing feature set and how to run the game.
+2. Read `onboarding.md` for the engineering architecture, workflow, and known debt.
+3. Read only the relevant files under `docs/` for the task. Specs and plans are mostly design history, not a live backlog.
+4. Check `docs/deferred-snags.md` for deliberately deferred observations.
+
+When documentation conflicts with the implementation, verify the current behavior in code and tests, then update the authoritative summaries (`README.md` and `onboarding.md`) as part of the change.
+
 ## Project overview
 
 MonoTanx is a small C#/.NET 10 desktop game built with MonoGame. The solution contains one executable project and one xUnit test project.
@@ -23,7 +32,7 @@ MonoTanx is a small C#/.NET 10 desktop game built with MonoGame. The solution co
 - Follow nearby naming and formatting conventions; do not reformat unrelated legacy code.
 - Keep reusable game behavior in `Core`, UI primitives in `Controls`, and screen-specific behavior in `Stages`.
 - Treat asset names and paths as case-sensitive because builds may run on non-Windows systems.
-- Keep editable source assets and runtime source assets under `MonoTanx/Content/` (for example `Content/Aseprite/`); reference them with paths relative to `Content`.
+- Keep editable source art in `ArtSource/` and runtime assets under `MonoTanx/Content/`; reference runtime assets with paths relative to `Content`. (Existing editable art still sitting in `Content/` will be moved over time.)
 - When adding or removing a runtime asset, update `Content.mgcb` and use the content pipeline name with `Content.Load<T>()`.
 - Do not edit generated `bin/`, `obj/`, or content build output.
 - Do not upgrade .NET, MonoGame, or other packages unless the task explicitly calls for it.
@@ -31,13 +40,23 @@ MonoTanx is a small C#/.NET 10 desktop game built with MonoGame. The solution co
 
 ## Task workflow
 
-1. Decide what we're doing, usually from a GitHub issue.
-2. Write a spec and a plan if the task is likely to be complex.
-3. Create a branch for the work; do not commit directly to `main`.
-4. Develop and test the code (automated tests will be added later).
-5. Once the change is agreed, raise a PR.
-6. The user reviews, accepts and merges the PR; do not merge it yourself.
-7. After the merge, tidy up locally (switch to `main`, pull, delete the merged branch). The task is then complete.
+Use this lifecycle for each task:
+
+1. Agree what is being changed, usually starting from a GitHub issue.
+2. For work that is likely to be complex, agree a brief spec and implementation plan in `docs/` before coding. Small, well-bounded maintenance changes do not need spec/plan files.
+3. Create a focused branch for the task before development; do not commit directly to `main`.
+4. Develop the change, add or update proportionate tests, run the full suite, and perform any relevant runtime smoke tests.
+5. Review the finished diff with the user. Once both are happy, open a pull request with a concise summary and validation evidence.
+6. The user reviews, accepts, and merges the pull request. Agents must not merge it unless explicitly asked.
+7. After the merge is confirmed, tidy the local repository: return to `main`, fast-forward it, and remove the merged local feature branch. That completes the task.
+
+## Change discipline
+
+- Inspect the worktree before editing and preserve unrelated user changes.
+- Prefer small, cohesive changes that follow the spec/plan, focused-test, full-suite, and smoke-test workflow.
+- Do not commit generated `bin/` or `obj/` output, user settings, or save data.
+- Preserve deterministic seeded behavior. Tests for seeded systems should use explicit seeds and include the seed in failure messages.
+- Update `README.md`, `onboarding.md`, and relevant `docs/` when user-visible behavior, architecture, commands, or dependencies change.
 
 ## Build and validation
 
