@@ -83,7 +83,7 @@ Acceptance checks:
 
 #### 1.3 Add focused tests around the working rules
 
-Status: test project in place (`MonoTanx.Tests`, xUnit, in `MonoTanx.slnx`) with starter `Helpers` tests. `WorldMap` and rule coverage remain to be written.
+Status: complete. `MonoTanx.Tests` (xUnit, in `MonoTanx.slnx`) covers `WorldMap` (via fixture maps and the checked-in arena), `Player`, `TankMovement`, `Shell`, `TankDamage`, `PickupRules`, `RandomStreams` and `GameOptions`, without a graphics device. See `hardening-spec.md` and `hardening-plan.md`.
 
 - ~~Create a .NET 10 test project and add it to the solution without requiring a graphics device.~~ Done.
 - Test coordinate conversions and terrain-property parsing.
@@ -181,7 +181,7 @@ Status: functional prototype (2026-08-29). `Player` and `GameStage` provide ammu
 
 #### 4.2 Add projectile entities
 
-Status: functional prototype (2026-08-29). Shells have world position, velocity, age, bounded lifetime, tank damage, and capped reflection count; they remain local to `GameStage` pending a demonstrated need for extraction.
+Status: functional prototype (2026-08-29). Shells have world position, velocity, age, bounded lifetime, tank damage, and capped reflection count; the rules now live in `Core/Shell.cs` with tests; `GameStage` keeps shell drawing and orchestration.
 
 - Store position, direction, speed, owner, age/range, and remaining reflections.
 - Use swept movement or ray/segment checks to avoid tunnelling through tiles and tanks.
@@ -351,9 +351,9 @@ Fuel, fog of war, aircraft, supply drops, destructible terrain, and advanced AI 
 
 ## Resume point
 
-The playable prototype works: two `Player` entities (human and computer) drive around the hand-authored arena, spend fuel, collect pickups, and exchange shells. The solution targets .NET 10 and has an xUnit test project (`MonoTanx.Tests`) containing only starter `Helpers` tests.
+The playable prototype works: two `Player` entities (human and computer) drive around the hand-authored arena, spend fuel, collect pickups, and exchange shells. The solution targets .NET 10. The hardening pass (issue #16) is complete: `WorldMap` is separated from rendering (`MapRenderer`), the movement, fuel, firing, shell, damage and pickup rules live in testable `Core` classes, randomness comes from seeded `RandomStreams` (`--seed`), and `MonoTanx.Tests` covers them without a graphics device. The computer opponent, camera, shake and HUD are still in `GameStage`.
 
-The next step is a short hardening pass: add focused tests for `WorldMap`, `Player` resources, collision, and projectile rules, separate `WorldMap` loading from texture handling so it can be tested, and then implement score and round reset. Keep these changes incremental and retain the current `GameStage` behavior while tests are established.
+The next step is score and round reset: hits update a score, the round resets, and the HUD shows score, ammunition and reload state (see "Definition of the first complete match milestone"). Add focused tests for the new rules as they are written. Extract the computer opponent from `GameStage` only when a task needs it.
 
 ## Decision log
 

@@ -12,7 +12,6 @@ namespace MonoTanx.Stages
     {
         private const int TankFrameCount = 4;
         private const float TankFrameDuration = 0.15f;
-        private const float ShellCollisionRadius = 3.0f;
         private const float ShellSpeed = 260.0f;
         private const int PlaceholderShellSize = 8;
         private const int PickupFrameCount = 4;
@@ -29,10 +28,10 @@ namespace MonoTanx.Stages
         private readonly Texture2D placeholderShellTexture;
         private readonly Player playerOne;
         private readonly Player playerTwo;
+        private readonly Player[] tanks;
         private readonly List<Shell> shells = new List<Shell>();
         private readonly List<Pickup> pickups = new List<Pickup>();
         private readonly List<Point> playerTwoRoute = new List<Point>();
-        private readonly Random shakeRandom = new Random();
         private Vector2 cameraPosition;
         private float shakeTimeRemaining;
         private float shakeDuration;
@@ -66,6 +65,7 @@ namespace MonoTanx.Stages
             playerTwo.Position = FindStartingPosition(false);
             playerOne.Heading = HeadingToward(playerOne.Position, playerTwo.Position);
             playerTwo.Heading = HeadingToward(playerTwo.Position, playerOne.Position);
+            tanks = new[] { playerOne, playerTwo };
             lastPlayerOnePosition = playerOne.Position;
             foreach (var spawn in worldMap.PickupSpawns)
             {
@@ -171,16 +171,9 @@ namespace MonoTanx.Stages
         {
             foreach (var pickup in pickups)
             {
-                if (!pickup.Active || Vector2.DistanceSquared(player.Position, pickup.Spawn.Position) > 12.0f * 12.0f)
+                if (!pickup.Active || !PickupRules.InRange(player, pickup.Spawn))
                     continue;
-                if (pickup.Spawn.Kind == PickupKind.Fuel)
-                    player.Fuel = MathHelper.Min(player.MaximumFuel, player.Fuel + pickup.Spawn.Amount);
-                else
-                {
-                    var slot = player.AmmunitionSlots.Find(x => string.IsNullOrWhiteSpace(pickup.Spawn.AmmunitionId) || x.Ammunition.Id == pickup.Spawn.AmmunitionId)
-                        ?? player.AmmunitionSlots[0];
-                    slot.Remaining += pickup.Spawn.Amount;
-                }
+                PickupRules.Apply(player, pickup.Spawn);
                 pickup.Active = false;
             }
         }
@@ -499,72 +492,25 @@ namespace MonoTanx.Stages
         {
             for (var index = shells.Count - 1; index >= 0; index--)
             {
-                var shell = shells[index]; shell.Age += elapsed;
-                if (shell.Age >= shell.Ammunition.MaxFlightDurationSeconds) { shells.RemoveAt(index); continue; }
-                var steps = Math.Max(1, (int)Math.Ceiling(shell.Velocity.Length() * elapsed / 4.0f));
-                var stepTime = elapsed / steps; var removed = false;
-                shell.ReflectionCooldown = Math.Max(0.0f, shell.ReflectionCooldown - elapsed);
-                for (var step = 0; step < steps; step++)
-                {
-                    shell.Position += shell.Velocity * stepTime;
-                    var terrain = worldMap.GetTerrainAt(shell.Position);
-                    if (terrain == TerrainKind.Reflective && shell.ReflectionCooldown <= 0.0f)
-                    {
-                        // Treat reflective runs as axis-aligned mirrors. A horizontal
-                        // run flips Y; a vertical run flips X. Isolated tiles fall
-                        // back to the velocity-based axis choice.
-                        if (worldMap.ReflectiveSurfaceIsHorizontal(shell.Position, shell.Velocity))
-                        {
-                            shell.Velocity.Y = -shell.Velocity.Y;
-                            shell.Position.Y += Math.Sign(shell.Velocity.Y) * 2.0f;
-                        }
-                        else
-                        {
-                            shell.Velocity.X = -shell.Velocity.X;
-                            shell.Position.X += Math.Sign(shell.Velocity.X) * 2.0f;
-                        }
-                        shell.ReflectionCooldown = 0.08f;
-                        if (++shell.ReflectionCount > 8) { removed = true; break; }
-                    }
-                    else if (worldMap.BlocksProjectiles(shell.Position)) { removed = true; break; }
-
-                    if (Vector2.DistanceSquared(shell.Position, playerOne.Position) <=
-                        (ShellCollisionRadius + playerOne.CollisionRadius) * (ShellCollisionRadius + playerOne.CollisionRadius))
-                    {
-                        DamageTank(playerOne, shell.Ammunition.Damage, shell.Velocity);
-                        removed = true;
-                        break;
-                    }
-
-                    if (Vector2.DistanceSquared(shell.Position, playerTwo.Position) <=
-                        (ShellCollisionRadius + playerTwo.CollisionRadius) * (ShellCollisionRadius + playerTwo.CollisionRadius))
-                    {
-                        DamageTank(playerTwo, shell.Ammunition.Damage, shell.Velocity);
-                        removed = true;
-                        break;
-                    }
-                }
-                if (removed) shells.RemoveAt(index);
+                var shell = shells[index];
+                var result = shell.Step(worldMap, tanks, elapsed);
+                if (result.Hit != null)
+                    DamageTank(result.Hit, shell.Ammunition.Damage, shell.Velocity);
+                if (result.Removed)
+                    shells.RemoveAt(index);
             }
         }
 
         private void DamageTank(Player tank, int damage, Vector2 impactVelocity)
         {
-            tank.Health = Math.Max(0, tank.Health - Math.Max(0, damage));
-            if (impactVelocity.LengthSquared() > 0.0f)
-            {
-                var knockback = Vector2.Normalize(impactVelocity) * 1.5f;
-                if (CanTankOccupy(tank, tank.Position + knockback))
-                    tank.Position += knockback;
-            }
-            tank.Heading = MathHelper.WrapAngle(tank.Heading + ((float)shakeRandom.NextDouble() * 2.0f - 1.0f) * 0.16f);
+            var destroyed = TankDamage.Apply(worldMap, tank, OtherTank(tank), damage, impactVelocity, game.Random.Gameplay);
             StartShake(HitShakeDuration, HitShakeMagnitude);
             if (ReferenceEquals(tank, playerTwo))
             {
                 playerTwoRetaliationTimer = 1.5f;
                 playerTwoFireTimer = 0.0f;
             }
-            if (tank.Health == 0)
+            if (destroyed)
                 game.Exit();
         }
 
@@ -582,8 +528,8 @@ namespace MonoTanx.Stages
 
             var strength = shakeTimeRemaining / shakeDuration;
             return new Vector2(
-                ((float)shakeRandom.NextDouble() * 2.0f - 1.0f) * shakeMagnitude * strength,
-                ((float)shakeRandom.NextDouble() * 2.0f - 1.0f) * shakeMagnitude * strength);
+                ((float)game.Random.Cosmetic.NextDouble() * 2.0f - 1.0f) * shakeMagnitude * strength,
+                ((float)game.Random.Cosmetic.NextDouble() * 2.0f - 1.0f) * shakeMagnitude * strength);
         }
 
         private void UpdateCamera()
@@ -646,7 +592,7 @@ namespace MonoTanx.Stages
 
         private void DrawDebugOverlay(SpriteBatch spriteBatch)
         {
-            var panel = new Rectangle(8, HudHeight + 8, 360, 112);
+            var panel = new Rectangle(8, HudHeight + 8, 360, 128);
             spriteBatch.Draw(placeholderShellTexture, panel, Color.Black * 0.78f);
             var p1Tile = worldMap.WorldToTile(playerOne.Position);
             var p2Tile = worldMap.WorldToTile(playerTwo.Position);
@@ -658,7 +604,8 @@ namespace MonoTanx.Stages
                 $"P2 pos {playerTwo.Position.X:0.00},{playerTwo.Position.Y:0.00} tile {p2Tile.X},{p2Tile.Y}",
                 $"P2 dir {playerTwo.Heading:0.000} rad / {MathHelper.ToDegrees(playerTwo.Heading):0.0} deg",
                 $"AI mode {(FindPlayerTwoPickupTarget() != null ? "PICKUP" : playerTwo.RemainingAmmunition == 0 ? "FLEE" : playerTwoLongRangePursuit ? "LONG" : "COMBAT")} route {playerTwoRouteIndex}/{playerTwoRoute.Count}",
-                $"AI fire {playerTwoFireTimer:0.00} retaliate {playerTwoRetaliationTimer:0.00} pickups {worldMap.PickupSpawns.Count}"
+                $"AI fire {playerTwoFireTimer:0.00} retaliate {playerTwoRetaliationTimer:0.00} pickups {worldMap.PickupSpawns.Count}",
+                $"Seed {game.Random.Seed}"
             };
             for (var index = 0; index < lines.Length; index++)
                 spriteBatch.DrawString(debugFont, lines[index], new Vector2(14.0f, HudHeight + 12.0f + index * 16.0f), Color.White);
@@ -676,12 +623,6 @@ namespace MonoTanx.Stages
             var frameHeight = tank.Texture.Height;
             var source = new Rectangle(tank.Frame * frameWidth, 0, frameWidth, frameHeight);
             spriteBatch.Draw(tank.Texture, tank.Position, source, tank.Tint, tank.Heading - MathHelper.Pi, new Vector2(frameWidth / 2.0f, frameHeight / 2.0f), 1.0f, SpriteEffects.None, 0.5f);
-        }
-
-        private sealed class Shell
-        {
-            public Ammunition Ammunition; public Vector2 Position; public Vector2 Velocity; public float Age; public int ReflectionCount; public float ReflectionCooldown;
-            public Shell(Ammunition ammunition, Vector2 position, Vector2 velocity) { Ammunition = ammunition; Position = position; Velocity = velocity; }
         }
 
         private sealed class Pickup

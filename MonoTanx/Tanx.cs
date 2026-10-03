@@ -15,6 +15,8 @@ namespace MonoTanx
         private Stage currentStage;
         private Stage nextStage;
 
+        public RandomStreams Random { get; }
+
         public float ScreenScale = 0.44f;
         public float TimePassedMS = 0.0f;
 
@@ -33,8 +35,9 @@ namespace MonoTanx
             4:3, as in 1024x768
         */
 
-        public Tanx()
+        public Tanx(GameOptions options)
         {
+            Random = new RandomStreams(options.Seed ?? RandomStreams.NewSeed());
             graphics = new GraphicsDeviceManager(this);
             Content.RootDirectory = "Content";
             IsMouseVisible = true;
