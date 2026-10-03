@@ -110,7 +110,7 @@ namespace MonoTanx.Stages
             spriteBatch.Draw(placeholderShellTexture, new Rectangle(0, 0, (int)Tanx.DesignedWidth, HudHeight), new Color(48, 54, 60));
             DrawPlayerOneHud(spriteBatch);
             DrawPlayerTwoHud(spriteBatch);
-            spriteBatch.DrawString(debugFont, "P1 WASD/Space  P2 Cursor Keys/Enter  F1 reset P1  Esc quit", new Vector2(8.0f, Tanx.DesignedHeight - 24.0f), Color.White);
+            spriteBatch.DrawString(debugFont, "P1 WASD/Space  P2 Cursor Keys/Enter  F1 reset P1  F2 P2 cpu/human  Esc quit", new Vector2(8.0f, Tanx.DesignedHeight - 24.0f), Color.White);
             if (debugOverlayVisible)
                 DrawDebugOverlay(spriteBatch);
             spriteBatch.End();
@@ -129,6 +129,7 @@ namespace MonoTanx.Stages
                 return;
             }
             if (keyboard.IsKeyDown(Keys.F1) && prevKeyboardState.IsKeyUp(Keys.F1)) ResetPlayerOneResources();
+            if (keyboard.IsKeyDown(Keys.F2) && prevKeyboardState.IsKeyUp(Keys.F2)) TogglePlayerTwoControl();
             UpdateTank(playerOne, keyboard, elapsed, Keys.A, Keys.D, Keys.W, Keys.S, Keys.Space);
             if (playerTwo.IsComputerControlled)
                 UpdateComputerPlayer(elapsed);
@@ -474,6 +475,22 @@ namespace MonoTanx.Stages
             return (float)Math.Atan2(to.Y - from.Y, to.X - from.X);
         }
 
+        // Flips Player 2 between computer and human (cursor keys/Enter) control.
+        // Clears the computer's working state so it starts afresh when it takes
+        // control back.
+        private void TogglePlayerTwoControl()
+        {
+            playerTwo.IsComputerControlled = !playerTwo.IsComputerControlled;
+            playerTwoRoute.Clear();
+            playerTwoRouteIndex = 0;
+            playerTwoPickupTargetId = -1;
+            playerTwoLongRangePursuit = false;
+            playerTwoFireTimer = 0.0f;
+            playerTwoRetaliationTimer = 0.0f;
+            playerTwo.AnimationTimer = 0.0f;
+            playerTwo.Frame = 0;
+        }
+
         private void ResetPlayerOneResources()
         {
             playerOne.ResetFuelAndAmmunition();
@@ -570,6 +587,7 @@ namespace MonoTanx.Stages
             var gaugeWidth = panelWidth - 72;
             DrawHealthBar(spriteBatch, new Rectangle(panelX + 38, 8, gaugeWidth, 12), playerTwo);
             spriteBatch.DrawString(debugFont, playerTwo.ReloadTimer > 0.0f ? "!" : "", new Vector2(panelX + panelWidth - 26, 22.0f), Color.White);
+            spriteBatch.DrawString(debugFont, playerTwo.IsComputerControlled ? "CPU (F2)" : "HUMAN (F2)", new Vector2(panelX + 38.0f, 32.0f), Color.White);
             spriteBatch.DrawString(debugFont, "F", new Vector2(panelX + 8.0f, 52.0f), Color.White);
             DrawFuelBar(spriteBatch, new Rectangle(panelX + 38, 56, gaugeWidth, 12), playerTwo);
         }
