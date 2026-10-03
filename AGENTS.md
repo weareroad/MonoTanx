@@ -39,6 +39,16 @@ MonoTanx is a small C#/.NET 10 desktop game built with MonoGame. The solution co
 - Do not upgrade .NET, MonoGame, or other packages unless the task explicitly calls for it.
 - Preserve deterministic seeds in gameplay/demo code unless changed behavior is part of the request.
 
+## Architectural boundaries
+
+- `Program.cs` creates `Tanx` and runs it. `Tanx.cs` owns the MonoGame loop, the 800x600 render target and its scaling, and stage switching. Do not put gameplay rules in it.
+- Stages own screen behavior. `GameStage` currently also hosts input handling, the computer opponent, projectiles, pickups, collision calls, the camera, and the HUD. Do not grow it further: put new rules and calculations in `Core` in a form that can be tested without a graphics device, and extract existing logic from `GameStage` only when a task needs it.
+- `Player` holds tank state, tuning defaults, and ammunition. Keyboard state and rendering stay outside it. It carries presentation data (`Texture`, `Tint`) for the stage to draw, but its rules must not depend on them.
+- `WorldMap` owns map loading and the terrain, collision, line-of-sight, and pickup queries. Callers ask it about capabilities (`BlocksMovement`, `HasLineOfSight`, ...) rather than reading tile IDs.
+- `WorldMap` currently needs a `ContentManager` to construct and also draws the tileset, so it cannot be built in a unit test as-is. When adding tests for it, prefer separating map loading and queries from texture loading and drawing over adding test-only workarounds.
+- The logical canvas stays 800x600. Window scaling must not change world coordinates or gameplay.
+- Debug overlays (`F5`) must not change simulation behavior.
+
 ## Task workflow
 
 Use this lifecycle for each task:
