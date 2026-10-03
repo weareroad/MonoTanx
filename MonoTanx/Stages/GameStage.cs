@@ -13,7 +13,6 @@ namespace MonoTanx.Stages
         private const int TankFrameCount = 4;
         private const float TankFrameDuration = 0.15f;
         private const float ShellCollisionRadius = 3.0f;
-        private const float TurnFuelPerSecond = 0.25f;
         private const float ShellSpeed = 260.0f;
         private const int PlaceholderShellSize = 8;
         private const int PickupFrameCount = 4;
@@ -154,34 +153,19 @@ namespace MonoTanx.Stages
             if (keyboard.IsKeyDown(right)) turn += 1.0f;
             if (keyboard.IsKeyDown(forwardKey)) drive += 1.0f;
             if (keyboard.IsKeyDown(reverseKey)) drive -= 1.0f;
-            var terrainFuel = worldMap.GetFuelCostMultiplier(tank.Position);
-            var turnCost = Math.Abs(turn) * TurnFuelPerSecond * elapsed * terrainFuel;
-            var driveRate = drive < 0.0f ? tank.ReverseFuelPerSecond : tank.ForwardFuelPerSecond;
-            var driveCost = Math.Abs(drive) * driveRate * elapsed * terrainFuel;
-            var canTurn = turn == 0.0f || tank.Fuel >= turnCost;
-            var canDrive = drive == 0.0f || tank.Fuel >= turnCost + driveCost;
-            if (canTurn) tank.Heading = MathHelper.WrapAngle(tank.Heading + turn * tank.TurnSpeed * elapsed);
-            if (canDrive && drive != 0.0f)
-            {
-                var direction = new Vector2((float)Math.Cos(tank.Heading), (float)Math.Sin(tank.Heading));
-                var speed = drive < 0.0f ? tank.ReverseMovementSpeed : tank.MovementSpeed;
-                MoveTank(tank, direction * drive * speed * worldMap.GetMovementSpeedMultiplier(tank.Position) * elapsed);
+            if (TankMovement.ApplyInput(worldMap, tank, OtherTank(tank), turn, drive, elapsed))
                 UpdateTankAnimation(tank, elapsed);
-            }
             else { tank.AnimationTimer = 0.0f; tank.Frame = 0; }
-            if (canTurn && canDrive) tank.Fuel = MathHelper.Max(0.0f, tank.Fuel - turnCost - driveCost);
-            else if (canTurn) tank.Fuel = MathHelper.Max(0.0f, tank.Fuel - turnCost);
-            tank.ReloadTimer = MathHelper.Max(0.0f, tank.ReloadTimer - elapsed);
+            tank.TickReload(elapsed);
             if (keyboard.IsKeyDown(fireKey) && prevKeyboardState.IsKeyUp(fireKey)) TryFireShell(tank);
         }
 
         private void MoveTank(Player tank, Vector2 movement)
         {
-            var horizontal = tank.Position + new Vector2(movement.X, 0.0f);
-            if (CanTankOccupy(tank, horizontal)) tank.Position = horizontal;
-            var vertical = tank.Position + new Vector2(0.0f, movement.Y);
-            if (CanTankOccupy(tank, vertical)) tank.Position = vertical;
+            TankMovement.Move(worldMap, tank, OtherTank(tank), movement);
         }
+
+        private Player OtherTank(Player tank) => ReferenceEquals(tank, playerOne) ? playerTwo : playerOne;
 
         private void CollectPickups(Player player)
         {
@@ -217,14 +201,14 @@ namespace MonoTanx.Stages
 
         private void UpdateComputerPlayer(float elapsed)
         {
-            playerTwo.ReloadTimer = Math.Max(0.0f, playerTwo.ReloadTimer - elapsed);
+            playerTwo.TickReload(elapsed);
             playerTwoRetaliationTimer = Math.Max(0.0f, playerTwoRetaliationTimer - elapsed);
             if (playerTwoRetaliationTimer > 0.0f)
             {
                 var retaliationHeading = HeadingToward(playerTwo.Position, playerOne.Position);
                 var retaliationTurn = Math.Sign(MathHelper.WrapAngle(retaliationHeading - playerTwo.Heading));
                 var retaliationFuel = worldMap.GetFuelCostMultiplier(playerTwo.Position);
-                var retaliationCost = Math.Abs(retaliationTurn) * TurnFuelPerSecond * elapsed * retaliationFuel;
+                var retaliationCost = Math.Abs(retaliationTurn) * TankMovement.TurnFuelPerSecond * elapsed * retaliationFuel;
                 if (playerTwo.Fuel >= retaliationCost)
                 {
                     playerTwo.Heading = MathHelper.WrapAngle(playerTwo.Heading + retaliationTurn * playerTwo.TurnSpeed * elapsed);
@@ -263,7 +247,7 @@ namespace MonoTanx.Stages
                 var longRangeAngle = MathHelper.WrapAngle(playerTwoLongRangeHeading - playerTwo.Heading);
                 var longRangeTurn = Math.Sign(longRangeAngle);
                 var longRangeFuel = worldMap.GetFuelCostMultiplier(playerTwo.Position);
-                var longRangeTurnCost = Math.Abs(longRangeTurn) * TurnFuelPerSecond * elapsed * longRangeFuel;
+                var longRangeTurnCost = Math.Abs(longRangeTurn) * TankMovement.TurnFuelPerSecond * elapsed * longRangeFuel;
                 var longRangeDriveCost = playerTwo.ForwardFuelPerSecond * elapsed * longRangeFuel;
                 if (playerTwo.Fuel >= longRangeTurnCost + longRangeDriveCost)
                 {
@@ -297,7 +281,7 @@ namespace MonoTanx.Stages
             var turn = Math.Sign(angle);
             var drive = Math.Abs(angle) < 1.1f ? 1.0f : 0.0f;
             var terrainFuel = worldMap.GetFuelCostMultiplier(playerTwo.Position);
-            var turnCost = Math.Abs(turn) * TurnFuelPerSecond * elapsed * terrainFuel;
+            var turnCost = Math.Abs(turn) * TankMovement.TurnFuelPerSecond * elapsed * terrainFuel;
             var driveCost = drive * playerTwo.ForwardFuelPerSecond * elapsed * terrainFuel;
             if (playerTwo.Fuel < turnCost + driveCost)
                 return;
@@ -320,7 +304,7 @@ namespace MonoTanx.Stages
             {
                 var turn = Math.Sign(MathHelper.WrapAngle(desiredHeading - playerTwo.Heading));
                 var terrainFuel = worldMap.GetFuelCostMultiplier(playerTwo.Position);
-                var turnCost = Math.Abs(turn) * TurnFuelPerSecond * elapsed * terrainFuel;
+                var turnCost = Math.Abs(turn) * TankMovement.TurnFuelPerSecond * elapsed * terrainFuel;
                 if (playerTwo.Fuel >= turnCost)
                 {
                     playerTwo.Heading = MathHelper.WrapAngle(playerTwo.Heading + turn * playerTwo.TurnSpeed * elapsed);
@@ -344,7 +328,7 @@ namespace MonoTanx.Stages
             var desiredHeading = HeadingToward(playerOne.Position, playerTwo.Position);
             var turn = Math.Sign(MathHelper.WrapAngle(desiredHeading - playerTwo.Heading));
             var terrainFuel = worldMap.GetFuelCostMultiplier(playerTwo.Position);
-            var turnCost = Math.Abs(turn) * TurnFuelPerSecond * elapsed * terrainFuel;
+            var turnCost = Math.Abs(turn) * TankMovement.TurnFuelPerSecond * elapsed * terrainFuel;
             var driveCost = playerTwo.ForwardFuelPerSecond * elapsed * terrainFuel;
             if (playerTwo.Fuel < turnCost + driveCost)
                 return;
@@ -385,7 +369,7 @@ namespace MonoTanx.Stages
             var desiredHeading = HeadingToward(playerTwo.Position, waypoint);
             var turn = Math.Sign(MathHelper.WrapAngle(desiredHeading - playerTwo.Heading));
             var terrainFuel = worldMap.GetFuelCostMultiplier(playerTwo.Position);
-            var turnCost = Math.Abs(turn) * TurnFuelPerSecond * elapsed * terrainFuel;
+            var turnCost = Math.Abs(turn) * TankMovement.TurnFuelPerSecond * elapsed * terrainFuel;
             var driveCost = playerTwo.ForwardFuelPerSecond * elapsed * terrainFuel;
             if (playerTwo.Fuel < turnCost + driveCost) return;
             playerTwo.Heading = MathHelper.WrapAngle(playerTwo.Heading + turn * playerTwo.TurnSpeed * elapsed);
@@ -474,12 +458,7 @@ namespace MonoTanx.Stages
 
         private bool CanTankOccupy(Player tank, Vector2 position)
         {
-            if (!worldMap.CanOccupyCircle(position, tank.CollisionRadius))
-                return false;
-
-            var otherTank = ReferenceEquals(tank, playerOne) ? playerTwo : playerOne;
-            return Vector2.DistanceSquared(position, otherTank.Position) >
-                (tank.CollisionRadius + otherTank.CollisionRadius) * (tank.CollisionRadius + otherTank.CollisionRadius);
+            return TankMovement.CanOccupy(worldMap, tank, OtherTank(tank), position);
         }
 
         private Vector2 FindStartingPosition(bool topLeft)
@@ -509,10 +488,9 @@ namespace MonoTanx.Stages
 
         private bool TryFireShell(Player tank)
         {
-            if (tank.ReloadTimer > 0.0f || !tank.TryConsumeAmmunition(out var ammunition)) return false;
-            var direction = new Vector2((float)Math.Cos(tank.Heading), (float)Math.Sin(tank.Heading));
-            shells.Add(new Shell(ammunition, tank.Position + direction * (tank.Texture.Width / TankFrameCount / 2.0f + 4.0f), direction * ShellSpeed));
-            tank.ReloadTimer = ammunition.ReloadTimeSeconds;
+            var muzzleOffset = tank.Texture.Width / TankFrameCount / 2.0f + 4.0f;
+            if (!tank.TryFire(muzzleOffset, ShellSpeed, out var launch)) return false;
+            shells.Add(new Shell(launch.Ammunition, launch.Position, launch.Velocity));
             if (ReferenceEquals(tank, playerOne)) StartShake(PlayerOneFireShakeDuration, PlayerOneFireShakeMagnitude);
             return true;
         }
