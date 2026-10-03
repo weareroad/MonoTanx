@@ -1,4 +1,4 @@
-# MonoTanx Implementation Plan
+# MonoTanx roadmap
 
 ## Product direction
 
@@ -189,7 +189,9 @@ Acceptance checks:
 
 #### 1.3 Add focused tests around the working rules
 
-- Create a .NET 10 test project and add it to the solution without requiring a graphics device.
+Status: test project in place (`MonoTanx.Tests`, xUnit, in `MonoTanx.slnx`) with starter `Helpers` tests. `WorldMap` and rule coverage remain to be written.
+
+- ~~Create a .NET 10 test project and add it to the solution without requiring a graphics device.~~ Done.
 - Test coordinate conversions and terrain-property parsing.
 - Test map-edge behavior.
 - Keep tests independent of a graphics device where possible.
@@ -487,29 +489,11 @@ The first complete match milestone is complete when:
 
 Fuel, fog of war, aircraft, supply drops, destructible terrain, and advanced AI are explicitly outside the first complete match milestone.
 
-## Recommended next task
+## Resume point
 
-Start with a short hardening pass: rename the arena tile layer to `Ground` if desired, add focused tests for `WorldMap`, `Player` resources, collision, and projectile rules, and then implement score/round reset. Keep these changes incremental and retain the current `GameStage` behavior while tests are established.
+The playable prototype works: two `Player` entities (human and computer) drive around the hand-authored arena, spend fuel, collect pickups, and exchange shells. The solution targets .NET 10 and has an xUnit test project (`MonoTanx.Tests`) containing only starter `Helpers` tests.
 
-## Model-switching workflow
-
-To conserve tokens and make handoffs reliable:
-
-1. Ask for one numbered task or tightly related pair of tasks at a time.
-2. Have the model read `AGENTS.md` and this plan before editing.
-3. Require it to inspect current code rather than assume earlier phases were completed exactly as written.
-4. End each task with build/test results and a concise note about deviations from this plan.
-5. Commit completed tasks separately when practical.
-6. Use a stronger model for architecture changes, collision mathematics, projectile reflection, visibility, and difficult debugging.
-7. Use a lighter model for mechanical extraction, renaming, simple entity fields, map metadata, HUD work, and straightforward tests.
-
-Suggested prompt shape:
-
-```text
-Implement task 1.1 from IMPLEMENTATION_PLAN.md. Read AGENTS.md and inspect the
-current repository first. Keep the change limited to that task, run the relevant
-build/tests, and report any plan assumptions that did not match the code.
-```
+The next step is a short hardening pass: add focused tests for `WorldMap`, `Player` resources, collision, and projectile rules, rename the arena tile layer to `Ground` if desired, and then implement score and round reset. Keep these changes incremental and retain the current `GameStage` behavior while tests are established.
 
 ## Decision log
 

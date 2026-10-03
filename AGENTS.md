@@ -4,8 +4,9 @@
 
 1. Read `README.md` for the current player-facing feature set and how to run the game.
 2. Read `onboarding.md` for the engineering architecture, workflow, and known debt.
-3. Read only the relevant files under `docs/` for the task. Specs and plans are mostly design history, not a live backlog.
-4. Check `docs/deferred-snags.md` for deliberately deferred observations.
+3. Read `docs/roadmap.md`. Its `Resume point` section records the current state and next intended work.
+4. Read only the other relevant files under `docs/` for the task. Specs and plans are mostly design history, not a live backlog.
+5. Check `docs/deferred-snags.md` for deliberately deferred observations.
 
 When documentation conflicts with the implementation, verify the current behavior in code and tests, then update the authoritative summaries (`README.md` and `onboarding.md`) as part of the change.
 
