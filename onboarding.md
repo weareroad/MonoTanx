@@ -4,7 +4,7 @@ This document is the quick reference for the current MonoTanx prototype. It desc
 
 ## Project shape
 
-- MonoGame DesktopGL on .NET 9.
+- MonoGame DesktopGL on .NET 10.
 - The game starts directly in `GameStage`.
 - The logical game surface is 800×600, rendered fullscreen with proportional scaling and centered letterboxing when necessary.
 - The world is a hand-authored orthogonal Tiled map. `arena_01.tmx` is 60×40 tiles at 16×16 pixels (960×640 world pixels).

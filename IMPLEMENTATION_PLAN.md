@@ -8,7 +8,7 @@ The initial opponent is computer controlled. The current prototype already demon
 
 ## Current baseline
 
-- .NET 9 and MonoGame DesktopGL 3.8.5.1.
+- .NET 10 and MonoGame DesktopGL 3.8.5.1.
 - `GameStage` starts directly when the application launches.
 - A Tiled map is rendered in world space through a following camera.
 - `WorldMap` owns map loading, terrain metadata queries, collision queries, line-of-sight queries, and authored pickup definitions.
@@ -189,7 +189,7 @@ Acceptance checks:
 
 #### 1.3 Add focused tests around the working rules
 
-- Create a .NET 9 test project and add it to the solution without requiring a graphics device.
+- Create a .NET 10 test project and add it to the solution without requiring a graphics device.
 - Test coordinate conversions and terrain-property parsing.
 - Test map-edge behavior.
 - Keep tests independent of a graphics device where possible.
