@@ -28,7 +28,7 @@ dotnet run --project MonoTanx/MonoTanx.csproj
 - The logical game surface is 800×600.
 - The world is a hand-authored orthogonal Tiled map. `arena_01.tmx` is 60×40 tiles at 16×16 pixels (960×640 world pixels).
 - The top 80 logical pixels (five tiles) are reserved for the HUD. The camera view is the remaining playfield below the HUD.
-- `Core/` holds reusable engine and gameplay code, `Controls/` holds UI primitives, and `Stages/` holds screen-specific behavior.
+- `Core/` holds reusable engine and gameplay code (including the testable rules in `TankMovement` and `Player`), `Controls/` holds UI primitives, and `Stages/` holds screen-specific behavior.
 
 ### Intended runtime structure
 

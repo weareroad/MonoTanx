@@ -89,6 +89,28 @@ namespace MonoTanx.Core
                 slot.Reset();
         }
 
+        public void TickReload(float elapsed)
+        {
+            ReloadTimer = MathHelper.Max(0.0f, ReloadTimer - elapsed);
+        }
+
+        // Fires along the current heading if the reload has finished and
+        // ammunition remains. The caller supplies the muzzle offset from the
+        // tank centre (which depends on its sprite) and the shell speed.
+        public bool TryFire(float muzzleOffset, float shellSpeed, out ShellLaunch launch)
+        {
+            if (ReloadTimer > 0.0f || !TryConsumeAmmunition(out var ammunition))
+            {
+                launch = default;
+                return false;
+            }
+
+            var direction = new Vector2((float)System.Math.Cos(Heading), (float)System.Math.Sin(Heading));
+            launch = new ShellLaunch(ammunition, Position + direction * muzzleOffset, direction * shellSpeed);
+            ReloadTimer = ammunition.ReloadTimeSeconds;
+            return true;
+        }
+
         public bool TryConsumeAmmunition(out Ammunition ammunition)
         {
             foreach (var slot in AmmunitionSlots)
