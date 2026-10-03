@@ -34,7 +34,7 @@ dotnet run --project MonoTanx/MonoTanx.csproj
 
 ```text
 GameStage
-├── WorldMap
+├── WorldMap (data and queries) and MapRenderer (drawing)
 │   ├── Tiled map data
 │   ├── Terrain rules
 │   └── Map/object queries

@@ -1,8 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using Microsoft.Xna.Framework;
-using Microsoft.Xna.Framework.Content;
-using Microsoft.Xna.Framework.Graphics;
 using TiledCS;
 using System.Linq;
 using System.IO;
@@ -57,8 +55,6 @@ namespace MonoTanx.Core
     public class WorldMap
     {
         private TiledMap map;
-        private Dictionary<int, TiledTileset> tilesets;
-        private Texture2D tilesetTexture;
         private Dictionary<int, TerrainDefinition> terrainByGid;
         public IReadOnlyList<PickupSpawn> PickupSpawns { get; }
 
@@ -66,18 +62,19 @@ namespace MonoTanx.Core
         public int TileWidth => map.TileWidth;
         public int TileHeight => map.TileHeight;
 
-        public WorldMap(ContentManager contentManager, string mapName, string textureName)
+        public WorldMap(string mapPath)
         {
-            // Raw Tiled files are copied beside the built content. Resolve them
-            // from the application directory so loading does not depend on the
-            // process working directory chosen by an IDE or launcher.
-            var contentDirectory = Path.Combine(AppContext.BaseDirectory, contentManager.RootDirectory);
-            var mapPath = Path.Combine(contentDirectory, mapName);
             map = new TiledMap(mapPath);
-            tilesets = map.GetTiledTilesets(contentDirectory + Path.DirectorySeparatorChar);
-            tilesetTexture = contentManager.Load<Texture2D>(textureName);
-            terrainByGid = LoadTerrainDefinitions(mapPath, contentDirectory);
+            terrainByGid = LoadTerrainDefinitions(mapPath);
             PickupSpawns = LoadPickupSpawns(mapPath);
+        }
+
+        // Raw Tiled files are copied beside the built content. Resolve them
+        // from the application directory so loading does not depend on the
+        // process working directory chosen by an IDE or launcher.
+        public static string ResolveMapPath(string contentRootDirectory, string mapName)
+        {
+            return Path.Combine(AppContext.BaseDirectory, contentRootDirectory, mapName);
         }
 
         public Point WorldToTile(Vector2 worldPosition)
@@ -221,7 +218,7 @@ namespace MonoTanx.Core
             return terrain is TerrainKind.Water or TerrainKind.Wall or TerrainKind.Ravine or TerrainKind.Hill or TerrainKind.Reflective or TerrainKind.OutOfBounds;
         }
 
-        private static Dictionary<int, TerrainDefinition> LoadTerrainDefinitions(string mapPath, string contentDirectory)
+        private static Dictionary<int, TerrainDefinition> LoadTerrainDefinitions(string mapPath)
         {
             var terrainByGid = new Dictionary<int, TerrainDefinition>();
             var mapDocument = XDocument.Load(mapPath);
@@ -234,7 +231,7 @@ namespace MonoTanx.Core
 
                 if (!string.IsNullOrWhiteSpace(source))
                 {
-                    var tilesetPath = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(mapPath) ?? contentDirectory, source));
+                    var tilesetPath = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(mapPath) ?? string.Empty, source));
                     definition = XDocument.Load(tilesetPath).Root;
                 }
 
@@ -308,91 +305,5 @@ namespace MonoTanx.Core
                 ? MathHelper.Max(0.0f, result)
                 : defaultValue;
         }
-
-        private TiledSourceRect GetSourceRect(TiledMapTileset mapTileset, TiledTileset tileset, int gid)
-        {
-            int num = 0;
-            int num2 = 0;
-            for (int i = 0; i < tileset.TileCount; i++)
-            {
-                if (i == gid - mapTileset.firstgid)
-                {
-                    return new TiledSourceRect
-                    {
-                        x = tileset.Margin + num * (tileset.TileWidth + tileset.Spacing),
-                        y = tileset.Margin + num2 * (tileset.TileHeight + tileset.Spacing),
-                        width = tileset.TileWidth,
-                        height = tileset.TileHeight
-                    };
-                }
-
-                num++;
-                if (num == tileset.Image.width / tileset.TileWidth)
-                {
-                    num = 0;
-                    num2++;
-                }
-            }
-
-            return null;
-        }
-
-
-        public void Draw(SpriteBatch spriteBatch)
-        {
-            var tileLayers = map.Layers.Where(x => x.type == TiledLayerType.TileLayer);
-
-            foreach (var layer in tileLayers)
-            {
-                for (var y = 0; y < layer.height; y++)
-                {
-                    for (var x = 0; x < layer.width; x++)
-                    {
-                        var index = (y * layer.width) + x; // Assuming the default render order is used which is from right to bottom
-                        var gid = layer.data[index]; // The tileset tile index
-                        var tileX = x * map.TileWidth;
-                        var tileY = y * map.TileHeight;
-
-                        // Gid 0 is used to tell there is no tile set
-                        if (gid == 0)
-                        {
-                            continue;
-                        }
-
-                        // Helper method to fetch the right TieldMapTileset instance
-                        // This is a connection object Tiled uses for linking the correct tileset to the gid value using the firstgid property
-                        var mapTileset = map.GetTiledMapTileset(gid);
-
-                        // Retrieve the actual tileset based on the firstgid property of the connection object we retrieved just now
-                        var tileset = tilesets[mapTileset.firstgid];
-
-                        // Use the connection object as well as the tileset to figure out the source rectangle
-                        // use my temp method because of margin and scaling properties
-                        //var rect = map.GetSourceRect(mapTileset, tileset, gid);
-                        var rect = GetSourceRect(mapTileset, tileset, gid);
-
-                        // Create destination and source rectangles
-                        var source = new Rectangle(rect.x, rect.y, rect.width, rect.height);
-                        var destination = new Rectangle(tileX, tileY, map.TileWidth, map.TileHeight);
-
-                        // You can use the helper methods to get useful information to generate maps
-                        SpriteEffects effects = SpriteEffects.None;
-                        if (map.IsTileFlippedHorizontal(layer, x, y))
-                        {
-                            effects |= SpriteEffects.FlipHorizontally;
-                        }
-                        if (map.IsTileFlippedVertical(layer, x, y))
-                        {
-                            effects |= SpriteEffects.FlipVertically;
-                        }
-
-                        // Render sprite at position tileX, tileY using the rect
-                        spriteBatch.Draw(tilesetTexture, destination, source, Color.White, 0f, Vector2.Zero, effects, 0);
-                    }
-                }
-            }
-
-        }            
     }
 }
-
