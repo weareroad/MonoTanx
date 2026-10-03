@@ -86,7 +86,13 @@ namespace MonoTanx.Stages
         public override void Draw(GameTime gameTime, SpriteBatch spriteBatch)
         {
             var shakeOffset = GetShakeOffset();
-            spriteBatch.Begin(SpriteSortMode.FrontToBack, BlendState.AlphaBlend, SamplerState.PointClamp, transformMatrix: Matrix.CreateTranslation(-cameraPosition.X + shakeOffset.X, -cameraPosition.Y + HudHeight + shakeOffset.Y, 0.0f));
+            // Snap the world translation to whole pixels. A fractional offset makes
+            // point sampling land on tile-atlas texel boundaries and pick up
+            // neighbouring (empty) atlas texels, which shows as thin dark seams.
+            var worldOffset = new Vector2(
+                (float)Math.Round(-cameraPosition.X + shakeOffset.X),
+                (float)Math.Round(-cameraPosition.Y + HudHeight + shakeOffset.Y));
+            spriteBatch.Begin(SpriteSortMode.FrontToBack, BlendState.AlphaBlend, SamplerState.PointClamp, transformMatrix: Matrix.CreateTranslation(worldOffset.X, worldOffset.Y, 0.0f));
             mapRenderer.Draw(spriteBatch);
             DrawTank(spriteBatch, playerOne);
             DrawTank(spriteBatch, playerTwo);

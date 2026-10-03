@@ -141,6 +141,7 @@ This favors combinations such as a traversable bridge over water without creatin
 - Player 1 remains near the center of the playfield while the map can scroll.
 - At map edges, the camera clamps and Player 1 moves away from center.
 - Player 2 may be outside the visible viewport; current gameplay remains keyed to Player 1’s viewpoint.
+- The world draw translation (camera plus shake) is rounded to whole pixels. A fractional translation lets point sampling pick up neighbouring texels of the tile atlas and shows as thin seams between tiles.
 
 ### Shells and damage
 
