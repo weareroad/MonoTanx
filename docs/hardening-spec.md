@@ -18,16 +18,16 @@ The working rules (map queries, collision, fuel, firing, projectiles, pickups) c
 
 - **`WorldMap` is data and queries only.** It loads the TMX/TSX from a path (as it does today, relative to the content directory) and exposes bounds, tile helpers, terrain queries, collision, line of sight, and `PickupSpawns`. Tileset texture loading and `Draw` move to a new `MapRenderer` in `Core`, constructed by `GameStage` from a `WorldMap` and a `Texture2D`.
 - **Small rule classes, extracted one at a time.** Candidates: tank movement and fuel (including terrain multipliers and sliding), firing and reload, shell stepping and reflection, damage, and pickup collection. `GameStage` keeps orchestration, input mapping, the computer opponent, camera, shake and HUD. Extraction is limited to what the tests need; no behavior is rewritten for tidiness.
-- **Firing does not depend on the texture.** The muzzle offset is passed in or derived from `Player.CollisionRadius`-style data supplied by the stage, preserving the current on-screen position.
-- **Seedable randomness.** The hit heading disruption takes its random value from an injected `Random`; `GameStage` supplies the existing unseeded instance, tests supply a seeded one. Screen shake stays cosmetic and stays in the stage.
+- **Firing does not depend on the texture.** The stage works out the muzzle offset (as it does now, from the tank sprite size) and passes it to the firing rule, preserving the current on-screen position. The rule itself knows nothing about textures.
+- **Seedable randomness, injected rather than global.** Gameplay randomness comes from a `System.Random` handed to the rules that need it (initially the on-hit heading disruption); there is no static or singleton random. A run has one master seed. The game derives two separate streams from it: a gameplay stream, and a cosmetic stream for screen shake, so cosmetic draws can never shift gameplay outcomes. A `--seed <integer>` command-line option sets the master seed, and the seed is otherwise chosen at random and shown in the debug overlay so a run can be reproduced. Tests pass their own seeded `Random` directly. Streams for future systems (such as the computer opponent) are derived from the same master seed when they appear. `OldGameStage` keeps its fixed seed.
 - **Test map data.** Tests use small purpose-built TMX/TSX fixtures in `MonoTanx.Tests` covering each terrain kind, multipliers, defaults and the out-of-bounds edge, plus a test that loads the checked-in `arena_01.tmx` and validates its contract.
-- **Layer name.** Optionally rename the arena's tile layer to `Terrain` (the name `WorldMap` looks for first); the first-tile-layer fallback stays.
 
 ## Out of scope
 
 - Score, round reset and game-over.
 - Extracting or changing the computer opponent.
-- Changing gameplay values, feel, or the map contract.
+- Changing gameplay values, feel, or the map contract (including renaming the arena's tile layer).
+- Full replay determinism: `--seed` fixes random draws, but real keyboard input and frame timing still vary between runs.
 - Package or framework upgrades.
 
 ## Test coverage
@@ -40,6 +40,7 @@ The working rules (map queries, collision, fuel, firing, projectiles, pickups) c
 - Firing: refused during reload or with no ammunition, reload set from the ammunition type.
 - Shells: expiry, blocking terrain, hits on either tank including the shooter, reflection and the reflection cap.
 - Damage: health clamps at zero, knockback only into a free position, seeded heading disruption.
+- Randomness: the same seed reproduces the same gameplay draws, and cosmetic draws do not change them.
 - Pickups: collected once, fuel clamped to maximum, ammunition added to the matching or first slot.
 
 ## Acceptance

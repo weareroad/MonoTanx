@@ -6,7 +6,6 @@ Delivered as three PRs against issue #16. Each leaves the game playable and the 
    - Split texture loading and `Draw` into `MapRenderer`; make `WorldMap` path-only.
    - Update `GameStage` construction and drawing.
    - Add TMX/TSX test fixtures and tests for terrain, collision, line of sight and pickup parsing, plus a check of the checked-in arena.
-   - Optionally rename the arena tile layer to `Terrain`.
    - Smoke test: arena renders and plays as before.
 
 2. **Extract tank movement, fuel and firing; add `Player` tests.**
@@ -17,7 +16,8 @@ Delivered as three PRs against issue #16. Each leaves the game playable and the 
 
 3. **Extract shells, damage and pickups; seed randomness.**
    - Move shell stepping and reflection, damage and pickup collection into `Core`.
-   - Inject `Random` for the hit heading disruption.
+   - Inject `Random` for the hit heading disruption, derived from a master seed with a separate cosmetic stream for screen shake.
+   - Add the `--seed <integer>` command-line option and show the seed in the debug overlay.
    - Add tests for shells, damage and pickups.
    - Smoke test: firing, reflection, hits, pickups, computer opponent.
 

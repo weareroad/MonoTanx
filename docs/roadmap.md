@@ -353,7 +353,7 @@ Fuel, fog of war, aircraft, supply drops, destructible terrain, and advanced AI 
 
 The playable prototype works: two `Player` entities (human and computer) drive around the hand-authored arena, spend fuel, collect pickups, and exchange shells. The solution targets .NET 10 and has an xUnit test project (`MonoTanx.Tests`) containing only starter `Helpers` tests.
 
-The next step is a short hardening pass: add focused tests for `WorldMap`, `Player` resources, collision, and projectile rules, optionally rename the arena tile layer to `Terrain`, separate `WorldMap` loading from texture handling so it can be tested, and then implement score and round reset. Keep these changes incremental and retain the current `GameStage` behavior while tests are established.
+The next step is a short hardening pass: add focused tests for `WorldMap`, `Player` resources, collision, and projectile rules, separate `WorldMap` loading from texture handling so it can be tested, and then implement score and round reset. Keep these changes incremental and retain the current `GameStage` behavior while tests are established.
 
 ## Decision log
 
