@@ -2,7 +2,7 @@
 
 ## Project overview
 
-MonoTanx is a small C#/.NET 6 desktop game built with MonoGame. The solution contains one executable project and no automated test project.
+MonoTanx is a small C#/.NET 10 desktop game built with MonoGame. The solution contains one executable project and no automated test project.
 
 - Solution: `MonoTanx.sln`
 - Application project: `MonoTanx/MonoTanx.csproj`
@@ -25,6 +25,16 @@ MonoTanx is a small C#/.NET 6 desktop game built with MonoGame. The solution con
 - Do not edit generated `bin/`, `obj/`, or content build output.
 - Do not upgrade .NET, MonoGame, or other packages unless the task explicitly calls for it.
 - Preserve deterministic seeds in gameplay/demo code unless changed behavior is part of the request.
+
+## Task workflow
+
+1. Decide what we're doing, usually from a GitHub issue.
+2. Write a spec and a plan if the task is likely to be complex.
+3. Create a branch for the work; do not commit directly to `main`.
+4. Develop and test the code (automated tests will be added later).
+5. Once the change is agreed, raise a PR.
+6. The user reviews, accepts and merges the PR; do not merge it yourself.
+7. After the merge, tidy up locally (switch to `main`, pull, delete the merged branch). The task is then complete.
 
 ## Build and validation
 
