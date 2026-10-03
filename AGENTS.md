@@ -12,6 +12,8 @@ MonoTanx is a small C#/.NET 10 desktop game built with MonoGame. The solution co
 - UI controls: `MonoTanx/Controls/`
 - Screens/game states: `MonoTanx/Stages/`
 - MonoGame content pipeline: `MonoTanx/Content/Content.mgcb`
+- Design docs: `docs/` holds specs and plans as `<feature>-spec.md` and `<feature>-plan.md` pairs, plus `docs/deferred-snags.md` for deliberately deferred observations
+- Editable source art: `ArtSource/` (e.g. Aseprite files); only exported runtime assets belong in `MonoTanx/Content/`
 - Unit tests: `MonoTanx.Tests/` (xUnit; parallelization is disabled in `TestAssembly.cs`)
 
 ## Working guidelines
