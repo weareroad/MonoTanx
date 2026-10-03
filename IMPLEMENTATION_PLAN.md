@@ -196,7 +196,7 @@ Acceptance checks:
 
 Acceptance checks:
 
-- `dotnet test MonoTanx.sln` passes.
+- `dotnet test MonoTanx.slnx` passes.
 - Tests do not require a graphical desktop.
 
 ### Phase 2: Consolidate the Player simulation and stage responsibilities

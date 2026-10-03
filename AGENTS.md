@@ -4,7 +4,7 @@
 
 MonoTanx is a small C#/.NET 10 desktop game built with MonoGame. The solution contains one executable project and one xUnit test project.
 
-- Solution: `MonoTanx.sln`
+- Solution: `MonoTanx.slnx`
 - Application project: `MonoTanx/MonoTanx.csproj`
 - Entry point: `MonoTanx/Program.cs`
 - Game host and stage switching: `MonoTanx/Tanx.cs`
@@ -42,9 +42,9 @@ MonoTanx is a small C#/.NET 10 desktop game built with MonoGame. The solution co
 Run commands from the repository root.
 
 ```powershell
-dotnet restore MonoTanx.sln
-dotnet build MonoTanx.sln --no-restore
-dotnet test MonoTanx.sln --no-restore
+dotnet restore MonoTanx.slnx
+dotnet build MonoTanx.slnx --no-restore
+dotnet test MonoTanx.slnx --no-restore
 ```
 
 Add or update focused xUnit tests for new or changed behavior, keeping testable logic free of graphics-device dependencies, and run the full suite before raising a PR. For gameplay, rendering, input, stage transitions, or content changes, also run the game when a graphical session is available:
