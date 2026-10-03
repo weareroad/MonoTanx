@@ -38,6 +38,8 @@ dotnet test MonoTanx.slnx
 dotnet run --project MonoTanx/MonoTanx.csproj
 ```
 
+Add `-- --seed <integer>` to `dotnet run` to fix the run's random draws (for example `dotnet run --project MonoTanx/MonoTanx.csproj -- --seed 123`); the seed is shown in the debug overlay.
+
 The project targets `net10.0` and restores MonoGame and its content-pipeline tooling through NuGet. The game renders to an 800×600 logical surface and starts fullscreen, scaled proportionally with letterboxing where needed.
 
 ## Controls
@@ -55,7 +57,7 @@ Player 2 is computer controlled. If switched to human control in code, it uses t
 
 ## Developer diagnostics
 
-Holding `F5` pauses the simulation and shows both players' positions, tile coordinates and headings, Player 2's AI mode, route progress and timers, and the number of loaded pickups.
+Holding `F5` pauses the simulation and shows both players' positions, tile coordinates and headings, Player 2's AI mode, route progress and timers, the number of loaded pickups, and the run's random seed.
 
 ## Project layout
 

@@ -43,7 +43,7 @@ MonoTanx is a small C#/.NET 10 desktop game built with MonoGame. The solution co
 
 - `Program.cs` creates `Tanx` and runs it. `Tanx.cs` owns the MonoGame loop, the 800x600 render target and its scaling, and stage switching. Do not put gameplay rules in it.
 - Stages own screen behavior. `GameStage` currently also hosts input handling, the computer opponent, projectiles, pickups, collision calls, the camera, and the HUD. Do not grow it further: put new rules and calculations in `Core` in a form that can be tested without a graphics device, and extract existing logic from `GameStage` only when a task needs it.
-- `Player` holds tank state, tuning defaults, and ammunition, and owns the firing and reload rules (`TryFire`, `TickReload`). `TankMovement` owns steering, driving, fuel use, sliding collision, and tank-vs-tank overlap. Both are free of input, rendering, and `Game` dependencies. Keyboard state and rendering stay outside it. It carries presentation data (`Texture`, `Tint`) for the stage to draw, but its rules must not depend on them.
+- `Player` holds tank state, tuning defaults, and ammunition, and owns the firing and reload rules (`TryFire`, `TickReload`). `TankMovement` owns steering, driving, fuel use, sliding collision, and tank-vs-tank overlap. `Shell` owns projectile flight, reflection, and hit detection; `TankDamage` owns health loss, knockback, and heading disruption; `PickupRules` owns collection. None of these depend on input, rendering, or `Game`. Keyboard state and rendering stay outside it. It carries presentation data (`Texture`, `Tint`) for the stage to draw, but its rules must not depend on them.
 - `WorldMap` owns map loading and the terrain, collision, line-of-sight, and pickup queries. Callers ask it about capabilities (`BlocksMovement`, `HasLineOfSight`, ...) rather than reading tile IDs.
 - `WorldMap` is built from a map file path and has no graphics dependencies, so tests can load it directly (see the fixtures in `MonoTanx.Tests/Fixtures/`). Tileset textures and drawing belong to `MapRenderer`; keep rendering concerns out of `WorldMap`.
 - The logical canvas stays 800x600. Window scaling must not change world coordinates or gameplay.
@@ -73,7 +73,7 @@ Preserve these unless the task explicitly changes the design and updates its tes
 - Shells can hit either tank, including the one that fired them, and are removed on expiry, blocking terrain, a hit, or too many reflections.
 - Pickups are collected once; fuel is clamped to the maximum.
 - Holding `F5` pauses the simulation and must not otherwise change it.
-- Randomness that affects gameplay should be seeded so it can be tested. (Currently only screen shake and the on-hit heading disruption use an unseeded `Random`.)
+- Randomness comes from `RandomStreams`: one master seed per run (`--seed <integer>`, otherwise random and shown in the `F5` overlay) deriving separate gameplay and cosmetic streams. Pass the stream you need (a plain `Random`) to the code that uses it; do not create an unseeded `Random` or a static/global one, and keep cosmetic effects such as screen shake on the cosmetic stream.
 
 ## Change discipline
 

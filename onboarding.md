@@ -12,13 +12,14 @@ Run commands from the repository root:
 dotnet build MonoTanx.slnx
 dotnet test MonoTanx.slnx
 dotnet run --project MonoTanx/MonoTanx.csproj
+dotnet run --project MonoTanx/MonoTanx.csproj -- --seed 123   # reproducible random draws
 ```
 
 ## Architecture
 
 ### Application boundary
 
-- `Program.cs` constructs and runs `Tanx`.
+- `Program.cs` parses the command line into `GameOptions` (currently `--seed <integer>`), then constructs and runs `Tanx`, which creates the run's `RandomStreams`.
 - `Tanx.cs` is the `Game` host. It runs a fixed 60 FPS step, draws the current stage to an 800×600 render target, and scales that to the window with proportional letterboxing. It also owns stage switching via `ChangeStage`.
 - The game starts directly in `GameStage`.
 - Stages (`Stages/`) are the screens/game states. `Core/Stage.cs` is the base type.
@@ -28,7 +29,7 @@ dotnet run --project MonoTanx/MonoTanx.csproj
 - The logical game surface is 800×600.
 - The world is a hand-authored orthogonal Tiled map. `arena_01.tmx` is 60×40 tiles at 16×16 pixels (960×640 world pixels).
 - The top 80 logical pixels (five tiles) are reserved for the HUD. The camera view is the remaining playfield below the HUD.
-- `Core/` holds reusable engine and gameplay code (including the testable rules in `TankMovement` and `Player`), `Controls/` holds UI primitives, and `Stages/` holds screen-specific behavior.
+- `Core/` holds reusable engine and gameplay code (including the testable rules in `TankMovement`, `Player`, `Shell`, `TankDamage` and `PickupRules`), `Controls/` holds UI primitives, and `Stages/` holds screen-specific behavior.
 
 ### Intended runtime structure
 
@@ -197,6 +198,7 @@ While holding `F5`, the overlay pauses the simulation and shows:
 - Player 2 AI mode and route progress
 - AI fire cooldown and retaliation timer
 - Loaded pickup count
+- The run's random seed
 
 ### Player 2 computer behavior
 
@@ -335,7 +337,7 @@ Preserve these behaviours when changing movement, projectiles, rendering, or tim
 - A pickup is collected once and then stays inactive. Fuel is clamped to the tank's maximum; ammunition is added without a cap.
 - `F1` refills Player 1's fuel and ammunition only; it does not touch health or Player 2.
 - Reaching 0 health currently exits the game; there is no score or round state yet.
-- Randomness: the only live random source is an unseeded `Random` in `GameStage` used for screen shake and the small heading disruption on a hit, so hit outcomes are not reproducible. `OldGameStage` uses a fixed seed (42). Any new random behavior that affects gameplay should be seeded so tests can reproduce it.
+- Randomness comes from `RandomStreams`, created in `Tanx` from the master seed (`--seed <integer>`, otherwise random, shown in the `F5` overlay). The gameplay stream drives the heading disruption on a hit; the cosmetic stream drives screen shake, so visual draws never change gameplay. Streams are passed to the code that needs them, not held globally. `OldGameStage` uses a fixed seed (42). The seed fixes random draws but not real input or frame timing, so it does not give full replay.
 
 ## Testing strategy
 
