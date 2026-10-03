@@ -87,8 +87,7 @@ Each player has:
 - Position, heading, animation state.
 - Health: 100 maximum/starting health.
 - Fuel: 200 maximum/starting fuel, displayed as a percentage.
-- Movement speed: 120 pixels/second on normal ground.
-- Reverse speed multiplier: 0.5 (reverse is always half forward speed).
+- Movement speed: 90 pixels/second forward and 45 pixels/second in reverse on normal ground.
 - Turn speed: 2.5 radians/second.
 - Collision radius: 6 pixels.
 - Up to two ammunition slots.
@@ -101,7 +100,7 @@ The first ammunition slot is consumed completely before the second is used. Ammu
 - Horizontal and vertical movement are resolved separately, allowing sliding along obstacles.
 - A player cannot leave the map, enter blocked terrain, or overlap the other player.
 - Fuel is consumed while turning and driving.
-- Forward fuel rate is 4 units/second; reverse is 8 units/second.
+- Forward fuel rate is 4 units/second; reverse is 8 units/second; turning costs 0.25 units/second (defined in `GameStage`).
 - Terrain can multiply movement speed and fuel cost independently.
 - At zero fuel, the player cannot move or turn, but firing remains possible.
 
@@ -149,7 +148,7 @@ The current default ammunition is a standard shell:
 - 20 starting shells per player
 - 3-second reload
 - 5-second maximum flight time
-- Damage: 4
+- Damage: 12
 - Shell speed: 260 pixels/second
 
 Shells:
@@ -250,7 +249,7 @@ The current map contract is intentionally small: one authored ground tile layer 
 
 Use stable names so maps can be replaced without code changes:
 
-- `Ground`: the single tile layer used for rendering and terrain queries.
+- A tile layer named `Terrain`, used for rendering and terrain queries. If no layer has that name, `WorldMap` falls back to the first tile layer, which is what the checked-in arena relies on.
 - `Pickups`: object layer containing authored fuel and ammunition pickup spawn points.
 
 Additional layers are not part of the current contract. Add one only when a concrete feature needs it and its query/rendering behavior is clear. Player starts currently use safe positions selected from the map; authored spawn objects are a later enhancement, not a prerequisite for the current loop.
@@ -292,7 +291,7 @@ Current supported objects:
 
 Future map-authored starts or aircraft paths should be additive. Missing pickup metadata uses documented defaults; malformed required map structure should still produce a clear load-time error naming the map or layer/object type.
 
-Note: the checked-in arena currently names its single tile layer `Tile Layer 1` rather than `Ground`; renaming it is a planned hardening step (see [`docs/roadmap.md`](docs/roadmap.md)).
+Note: the checked-in arena names its single tile layer `Tile Layer 1`, so it is found by the first-tile-layer fallback. A tile with no terrain definition, or a missing layer, is treated as ground.
 
 ### Pickup objects in detail
 
@@ -327,8 +326,16 @@ Preserve these behaviours when changing movement, projectiles, rendering, or tim
 - Map boundaries and collision geometry do not depend on the physical window scale.
 - HUD coordinates are display coordinates and are never camera transformed.
 - Terrain behavior comes from tileset properties, not hard-coded tile IDs.
-- Debug rendering (the `F5` overlay) must not change simulation behavior.
-- Seeded and deterministic behavior in gameplay and demo code is preserved unless a change is deliberately part of the task.
+- Debug rendering (the `F5` overlay) must not change simulation behavior. Holding `F5` pauses the whole update, including the `Esc` exit check.
+- Fuel never goes below zero. Turning and driving each cost fuel scaled by the terrain fuel multiplier; a tank without enough fuel cannot turn or drive, but can still fire.
+- Movement is resolved one axis at a time, so tanks slide along obstacles. A tank cannot enter movement-blocking terrain, leave the map, or overlap the other tank.
+- Out-of-bounds counts as blocking for movement, projectiles, and vision. Missing terrain data defaults to ground.
+- Firing is edge-triggered and refused while the reload timer is running or no ammunition remains. Slots are consumed in order, and firing sets the reload timer from the ammunition type.
+- A shell is removed on expiry, on hitting projectile-blocking terrain, on hitting either tank (including the tank that fired it), or after more than 8 reflections.
+- A pickup is collected once and then stays inactive. Fuel is clamped to the tank's maximum; ammunition is added without a cap.
+- `F1` refills Player 1's fuel and ammunition only; it does not touch health or Player 2.
+- Reaching 0 health currently exits the game; there is no score or round state yet.
+- Randomness: the only live random source is an unseeded `Random` in `GameStage` used for screen shake and the small heading disruption on a hit, so hit outcomes are not reproducible. `OldGameStage` uses a fixed seed (42). Any new random behavior that affects gameplay should be seeded so tests can reproduce it.
 
 ## Testing strategy
 

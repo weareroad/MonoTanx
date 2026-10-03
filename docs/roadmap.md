@@ -69,7 +69,7 @@ Acceptance checks:
 
 Status: mostly complete (2026-09-02). The checked-in arena uses one tile layer (currently named `Tile Layer 1`) for ground/terrain and a `Pickups` object layer. `WorldMap` reads `TerrainKind`, `MovementSpeedMultiplier`, and `FuelCostMultiplier` from external TSX XML and parses Fuel/Ammunition objects. Missing numeric and pickup properties use documented defaults.
 
-- Keep the first arena named `arena_01.tmx` and standardize its tile layer as `Ground`.
+- Keep the first arena named `arena_01.tmx` and name its tile layer `Terrain` (the name `WorldMap` looks for first; otherwise it uses the first tile layer).
 - Keep terrain properties in the TSX tileset and pickup definitions in the TMX object layer.
 - Decide later whether authored player/opponent spawn objects add enough value to replace safe-position selection.
 - Keep source TMX/TSX files copied to the build output.
@@ -353,7 +353,7 @@ Fuel, fog of war, aircraft, supply drops, destructible terrain, and advanced AI 
 
 The playable prototype works: two `Player` entities (human and computer) drive around the hand-authored arena, spend fuel, collect pickups, and exchange shells. The solution targets .NET 10 and has an xUnit test project (`MonoTanx.Tests`) containing only starter `Helpers` tests.
 
-The next step is a short hardening pass: add focused tests for `WorldMap`, `Player` resources, collision, and projectile rules, rename the arena tile layer to `Ground` if desired, and then implement score and round reset. Keep these changes incremental and retain the current `GameStage` behavior while tests are established.
+The next step is a short hardening pass: add focused tests for `WorldMap`, `Player` resources, collision, and projectile rules, optionally rename the arena tile layer to `Terrain`, separate `WorldMap` loading from texture handling so it can be tested, and then implement score and round reset. Keep these changes incremental and retain the current `GameStage` behavior while tests are established.
 
 ## Decision log
 
