@@ -33,4 +33,60 @@ public class GameOptionsTests
     {
         Assert.Throws<ArgumentException>(() => GameOptions.Parse(new[] { "--bogus" }));
     }
+
+    [Fact]
+    public void DefaultsToFullscreen()
+    {
+        var options = GameOptions.Parse(Array.Empty<string>());
+
+        Assert.False(options.Windowed);
+        Assert.Equal(GameOptions.DefaultScale, options.Scale);
+    }
+
+    [Fact]
+    public void ParsesWindowedWithTheDefaultScale()
+    {
+        var options = GameOptions.Parse(new[] { "--windowed" });
+
+        Assert.True(options.Windowed);
+        Assert.Equal(2, options.Scale);
+    }
+
+    [Theory]
+    [InlineData("1", 1)]
+    [InlineData("4", 4)]
+    public void ParsesTheScale(string value, int expected)
+    {
+        var options = GameOptions.Parse(new[] { "--windowed", "--scale", value });
+
+        Assert.True(options.Windowed);
+        Assert.Equal(expected, options.Scale);
+    }
+
+    [Fact]
+    public void OptionOrderDoesNotMatter()
+    {
+        var options = GameOptions.Parse(new[] { "--scale", "3", "--seed", "7", "--windowed" });
+
+        Assert.True(options.Windowed);
+        Assert.Equal(3, options.Scale);
+        Assert.Equal(7, options.Seed);
+    }
+
+    [Theory]
+    [InlineData("--windowed", "--scale")]
+    [InlineData("--windowed", "--scale", "abc")]
+    [InlineData("--windowed", "--scale", "0")]
+    [InlineData("--windowed", "--scale", "5")]
+    [InlineData("--windowed", "--scale", "1.5")]
+    public void RejectsAMissingOrOutOfRangeScale(params string[] args)
+    {
+        Assert.Throws<ArgumentException>(() => GameOptions.Parse(args));
+    }
+
+    [Fact]
+    public void RejectsScaleWithoutWindowed()
+    {
+        Assert.Throws<ArgumentException>(() => GameOptions.Parse(new[] { "--scale", "2" }));
+    }
 }

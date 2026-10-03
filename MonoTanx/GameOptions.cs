@@ -8,9 +8,21 @@ namespace MonoTanx
         // Master seed for the run. Null means choose one at random.
         public int? Seed { get; private set; }
 
+        // Run in a window instead of fullscreen.
+        public bool Windowed { get; private set; }
+
+        public const int MinimumScale = 1;
+        public const int MaximumScale = 4;
+        public const int DefaultScale = 2;
+
+        // Integer multiple of the 800x600 logical surface used for the window
+        // size. Only applies when Windowed.
+        public int Scale { get; private set; } = DefaultScale;
+
         public static GameOptions Parse(string[] args)
         {
             var options = new GameOptions();
+            var scaleGiven = false;
             for (var index = 0; index < args.Length; index++)
             {
                 switch (args[index])
@@ -21,10 +33,24 @@ namespace MonoTanx
                         options.Seed = seed;
                         index++;
                         break;
+                    case "--windowed":
+                        options.Windowed = true;
+                        break;
+                    case "--scale":
+                        if (index + 1 >= args.Length
+                            || !int.TryParse(args[index + 1], NumberStyles.Integer, CultureInfo.InvariantCulture, out var scale)
+                            || scale < MinimumScale || scale > MaximumScale)
+                            throw new ArgumentException($"--scale requires an integer from {MinimumScale} to {MaximumScale}.");
+                        options.Scale = scale;
+                        scaleGiven = true;
+                        index++;
+                        break;
                     default:
                         throw new ArgumentException($"Unknown option '{args[index]}'.");
                 }
             }
+            if (scaleGiven && !options.Windowed)
+                throw new ArgumentException("--scale only applies together with --windowed.");
             return options;
         }
     }
