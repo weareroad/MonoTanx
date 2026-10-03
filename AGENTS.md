@@ -61,6 +61,20 @@ Use this lifecycle for each task:
 6. The user reviews, accepts, and merges the pull request. Agents must not merge it unless explicitly asked.
 7. After the merge is confirmed, tidy the local repository: return to `main`, fast-forward it, and remove the merged local feature branch. That completes the task.
 
+## Behavioral invariants
+
+Preserve these unless the task explicitly changes the design and updates its tests and documentation (more detail in `onboarding.md`):
+
+- Gameplay updates scale by elapsed time and run on a fixed 60 FPS step; movement, turning, fuel use, and reload timing are frame-rate independent.
+- Terrain behavior comes from tileset properties, not hard-coded tile IDs; out-of-bounds blocks movement, projectiles, and vision.
+- Tanks cannot enter blocking terrain, leave the map, or overlap each other. Movement is resolved per axis so tanks slide along obstacles.
+- Fuel never goes below zero. A tank without enough fuel cannot turn or drive but can still fire.
+- Firing needs ammunition and a finished reload; reload time comes from the ammunition type.
+- Shells can hit either tank, including the one that fired them, and are removed on expiry, blocking terrain, a hit, or too many reflections.
+- Pickups are collected once; fuel is clamped to the maximum.
+- Holding `F5` pauses the simulation and must not otherwise change it.
+- Randomness that affects gameplay should be seeded so it can be tested. (Currently only screen shake and the on-hit heading disruption use an unseeded `Random`.)
+
 ## Change discipline
 
 - Inspect the worktree before editing and preserve unrelated user changes.
