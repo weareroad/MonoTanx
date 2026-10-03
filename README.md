@@ -50,10 +50,11 @@ The project targets `net10.0` and restores MonoGame and its content-pipeline too
 | `A` / `D` | Turn left / right |
 | `Space` | Fire |
 | `F1` | Refill Player 1 fuel and ammunition (development aid) |
+| `F2` | Switch Player 2 between computer and human control (development aid) |
 | `F5` (hold) | Pause and show the debug overlay |
 | `Esc` | Exit |
 
-Player 2 is computer controlled. If switched to human control in code, it uses the cursor keys to drive and turn and `Enter` to fire.
+Player 2 starts computer controlled. Press `F2` to take it over (the HUD shows `CPU` or `HUMAN`), using the cursor keys to drive and turn and `Enter` to fire; press `F2` again to hand it back.
 
 ## Developer diagnostics
 

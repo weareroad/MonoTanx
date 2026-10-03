@@ -336,6 +336,7 @@ Preserve these behaviours when changing movement, projectiles, rendering, or tim
 - A shell is removed on expiry, on hitting projectile-blocking terrain, on hitting either tank (including the tank that fired it), or after more than 8 reflections.
 - A pickup is collected once and then stays inactive. Fuel is clamped to the tank's maximum; ammunition is added without a cap.
 - `F1` refills Player 1's fuel and ammunition only; it does not touch health or Player 2.
+- `F2` toggles Player 2 between computer and human control and clears the computer's route, pursuit and timers, so it starts afresh when it takes control back.
 - Reaching 0 health currently exits the game; there is no score or round state yet.
 - Randomness comes from `RandomStreams`, created in `Tanx` from the master seed (`--seed <integer>`, otherwise random, shown in the `F5` overlay). The gameplay stream drives the heading disruption on a hit; the cosmetic stream drives screen shake, so visual draws never change gameplay. Streams are passed to the code that needs them, not held globally. `OldGameStage` uses a fixed seed (42). The seed fixes random draws but not real input or frame timing, so it does not give full replay.
 
