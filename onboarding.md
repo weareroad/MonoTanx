@@ -1,37 +1,82 @@
-# MonoTanx onboarding
+# Engineering onboarding
 
-This document is the quick reference for the current MonoTanx prototype. It describes what the game does now, the map data contract, and the main extension points.
+MonoTanx is a self-contained MonoGame DesktopGL game targeting .NET 10. It has no backend or external services. The repository is at a playable prototype stage: a human tank and a computer-controlled tank fight in a hand-authored arena.
 
-## Project shape
+Start with [README.md](README.md) for the player-facing overview, controls, and build commands. This document records the engineering shape of the prototype and the assumptions that should survive future work. Forward-looking plans live in [`docs/roadmap.md`](docs/roadmap.md).
 
-- MonoGame DesktopGL on .NET 10.
+## Quick start
+
+Run commands from the repository root:
+
+```sh
+dotnet build MonoTanx.slnx
+dotnet test MonoTanx.slnx
+dotnet run --project MonoTanx/MonoTanx.csproj
+```
+
+## Architecture
+
+### Application boundary
+
+- `Program.cs` constructs and runs `Tanx`.
+- `Tanx.cs` is the `Game` host. It runs a fixed 60 FPS step, draws the current stage to an 800×600 render target, and scales that to the window with proportional letterboxing. It also owns stage switching via `ChangeStage`.
 - The game starts directly in `GameStage`.
-- The logical game surface is 800×600, rendered fullscreen with proportional scaling and centered letterboxing when necessary.
+- Stages (`Stages/`) are the screens/game states. `Core/Stage.cs` is the base type.
+
+### Project shape
+
+- The logical game surface is 800×600.
 - The world is a hand-authored orthogonal Tiled map. `arena_01.tmx` is 60×40 tiles at 16×16 pixels (960×640 world pixels).
 - The top 80 logical pixels (five tiles) are reserved for the HUD. The camera view is the remaining playfield below the HUD.
-- World entities use floating-point pixel positions. Tile queries use integer tile coordinates. Entity positions are centers.
+- `Core/` holds reusable engine and gameplay code, `Controls/` holds UI primitives, and `Stages/` holds screen-specific behavior.
 
-## Controls
+### Intended runtime structure
 
-### Player 1
+```text
+GameStage
+├── WorldMap
+│   ├── Tiled map data
+│   ├── Terrain rules
+│   └── Map/object queries
+├── Camera2D
+├── Players
+│   ├── Player simulation/state
+│   ├── Human input path
+│   └── Computer behavior path
+├── Projectiles
+├── Collision and damage resolution
+├── Match state and spawning
+├── Pickups and aircraft (later)
+├── Visibility/fog system (later)
+└── HUD
+```
 
-- `W`: move forward
-- `S`: reverse
-- `A` / `D`: turn left/right
-- `Space`: fire
-- `F1`: refill Player 1 fuel and ammunition (does not reset Player 2 or health)
+### Coordinate conventions
 
-### Player 2
+- World positions use floating-point pixel coordinates.
+- The map tile grid is used for terrain and navigation queries.
+- Entity positions represent their centers.
+- Entity drawing converts world coordinates through the camera transform.
+- HUD coordinates are display coordinates and are never camera transformed.
+- Rotation is stored in radians. A tank's forward vector is derived from its heading.
+- Map boundaries and collision geometry must not depend on the physical window scale.
 
-- Normally computer-controlled (`Player2.IsComputerControlled = true`).
-- If switched to human control later: cursor keys move/turn and `Enter` fires.
+## Design principles
 
-### Global
+- Keep simulation state independent from rendering and input devices.
+- Use hand-authored Tiled maps; do not add procedural map generation yet.
+- Use continuous world-pixel movement with tile-derived terrain queries.
+- Configure terrain behavior as map data rather than hard-coded tile IDs.
+- Keep movement, projectile, and visibility rules separate.
+- Prefer small systems with narrow responsibilities over a large `GameStage`.
+- Preserve fixed-step updates and deterministic behavior where practical.
+- Introduce abstractions when a current feature needs them, not solely for hypothetical flexibility.
 
-- `F5` held: pause the simulation and show the debug overlay.
-- `Esc`: exit the application.
+## Current implementation reference
 
-## Player model
+How the current prototype behaves. Controls and the player-facing summary are in the README.
+
+### Player model
 
 `MonoTanx.Core.Player` owns player-specific defaults and state.
 
@@ -50,7 +95,7 @@ Each player has:
 
 The first ammunition slot is consumed completely before the second is used. Ammunition is represented by `AmmunitionSlot` instances, each containing an ammunition type and remaining quantity.
 
-## Movement and collision
+### Movement and collision
 
 - Movement is continuous in world pixels but validated against the tile map.
 - Horizontal and vertical movement are resolved separately, allowing sliding along obstacles.
@@ -60,7 +105,7 @@ The first ammunition slot is consumed completely before the second is used. Ammu
 - Terrain can multiply movement speed and fuel cost independently.
 - At zero fuel, the player cannot move or turn, but firing remains possible.
 
-## Terrain rules
+### Terrain rules
 
 `TerrainKind` describes interaction semantics; numeric properties tune traversal.
 
@@ -90,14 +135,14 @@ Tileset properties are read from the external TSX:
 
 This favors combinations such as a traversable bridge over water without creating enum variants such as `Ground-Muddy` or `Ground-Icy`.
 
-## Camera and viewpoint
+### Camera and viewpoint
 
 - The camera follows Player 1.
 - Player 1 remains near the center of the playfield while the map can scroll.
 - At map edges, the camera clamps and Player 1 moves away from center.
 - Player 2 may be outside the visible viewport; current gameplay remains keyed to Player 1’s viewpoint.
 
-## Shells and damage
+### Shells and damage
 
 The current default ammunition is a standard shell:
 
@@ -116,7 +161,7 @@ Shells:
 - Reduce health by the ammunition type’s `Damage` value.
 - A player reaching 0 health ends the game.
 
-### Reflective surfaces
+#### Reflective surfaces
 
 Reflective tiles are treated as axis-aligned mirrors:
 
@@ -127,7 +172,7 @@ Reflective tiles are treated as axis-aligned mirrors:
 
 On impact, the struck player receives a small valid knockback, a slight heading disruption, and a brief screen shake.
 
-## HUD and debug overlay
+### HUD and debug overlay
 
 The HUD is a fixed screen-space layer with a dark metallic-grey background.
 
@@ -154,7 +199,7 @@ While holding `F5`, the overlay pauses the simulation and shows:
 - AI fire cooldown and retaliation timer
 - Loaded pickup count
 
-## Player 2 computer behavior
+### Player 2 computer behavior
 
 Player 2 currently uses simple state-priority behavior:
 
@@ -180,7 +225,7 @@ Player 2 currently uses simple state-priority behavior:
    - Routes are rebuilt when Player 1 moves or the current route is exhausted.
    - When Player 1 is nearby and visible, Player 2 holds position while aiming rather than letting navigation overwrite its heading.
 
-### Player 2 firing
+#### Player 2 firing
 
 Player 2:
 
@@ -197,7 +242,59 @@ AI tuning properties live on `Player`:
 - `ComputerReactionDelaySeconds`
 - `ComputerFireCooldownSeconds`
 
-## Tiled pickup contract
+## Tiled map contract
+
+The current map contract is intentionally small: one authored ground tile layer and one pickup object layer. Terrain behavior is attached to tile definitions in the external TSX; pickups are authored as objects and become mutable runtime entities after loading.
+
+### Layers
+
+Use stable names so maps can be replaced without code changes:
+
+- `Ground`: the single tile layer used for rendering and terrain queries.
+- `Pickups`: object layer containing authored fuel and ammunition pickup spawn points.
+
+Additional layers are not part of the current contract. Add one only when a concrete feature needs it and its query/rendering behavior is clear. Player starts currently use safe positions selected from the map; authored spawn objects are a later enhancement, not a prerequisite for the current loop.
+
+Pickup objects use their Tiled `type`/`class` as `Fuel` or `Ammunition`, with optional `Amount`, `AmmunitionId`, and `SpriteAsset` properties. `WorldMap` parses these authored definitions into runtime data; collection state remains separate from immutable map data.
+
+### Tile properties
+
+Prefer independent typed properties over a single terrain enum. `TerrainKind` describes interaction categories (water, wall, ravine, hill, reflective, etc.); numeric multipliers tune traversal without creating enum variants such as `Ground-Muddy` or `Ground-Icy`. This permits combinations such as a bridge that visually crosses water but remains traversable.
+
+Current properties:
+
+| Property | Type | Meaning |
+| --- | --- | --- |
+| `TerrainKind` | enum | Supplies the current movement, projectile, vision, and reflection behavior. |
+| `MovementSpeedMultiplier` | float >= 0 | Multiplies tank movement speed while occupying the tile; defaults to `1.0`. |
+| `FuelCostMultiplier` | float >= 0 | Multiplies movement/turn fuel cost while occupying the tile; defaults to `1.0`. |
+
+Potential future properties such as `Destructible` or independent blocking flags should be added only when the corresponding gameplay system requires them. They are not part of the current map contract.
+
+Example terrain behavior:
+
+| Terrain | Movement | Projectiles | Vision | Special |
+| --- | --- | --- | --- | --- |
+| Ground | Pass | Pass | Pass | None |
+| Water | Block | Pass | Pass | Bridges override movement. |
+| Bridge | Pass | Pass | Pass | Usually drawn above water. |
+| Wall | Block | Block | Block | May later be destructible. |
+| Ravine | Block | Pass | Pass | Shots can cross it. |
+| Hill | Block | Block | Block | Hard tactical cover. |
+| Reflective wall | Block | Reflect | Block | Uses collision normal. |
+
+### Map objects
+
+Current supported objects:
+
+- `Fuel`: pickup position and optional amount/sprite metadata.
+- `Ammunition`: pickup position and optional amount/ammunition/sprite metadata.
+
+Future map-authored starts or aircraft paths should be additive. Missing pickup metadata uses documented defaults; malformed required map structure should still produce a clear load-time error naming the map or layer/object type.
+
+Note: the checked-in arena currently names its single tile layer `Tile Layer 1` rather than `Ground`; renaming it is a planned hardening step (see [`docs/roadmap.md`](docs/roadmap.md)).
+
+### Pickup objects in detail
 
 Create an object layer named `Pickups` in the map. Place point or rectangle objects on it.
 
@@ -221,7 +318,59 @@ If `Amount` or `SpriteAsset` is not serialized on an instance, the loader suppli
 
 Pickup locations are authored in Tiled, but pickups are runtime entities. They animate from four-frame 64×16 sheets (four 16×16 frames), can be collected, and then become inactive/disappear. Fuel restores up to the player’s maximum. Ammunition is added to the matching slot or the first slot.
 
-## Current limitations and likely next steps
+## Important invariants
+
+Preserve these behaviours when changing movement, projectiles, rendering, or timing:
+
+- Simulation state stays independent from rendering and input devices, so rules can be exercised by xUnit without a graphics device.
+- Updates use a fixed 60 FPS step; movement, steering, and reload timing are frame-rate independent.
+- Map boundaries and collision geometry do not depend on the physical window scale.
+- HUD coordinates are display coordinates and are never camera transformed.
+- Terrain behavior comes from tileset properties, not hard-coded tile IDs.
+- Debug rendering (the `F5` overlay) must not change simulation behavior.
+- Seeded and deterministic behavior in gameplay and demo code is preserved unless a change is deliberately part of the task.
+
+## Testing strategy
+
+### Unit tests
+
+Prioritize deterministic logic that needs no graphics device:
+
+- Coordinate conversion.
+- Terrain property parsing and queries.
+- Tank command interpretation and movement.
+- Collision resolution.
+- Reload and ammunition state.
+- Segment/tile and segment/tank intersection.
+- Reflection-vector calculation.
+- Visibility queries.
+- Basic AI decisions from controlled world snapshots.
+
+### Integration tests
+
+- Load each checked-in map and validate its required layers and objects.
+- Simulate a tank moving against representative terrain.
+- Simulate projectile paths through passable, blocking, and reflective tiles.
+- Run fixed seeded match scenarios for a bounded number of updates.
+
+### Manual checks
+
+- Driving and steering feel.
+- Camera transitions at all four map edges and corners.
+- Collision sliding and tight spaces.
+- Firing feedback and reflection readability.
+- HUD readability at supported window sizes.
+- Match pacing and AI fairness.
+
+Never claim manual gameplay validation unless the relevant path was actually exercised.
+
+## Development workflow
+
+The workflow (issue, optional spec and plan, branch, develop and test, PR, user merge, local tidy-up) is defined in [`AGENTS.md`](AGENTS.md). Specs and plans live under `docs/`; the README and this file are the authoritative summaries of the present project.
+
+Small observations intentionally deferred from active work are recorded in [`docs/deferred-snags.md`](docs/deferred-snags.md).
+
+## Known debt and deliberately deferred work
 
 - Player 2 does not yet deliberately plan routes to pickups beyond nearest-target routing.
 - Pickup respawn, aircraft drops, and dynamic spawning are not implemented.
@@ -229,3 +378,7 @@ Pickup locations are authored in Tiled, but pickups are runtime entities. They a
 - Projectile reflection is intentionally approximate and should later use exact tile-edge normals or authored surface metadata.
 - There is no projectile-vs-projectile, tank armor, score, round reset, or explicit game-over screen yet.
 - Destructible terrain, fog of war, advanced AI difficulty, second-human-player mode, and fuel/ammo balancing remain future work.
+
+## Recommended next step
+
+See the resume point in [`docs/roadmap.md`](docs/roadmap.md): a hardening pass with focused tests, then score and round reset.
