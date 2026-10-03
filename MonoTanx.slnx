@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="MonoTanx/MonoTanx.csproj" />
+  <Project Path="MonoTanx.Tests/MonoTanx.Tests.csproj" />
+</Solution>
