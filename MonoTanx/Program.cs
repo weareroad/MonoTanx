@@ -7,7 +7,7 @@ try
 catch (System.ArgumentException exception)
 {
     System.Console.Error.WriteLine(exception.Message);
-    System.Console.Error.WriteLine("Usage: MonoTanx [--seed <integer>]");
+    System.Console.Error.WriteLine("Usage: MonoTanx [--seed <integer>] [--windowed [--scale <1-4>]]");
     return 1;
 }
 

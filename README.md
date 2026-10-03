@@ -38,9 +38,21 @@ dotnet test MonoTanx.slnx
 dotnet run --project MonoTanx/MonoTanx.csproj
 ```
 
-Add `-- --seed <integer>` to `dotnet run` to fix the run's random draws (for example `dotnet run --project MonoTanx/MonoTanx.csproj -- --seed 123`); the seed is shown in the debug overlay.
+### Launch options
 
-The project targets `net10.0` and restores MonoGame and its content-pipeline tooling through NuGet. The game renders to an 800×600 logical surface and starts fullscreen, scaled proportionally with letterboxing where needed.
+| Option | Effect |
+|---|---|
+| `--seed <integer>` | Fix the run's random draws; the seed is shown in the debug overlay |
+| `--windowed` | Run in a window instead of fullscreen |
+| `--scale <1-4>` | With `--windowed`, set the window to that integer multiple of 800×600 (default 2) |
+
+Options go after `--` when using `dotnet run`, and can be combined:
+
+```sh
+dotnet run --project MonoTanx/MonoTanx.csproj -- --windowed --scale 2 --seed 123
+```
+
+The project targets `net10.0` and restores MonoGame and its content-pipeline tooling through NuGet. The game renders to an 800×600 logical surface and starts fullscreen by default, scaled proportionally with letterboxing where needed.
 
 ## Controls
 

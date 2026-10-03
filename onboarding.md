@@ -19,9 +19,9 @@ dotnet run --project MonoTanx/MonoTanx.csproj -- --seed 123   # reproducible ran
 
 ### Application boundary
 
-- `Program.cs` parses the command line into `GameOptions` (currently `--seed <integer>`), then constructs and runs `Tanx`, which creates the run's `RandomStreams`.
+- `Program.cs` parses the command line into `GameOptions` (`--seed <integer>`, `--windowed`, `--scale <1-4>`), then constructs and runs `Tanx`, which creates the run's `RandomStreams`.
 - `Tanx.cs` is the `Game` host. It runs a fixed 60 FPS step, draws the current stage to an 800×600 render target, and scales that to the window with proportional letterboxing. It also owns stage switching via `ChangeStage`.
-- The game starts directly in `GameStage`.
+- The game starts directly in `GameStage`. It runs fullscreen at the desktop resolution unless `--windowed` is given, which uses a window of 800×600 times `--scale` (default 2).
 - Stages (`Stages/`) are the screens/game states. `Core/Stage.cs` is the base type.
 
 ### Project shape

@@ -35,8 +35,11 @@ namespace MonoTanx
             4:3, as in 1024x768
         */
 
+        private readonly GameOptions options;
+
         public Tanx(GameOptions options)
         {
+            this.options = options;
             Random = new RandomStreams(options.Seed ?? RandomStreams.NewSeed());
             graphics = new GraphicsDeviceManager(this);
             Content.RootDirectory = "Content";
@@ -51,10 +54,20 @@ namespace MonoTanx
 
             base.Initialize();
 
-            // this is what we want to show the screen at - we might allow the user to change this
-            graphics.IsFullScreen = true;
-            graphics.PreferredBackBufferWidth = GraphicsAdapter.DefaultAdapter.CurrentDisplayMode.Width;
-            graphics.PreferredBackBufferHeight = GraphicsAdapter.DefaultAdapter.CurrentDisplayMode.Height;
+            // fullscreen at the desktop resolution by default; --windowed gives an
+            // integer multiple of the designed size
+            if (options.Windowed)
+            {
+                graphics.IsFullScreen = false;
+                graphics.PreferredBackBufferWidth = (int)DesignedWidth * options.Scale;
+                graphics.PreferredBackBufferHeight = (int)DesignedHeight * options.Scale;
+            }
+            else
+            {
+                graphics.IsFullScreen = true;
+                graphics.PreferredBackBufferWidth = GraphicsAdapter.DefaultAdapter.CurrentDisplayMode.Width;
+                graphics.PreferredBackBufferHeight = GraphicsAdapter.DefaultAdapter.CurrentDisplayMode.Height;
+            }
             graphics.ApplyChanges();
 
             // this height is the 'designed' height
