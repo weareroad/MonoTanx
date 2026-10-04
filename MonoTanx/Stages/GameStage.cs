@@ -158,17 +158,12 @@ namespace MonoTanx.Stages
 
         private void UpdateTank(Player tank, KeyboardState keyboard, float elapsed, SeatKeys keys)
         {
-            var (left, right, forwardKey, reverseKey, fireKey) = (keys.Left, keys.Right, keys.Forward, keys.Reverse, keys.Fire);
-            var turn = 0.0f; var drive = 0.0f;
-            if (keyboard.IsKeyDown(left)) turn -= 1.0f;
-            if (keyboard.IsKeyDown(right)) turn += 1.0f;
-            if (keyboard.IsKeyDown(forwardKey)) drive += 1.0f;
-            if (keyboard.IsKeyDown(reverseKey)) drive -= 1.0f;
-            if (TankMovement.ApplyInput(worldMap, tank, OtherTank(tank), turn, drive, elapsed))
+            var command = keys.ToCommand(keyboard, prevKeyboardState);
+            if (TankMovement.ApplyInput(worldMap, tank, OtherTank(tank), command, elapsed))
                 UpdateTankAnimation(tank, elapsed);
             else { tank.AnimationTimer = 0.0f; tank.Frame = 0; }
             TickReload(tank, elapsed);
-            if (keyboard.IsKeyDown(fireKey) && prevKeyboardState.IsKeyUp(fireKey)) TryFireShell(tank);
+            if (command.Fire) TryFireShell(tank);
         }
 
         private void MoveTank(Player tank, Vector2 movement)
@@ -178,16 +173,13 @@ namespace MonoTanx.Stages
 
         private static readonly Seat[] Seats = { Seat.One, Seat.Two };
 
-        private static readonly SeatKeys PlayerOneKeys = new SeatKeys(Keys.A, Keys.D, Keys.W, Keys.S, Keys.Space);
-        private static readonly SeatKeys PlayerTwoKeys = new SeatKeys(Keys.Left, Keys.Right, Keys.Up, Keys.Down, Keys.Enter);
-
         private Player TankOf(Seat seat) => seat == Seat.One ? playerOne : playerTwo;
 
         private ComputerState StateOf(Seat seat) => seat == Seat.One ? computerOne : computerTwo;
 
         private ComputerState StateOf(Player tank) => ReferenceEquals(tank, playerOne) ? computerOne : computerTwo;
 
-        private static SeatKeys KeysOf(Seat seat) => seat == Seat.One ? PlayerOneKeys : PlayerTwoKeys;
+        private static SeatKeys KeysOf(Seat seat) => seat == Seat.One ? SeatKeys.PlayerOne : SeatKeys.PlayerTwo;
 
         private Player OtherTank(Player tank) => ReferenceEquals(tank, playerOne) ? playerTwo : playerOne;
 
@@ -199,20 +191,6 @@ namespace MonoTanx.Stages
         // The tank the follow camera tracks, and the one whose gun shakes the screen:
         // the first human seat's. With no human there is nobody to follow or to shake for.
         private Player FollowedTank => TankOf(CurrentSetup.FollowSeat);
-
-        private readonly struct SeatKeys
-        {
-            public readonly Keys Left, Right, Forward, Reverse, Fire;
-
-            public SeatKeys(Keys left, Keys right, Keys forward, Keys reverse, Keys fire)
-            {
-                Left = left;
-                Right = right;
-                Forward = forward;
-                Reverse = reverse;
-                Fire = fire;
-            }
-        }
 
         // The computer's working state for one seat: who it is, who it is playing,
         // and its route, pickup target and timers. (This moves into Core with the
@@ -793,14 +771,12 @@ namespace MonoTanx.Stages
             spriteBatch.Draw(tank.Texture, tank.Position, source, tank.Tint, tank.Heading - MathHelper.Pi, new Vector2(frameWidth / 2.0f, frameHeight / 2.0f), 1.0f, SpriteEffects.None, 0.5f);
         }
 
-        private sealed class Pickup
+        private sealed class Pickup : PickupState
         {
-            public PickupSpawn Spawn { get; }
             public Texture2D Texture { get; }
-            public bool Active { get; set; } = true;
             public float AnimationTimer;
             public int Frame;
-            public Pickup(PickupSpawn spawn, Texture2D texture) { Spawn = spawn; Texture = texture; }
+            public Pickup(PickupSpawn spawn, Texture2D texture) : base(spawn) { Texture = texture; }
         }
     }
 }
