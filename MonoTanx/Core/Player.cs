@@ -76,9 +76,14 @@ namespace MonoTanx.Core
                 slot.Reset();
         }
 
-        public void TickReload(float elapsed)
+        // Counts the reload down. Returns true on the update the reload finishes
+        // and the tank has ammunition to fire again (the moment to play the
+        // "ready" sound); false otherwise, including when it is out of shells.
+        public bool TickReload(float elapsed)
         {
+            var wasReloading = ReloadTimer > 0.0f;
             ReloadTimer = MathHelper.Max(0.0f, ReloadTimer - elapsed);
+            return wasReloading && ReloadTimer <= 0.0f && RemainingAmmunition > 0;
         }
 
         // Fires along the current heading if the reload has finished and

@@ -146,7 +146,7 @@ namespace MonoTanx.Stages
             if (TankMovement.ApplyInput(worldMap, tank, OtherTank(tank), turn, drive, elapsed))
                 UpdateTankAnimation(tank, elapsed);
             else { tank.AnimationTimer = 0.0f; tank.Frame = 0; }
-            tank.TickReload(elapsed);
+            TickReload(tank, elapsed);
             if (keyboard.IsKeyDown(fireKey) && prevKeyboardState.IsKeyUp(fireKey)) TryFireShell(tank);
         }
 
@@ -164,6 +164,7 @@ namespace MonoTanx.Stages
                 if (!pickup.Active || !PickupRules.InRange(player, pickup.Spawn))
                     continue;
                 PickupRules.Apply(player, pickup.Spawn);
+                audio.Play(SoundCue.Pickup);
                 pickup.Active = false;
             }
         }
@@ -184,7 +185,7 @@ namespace MonoTanx.Stages
 
         private void UpdateComputerPlayer(float elapsed)
         {
-            playerTwo.TickReload(elapsed);
+            TickReload(playerTwo, elapsed);
             playerTwoRetaliationTimer = Math.Max(0.0f, playerTwoRetaliationTimer - elapsed);
             if (playerTwoRetaliationTimer > 0.0f)
             {
@@ -495,14 +496,27 @@ namespace MonoTanx.Stages
             return true;
         }
 
+        private void TickReload(Player tank, float elapsed)
+        {
+            if (tank.TickReload(elapsed))
+                audio.Play(SoundCue.Reload, playerTwo: ReferenceEquals(tank, playerTwo));
+        }
+
         private void UpdateShells(float elapsed)
         {
             for (var index = shells.Count - 1; index >= 0; index--)
             {
                 var shell = shells[index];
                 var result = shell.Step(worldMap, tanks, elapsed);
+                if (result.Reflections > 0)
+                    audio.Play(SoundCue.Ping); // a shell reflects at most once per update
+                if (result.Fate == ShellFate.HitTerrain)
+                    audio.Play(SoundCue.Crump);
                 if (result.Hit != null)
+                {
+                    audio.Play(SoundCue.Explosion);
                     DamageTank(result.Hit, shell.Ammunition.Damage, shell.Velocity);
+                }
                 if (result.Removed)
                     shells.RemoveAt(index);
             }

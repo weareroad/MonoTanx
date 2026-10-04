@@ -161,4 +161,34 @@ public class PlayerTests
         Assert.False(player.TryFire(0.0f, out _));
         Assert.Equal(0.0f, player.ReloadTimer);
     }
+
+    [Fact]
+    public void TickReloadReportsReadyOnceWhenTheReloadFinishesWithAmmunitionLeft()
+    {
+        var player = TestSupport.NewPlayer(Vector2.Zero);
+        player.TryFire(0.0f, out _);
+        var reload = Player.DefaultAmmunition.ReloadTimeSeconds;
+
+        Assert.False(player.TickReload(reload - 0.5f));  // still reloading
+        Assert.True(player.TickReload(0.5f));            // finishes here
+        Assert.False(player.TickReload(0.5f));           // already ready: not reported again
+        Assert.False(player.TickReload(0.5f));
+    }
+
+    [Fact]
+    public void TickReloadDoesNotReportReadyWhenTheTankIsOutOfShells()
+    {
+        var player = TestSupport.NewPlayer(Vector2.Zero);
+        player.TryFire(0.0f, out _);
+        foreach (var slot in player.AmmunitionSlots) slot.Remaining = 0;
+
+        Assert.False(player.TickReload(Player.DefaultAmmunition.ReloadTimeSeconds + 1.0f));
+        Assert.Equal(0.0f, player.ReloadTimer);
+    }
+
+    [Fact]
+    public void TickReloadReportsNothingForATankThatHasNotFired()
+    {
+        Assert.False(TestSupport.NewPlayer(Vector2.Zero).TickReload(1.0f));
+    }
 }

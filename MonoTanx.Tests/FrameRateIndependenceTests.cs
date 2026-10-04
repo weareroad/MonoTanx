@@ -79,12 +79,15 @@ public class FrameRateIndependenceTests
         var step = 1.0f / stepsPerSecond;
         var steps = (int)Math.Round(reload * stepsPerSecond);
 
-        for (var i = 0; i < steps - 1; i++)
-            tank.TickReload(step);
-        Assert.True(tank.ReloadTimer > 0.0f, "still reloading just before the reload time has passed");
+        // The ready sound is reported exactly once, on the step that finishes the
+        // reload. Float rounding can push that one step later, which is inaudible.
+        var reportedOnStep = new List<int>();
+        for (var i = 1; i <= steps + stepsPerSecond; i++)
+            if (tank.TickReload(step)) reportedOnStep.Add(i);
 
-        tank.TickReload(step);
-        Assert.Equal(0.0f, tank.ReloadTimer, 3);
+        Assert.Single(reportedOnStep);
+        Assert.InRange(reportedOnStep[0], steps, steps + 1);
+        Assert.Equal(0.0f, tank.ReloadTimer);
     }
 
     [Theory]
