@@ -59,7 +59,7 @@ The project targets `net10.0` and restores MonoGame and its content-pipeline too
 
 ## Home screen
 
-Unless `--test` is given, the game opens at a home screen with **Start game**, a **Players: 1 / Players: 2** setting, **Dev menu** (the old tech-demo test stages) and **Quit**. Use the mouse, or Up/Down to move, Enter or Space to choose, Left/Right to change the players setting, and Esc to quit.
+Unless `--test` is given, the game opens at a home screen with **Start game**, a **Players: 1 / Players: 2** setting and **Quit**. Use the mouse, or Up/Down to move, Enter or Space to choose, Left/Right to change the players setting, and Esc to quit.
 
 ## Controls
 
@@ -83,7 +83,7 @@ Holding `F5` pauses the simulation and shows both players' positions, tile coord
 ## Project layout
 
 - `MonoTanx/` is the MonoGame DesktopGL application.
-  - `Core/` holds shared engine and gameplay code (`WorldMap`, `Player`, sprites, animation).
+  - `Core/` holds shared engine and gameplay code (`WorldMap`, `Player`, `TankMovement`, `Shell`, `Tuning`).
   - `Controls/` holds UI primitives.
   - `Stages/` holds screens and game states; `GameStage` is the playable arena.
   - `Content/` is the MonoGame content-pipeline input, including the Tiled maps.
