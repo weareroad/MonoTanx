@@ -181,10 +181,6 @@ namespace MonoTanx.Core
             // goals within this many tiles of the ring radius are accepted.
             public const int MinimumCombatRingTiles = 2;
             public const float CombatRingToleranceTiles = 1.0f;
-
-            // How many of the farthest tiles it tries as an escape goal when
-            // out of ammunition.
-            public const int EvadeCandidateLimit = 20;
         }
 
         public static class Vision

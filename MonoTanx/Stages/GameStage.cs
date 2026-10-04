@@ -414,7 +414,7 @@ namespace MonoTanx.Stages
                 c.PickupTargetId = target.Spawn.Id;
                 c.Route.Clear();
                 c.RouteIndex = 0;
-                var route = FindRoute(c.Self.CollisionRadius, worldMap.WorldToTile(c.Self.Position), worldMap.WorldToTile(target.Spawn.Position));
+                var route = RoutePlanner.FindRoute(worldMap, c.Self.CollisionRadius, worldMap.WorldToTile(c.Self.Position), worldMap.WorldToTile(target.Spawn.Position));
                 if (route != null) { c.Route.AddRange(route); c.RouteIndex = Math.Min(1, c.Route.Count); }
             }
             if (c.RouteIndex >= c.Route.Count) return;
@@ -431,83 +431,13 @@ namespace MonoTanx.Stages
             c.Self.Fuel = MathHelper.Max(0.0f, c.Self.Fuel - turnCost - driveCost);
         }
 
-        private void BuildEvadeRoute(ComputerState c)
-        {
-            c.Route.Clear();
-            c.RouteIndex = 0;
-            var start = worldMap.WorldToTile(c.Self.Position);
-            var playerTile = worldMap.WorldToTile(c.Opponent.Position);
-            var candidates = new List<Point>();
-            for (var y = 0; y < worldMap.Bounds.Height; y += worldMap.TileHeight)
-                for (var x = 0; x < worldMap.Bounds.Width; x += worldMap.TileWidth)
-                {
-                    var candidate = new Point(x / worldMap.TileWidth, y / worldMap.TileHeight);
-                    if (worldMap.CanOccupyCircle(worldMap.GetTileBounds(candidate).Center.ToVector2(), c.Self.CollisionRadius))
-                        candidates.Add(candidate);
-                }
-            candidates.Sort((a, b) => Vector2.DistanceSquared(b.ToVector2(), playerTile.ToVector2()).CompareTo(Vector2.DistanceSquared(a.ToVector2(), playerTile.ToVector2())));
-            var attempts = Math.Min(Tuning.Ai.EvadeCandidateLimit, candidates.Count);
-            for (var index = 0; index < attempts; index++)
-            {
-                var route = FindRoute(c.Self.CollisionRadius, start, candidates[index]);
-                if (route == null) continue;
-                c.Route.AddRange(route);
-                c.RouteIndex = Math.Min(1, c.Route.Count);
-                return;
-            }
-        }
-
         private void BuildRoute(ComputerState c)
         {
             c.Route.Clear();
             c.RouteIndex = 0;
-            var playerTile = worldMap.WorldToTile(c.Opponent.Position);
-            var startTile = worldMap.WorldToTile(c.Self.Position);
-            var radius = Math.Max(Tuning.Ai.MinimumCombatRingTiles, c.Self.PreferredCombatDistanceTiles);
-            var candidates = new List<Point>();
-            for (var y = playerTile.Y - radius; y <= playerTile.Y + radius; y++)
-                for (var x = playerTile.X - radius; x <= playerTile.X + radius; x++)
-                {
-                    var candidate = new Point(x, y);
-                    if (!worldMap.IsInside(candidate) || !worldMap.CanOccupyCircle(worldMap.GetTileBounds(candidate).Center.ToVector2(), c.Self.CollisionRadius)) continue;
-                    var distance = Vector2.Distance(candidate.ToVector2(), playerTile.ToVector2());
-                    if (distance >= radius - Tuning.Ai.CombatRingToleranceTiles && distance <= radius + Tuning.Ai.CombatRingToleranceTiles) candidates.Add(candidate);
-                }
-            candidates.Sort((a, b) => Vector2.DistanceSquared(a.ToVector2(), playerTile.ToVector2()).CompareTo(Vector2.DistanceSquared(b.ToVector2(), playerTile.ToVector2())));
-            foreach (var goal in candidates)
-            {
-                var route = FindRoute(c.Self.CollisionRadius, startTile, goal);
-                if (route != null) { c.Route.AddRange(route); c.RouteIndex = Math.Min(1, c.Route.Count); return; }
-            }
-        }
-
-        private List<Point> FindRoute(float radius, Point start, Point goal)
-        {
-            var frontier = new PriorityQueue<Point, int>();
-            var cameFrom = new Dictionary<Point, Point>();
-            var costSoFar = new Dictionary<Point, int> { [start] = 0 };
-            frontier.Enqueue(start, 0);
-            var directions = new[] { new Point(1, 0), new Point(-1, 0), new Point(0, 1), new Point(0, -1) };
-            while (frontier.Count > 0)
-            {
-                var current = frontier.Dequeue();
-                if (current == goal) break;
-                foreach (var direction in directions)
-                {
-                    var next = new Point(current.X + direction.X, current.Y + direction.Y);
-                    if (!worldMap.IsInside(next) || !worldMap.CanOccupyCircle(worldMap.GetTileBounds(next).Center.ToVector2(), radius)) continue;
-                    var nextCost = costSoFar[current] + 1;
-                    if (costSoFar.TryGetValue(next, out var oldCost) && oldCost <= nextCost) continue;
-                    costSoFar[next] = nextCost;
-                    cameFrom[next] = current;
-                    frontier.Enqueue(next, nextCost + Math.Abs(goal.X - next.X) + Math.Abs(goal.Y - next.Y));
-                }
-            }
-            if (!costSoFar.ContainsKey(goal)) return null;
-            var route = new List<Point>();
-            for (var current = goal; ; current = cameFrom[current]) { route.Add(current); if (current == start) break; }
-            route.Reverse();
-            return route;
+            var route = RoutePlanner.FindCombatRoute(worldMap, c.Self.CollisionRadius,
+                worldMap.WorldToTile(c.Self.Position), worldMap.WorldToTile(c.Opponent.Position), c.Self.PreferredCombatDistanceTiles);
+            if (route != null) { c.Route.AddRange(route); c.RouteIndex = Math.Min(1, c.Route.Count); }
         }
 
         private bool CanTankOccupy(Player tank, Vector2 position)
