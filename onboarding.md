@@ -325,10 +325,11 @@ Pickup locations are authored in Tiled, but pickups are runtime entities. They a
 Preserve these behaviours when changing movement, projectiles, rendering, or timing:
 
 - Simulation state stays independent from rendering and input devices, so rules can be exercised by xUnit without a graphics device.
-- Updates use a fixed 60 FPS step; movement, steering, and reload timing are frame-rate independent.
+- Updates use a fixed 60 FPS step (`IsFixedTimeStep`, vsync on), and the simulation is time-based: every rule takes elapsed seconds, and `FrameRateIndependenceTests` run the same simulated time at 30, 60 and 120 steps per second and expect the same result for driving, reversing, turning, fuel, reload, and shell flight. New rules that depend on time should take `elapsed` and get a test like these.
 - Map boundaries and collision geometry do not depend on the physical window scale.
 - HUD coordinates are display coordinates and are never camera transformed.
 - Terrain behavior comes from tileset properties, not hard-coded tile IDs.
+- Screen shake (`ScreenShake`) runs entirely on elapsed time: its jitter is resampled at a fixed 60 Hz inside `Update`, so how often it is drawn does not change it or the random draws it consumes. It uses the cosmetic random stream.
 - Debug rendering (the `F5` overlay) must not change simulation behavior. Holding `F5` pauses the whole update, including the `Esc` exit check.
 - Fuel never goes below zero. Turning and driving each cost fuel scaled by the terrain fuel multiplier; a tank without enough fuel cannot turn or drive, but can still fire.
 - Movement is resolved one axis at a time, so tanks slide along obstacles. A tank cannot enter movement-blocking terrain, leave the map, or overlap the other tank.
@@ -389,6 +390,7 @@ Small observations intentionally deferred from active work are recorded in [`doc
 - Projectile reflection is intentionally approximate and should later use exact tile-edge normals or authored surface metadata.
 - There is no projectile-vs-projectile, tank armor, score, round reset, or explicit game-over screen yet.
 - Destructible terrain, fog of war, advanced AI difficulty, second-human-player mode, and fuel/ammo balancing remain future work.
+- The legacy stages reached only from the developer menu (`OldGameStage` and `Sprite`) move sprites by a fixed amount per update (`Position += Velocity`), so their movement is per-iteration, not time-based. Animation in them is time-based. They are not part of the game loop and were left unchanged.
 
 ## Recommended next step
 
