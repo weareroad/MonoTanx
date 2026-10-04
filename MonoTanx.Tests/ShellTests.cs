@@ -179,4 +179,83 @@ public class ShellTests
 
         Assert.Null(result.Hit);
     }
+
+    [Fact]
+    public void ExpiredShellsReportTheirFateAndNoReflections()
+    {
+        var shell = NewShell(8, 8, 10, 0);
+        shell.Age = Player.DefaultAmmunition.MaxFlightDurationSeconds - 0.01f;
+
+        var result = shell.Step(LoadTerrainMap(), NoTanks(), 0.02f);
+
+        Assert.Equal(ShellFate.Expired, result.Fate);
+        Assert.Equal(0, result.Reflections);
+    }
+
+    [Fact]
+    public void ShellsInFlightReportInFlightAndNoReflections()
+    {
+        var result = NewShell(8, 8, 100, 0).Step(LoadTerrainMap(), NoTanks(), 0.05f);
+
+        Assert.Equal(ShellFate.InFlight, result.Fate);
+        Assert.False(result.Removed);
+        Assert.Equal(0, result.Reflections);
+    }
+
+    [Theory]
+    [InlineData(40.0f, 24.0f, 100.0f, 0.0f)]   // wall at tile (3, 1)
+    [InlineData(72.0f, 24.0f, 100.0f, 0.0f)]   // hill at tile (5, 1)
+    [InlineData(2.0f, 8.0f, -100.0f, 0.0f)]    // the map edge
+    public void ShellsThatHitSolidTerrainReportHitTerrain(float x, float y, float vx, float vy)
+    {
+        var result = NewShell(x, y, vx, vy).Step(LoadTerrainMap(), NoTanks(), 0.1f);
+
+        Assert.Equal(ShellFate.HitTerrain, result.Fate);
+        Assert.Null(result.Hit);
+        Assert.Equal(0, result.Reflections);
+    }
+
+    [Fact]
+    public void ShellsThatHitATankReportHitTank()
+    {
+        var tank = NewPlayer(new Vector2(60, 8));
+
+        var result = NewShell(40, 8, 100, 0).Step(LoadTerrainMap(), new[] { tank }, 0.2f);
+
+        Assert.Equal(ShellFate.HitTank, result.Fate);
+        Assert.Same(tank, result.Hit);
+    }
+
+    [Fact]
+    public void AReflectionIsReportedAndTheShellKeepsFlying()
+    {
+        var shell = NewShell(56, 46, 0, 100); // down into the reflective run on row 3
+
+        var result = shell.Step(LoadTerrainMap(), NoTanks(), 0.05f);
+
+        Assert.Equal(ShellFate.InFlight, result.Fate);
+        Assert.Equal(1, result.Reflections);
+    }
+
+    [Fact]
+    public void AShellCannotReflectMoreThanOnceInOneStepBecauseOfTheCooldown()
+    {
+        var shell = NewShell(56, 46, 0, 100);
+
+        var result = shell.Step(LoadTerrainMap(), NoTanks(), 1.0f); // a very long step
+
+        Assert.True(result.Reflections <= 1);
+    }
+
+    [Fact]
+    public void TheReflectionThatExceedsTheLimitIsStillReportedWithItsFate()
+    {
+        var shell = NewShell(56, 46, 0, 100);
+        shell.ReflectionCount = Tuning.Projectile.MaxReflections;
+
+        var result = shell.Step(LoadTerrainMap(), NoTanks(), 0.05f);
+
+        Assert.Equal(ShellFate.TooManyReflections, result.Fate);
+        Assert.Equal(1, result.Reflections); // so a ping can still be played
+    }
 }

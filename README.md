@@ -22,7 +22,7 @@ Drive around the arena, manage your fuel and shells, collect fuel and ammunition
 - **Shells with limited ammunition and a reload delay.** Each tank starts with 20 standard shells and has a three-second reload between shots.
 - **Terrain-aware projectiles.** Shells fly over water, ground and ravines, and are stopped by walls and hills. Reflective surfaces bounce them, so a shell can come back at the tank that fired it.
 - **Hit feedback.** A hit reduces health and gives the struck tank a small knockback, a heading disruption, and a brief screen shake.
-- **Sound.** Each tank's shots play a sound (Player 2's at a different pitch); more cues and engine sounds are planned. The current sounds are generated placeholders; see `MonoTanx/Content/Audio/README.md` to replace them. `--mute` silences everything, and the game runs normally with no audio device.
+- **Sound.** Firing, reloading, shells bouncing and hitting walls or tanks, and collecting pickups all have sounds (Player 2's shots and reloads at a different pitch); engine sounds are planned. The current sounds are generated placeholders; see `MonoTanx/Content/Audio/README.md` to replace them. `--mute` silences everything, and the game runs normally with no audio device.
 - **Pickups.** Fuel and ammunition pickups are placed on the map in Tiled and collected by driving over them.
 
 ### Computer opponent

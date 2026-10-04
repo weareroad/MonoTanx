@@ -329,7 +329,8 @@ Design and plan: [`docs/audio-spec.md`](docs/audio-spec.md) and [`docs/audio-pla
 - `SoundCue` lists the one-shot sounds. `SoundMix` (pure) gives each cue's volume and pitch from `Tuning.Audio`; Player 2's sounds are pitch-shifted so the two tanks can be told apart.
 - Audio must never stop the game: with `--mute`, with no audio device (`NoAudioHardwareException`), or with a missing file, the affected sounds are skipped with a console message.
 - Assets are WAV only (16-bit PCM, `WavImporter` and `SoundEffectProcessor`, which need no `ffmpeg`) in `Content/Audio/`, named after the cues. The current files are generated placeholders (`tools/generate_placeholder_audio.py`); `Content/Audio/README.md` explains how to replace them. `AudioAssetTests` check every cue has a valid WAV and a pipeline entry.
-- Implemented so far: the fire cue. The other cues and the engine sounds follow the plan.
+- Implemented so far: fire, reload ready, explosion, ping, crump and pickup. The engine sounds follow the plan.
+- `Shell.Step` reports why a shell ended (`ShellFate`: in flight, expired, hit terrain, hit a tank, too many reflections) and whether it reflected, and `Player.TickReload` reports the moment a reload finishes with ammunition left. `GameStage` turns those into cues: a reflection plays Ping, a solid hit Crump, a tank hit Explosion, and a finished reload Reload (Player 2's fire and reload sounds are pitch-shifted). A shell that expires makes no sound.
 
 ## Important invariants
 

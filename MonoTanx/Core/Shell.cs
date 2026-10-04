@@ -4,18 +4,43 @@ using System.Collections.Generic;
 
 namespace MonoTanx.Core
 {
+    // How a shell's step ended.
+    public enum ShellFate
+    {
+        // Still flying.
+        InFlight,
+
+        // Ran out of flight time.
+        Expired,
+
+        // Hit a solid, non-reflective surface (wall, hill, map edge).
+        HitTerrain,
+
+        // Hit a tank.
+        HitTank,
+
+        // Reflected more times than allowed.
+        TooManyReflections
+    }
+
     public readonly struct ShellStepResult
     {
-        // True when the shell has ended (expired, hit terrain, hit a tank, or reflected too often).
-        public bool Removed { get; }
+        public ShellFate Fate { get; }
 
         // The tank that was hit, if any.
         public Player Hit { get; }
 
-        public ShellStepResult(bool removed, Player hit)
+        // How many times the shell reflected during this step.
+        public int Reflections { get; }
+
+        // True when the shell has ended, whatever the reason.
+        public bool Removed => Fate != ShellFate.InFlight;
+
+        public ShellStepResult(ShellFate fate, Player hit, int reflections)
         {
-            Removed = removed;
+            Fate = fate;
             Hit = hit;
+            Reflections = reflections;
         }
     }
 
@@ -43,10 +68,11 @@ namespace MonoTanx.Core
         {
             Age += elapsed;
             if (Age >= Ammunition.MaxFlightDurationSeconds)
-                return new ShellStepResult(true, null);
+                return new ShellStepResult(ShellFate.Expired, null, 0);
 
             var steps = Math.Max(1, (int)Math.Ceiling(Velocity.Length() * elapsed / Tuning.Projectile.SubStepLength));
             var stepTime = elapsed / steps;
+            var reflections = 0;
             ReflectionCooldown = Math.Max(0.0f, ReflectionCooldown - elapsed);
             for (var step = 0; step < steps; step++)
             {
@@ -68,23 +94,24 @@ namespace MonoTanx.Core
                         Position.X += Math.Sign(Velocity.X) * Tuning.Projectile.ReflectionNudge;
                     }
                     ReflectionCooldown = Tuning.Projectile.ReflectionCooldownSeconds;
+                    reflections++;
                     if (++ReflectionCount > Tuning.Projectile.MaxReflections)
-                        return new ShellStepResult(true, null);
+                        return new ShellStepResult(ShellFate.TooManyReflections, null, reflections);
                 }
                 else if (map.BlocksProjectiles(Position))
                 {
-                    return new ShellStepResult(true, null);
+                    return new ShellStepResult(ShellFate.HitTerrain, null, reflections);
                 }
 
                 foreach (var tank in tanks)
                 {
                     var hitDistance = Tuning.Projectile.CollisionRadius + tank.CollisionRadius;
                     if (Vector2.DistanceSquared(Position, tank.Position) <= hitDistance * hitDistance)
-                        return new ShellStepResult(true, tank);
+                        return new ShellStepResult(ShellFate.HitTank, tank, reflections);
                 }
             }
 
-            return new ShellStepResult(false, null);
+            return new ShellStepResult(ShellFate.InFlight, null, reflections);
         }
     }
 }
