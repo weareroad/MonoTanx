@@ -15,16 +15,20 @@ namespace MonoTanx.Core
         private readonly Player[] tanks;
         private readonly ComputerController[] controllers;
         private readonly Random random;
+        private readonly SimulationSettings settings;
+        private readonly bool[] moved = new bool[2];
+        private readonly TankMotion[] motion = new TankMotion[2];
         private readonly List<Shell> shells = new List<Shell>();
         private readonly List<PickupState> pickups = new List<PickupState>();
         private readonly List<MatchEvent> events = new List<MatchEvent>();
 
         // The gameplay random stream (RandomStreams.Gameplay): the only randomness
         // the simulation uses, so a run is reproducible from its seed.
-        public MatchSimulation(WorldMap map, Player playerOne, Player playerTwo, IEnumerable<PickupSpawn> pickupSpawns, Random random)
+        public MatchSimulation(WorldMap map, Player playerOne, Player playerTwo, IEnumerable<PickupSpawn> pickupSpawns, Random random, SimulationSettings settings = default)
         {
             this.map = map;
             this.random = random;
+            this.settings = settings;
             tanks = new[] { playerOne, playerTwo };
             controllers = new[]
             {
@@ -56,6 +60,111 @@ namespace MonoTanx.Core
         {
             shells.Add(new Shell(launch.Ammunition, launch.Position, launch.Velocity));
             events.Add(new MatchEvent(MatchEventKind.ShellFired, SeatOf(shooter)));
+        }
+
+        // Whether the seat's tank drove in the last Step (a computer seat never
+        // counts, as it has no drive animation).
+        public bool Moved(Seat seat) => moved[(int)seat];
+
+        // How the seat's tank moved in the last Step, judged before shells could
+        // knock it about: what the engine sound follows.
+        public TankMotion Motion(Seat seat) => motion[(int)seat];
+
+        // Puts both tanks at their corners of the map facing each other, and starts
+        // the computers afresh.
+        public void PlaceAtStart()
+        {
+            tanks[0].Position = FindStartingPosition(topLeft: true);
+            tanks[1].Position = FindStartingPosition(topLeft: false);
+            tanks[0].Heading = HeadingToward(tanks[0].Position, tanks[1].Position);
+            tanks[1].Heading = HeadingToward(tanks[1].Position, tanks[0].Position);
+            foreach (var controller in controllers)
+                controller.Reset();
+        }
+
+        // Hands a seat to the computer or to a human, starting the computer afresh.
+        public void SetComputerControlled(Seat seat, bool computer)
+        {
+            TankOf(seat).IsComputerControlled = computer;
+            ControllerOf(seat).Reset();
+        }
+
+        public void ResetFuelAndAmmunition(Seat seat) => TankOf(seat).ResetFuelAndAmmunition();
+
+        // Advances the match one update. The commands are for human seats (null
+        // for a computer seat, which is driven by its controller). Order: each seat
+        // moves in turn (a computer ticks its reload first, a human after), the
+        // computers aim and fire, then shells fly and pickups are collected.
+        public void Step(float elapsed, TankCommand? commandOne, TankCommand? commandTwo)
+        {
+            var before = new[] { (tanks[0].Position, tanks[0].Heading), (tanks[1].Position, tanks[1].Heading) };
+            for (var index = 0; index < 2; index++)
+            {
+                var seat = (Seat)index;
+                var tank = tanks[index];
+                moved[index] = false;
+                if (tank.IsComputerControlled)
+                {
+                    TickReload(tank, elapsed);
+                    TankMovement.ApplyInput(map, tank, OpponentOf(tank), controllers[index].PlanMove(elapsed, pickups), elapsed);
+                }
+                else
+                {
+                    var command = (index == 0 ? commandOne : commandTwo) ?? TankCommand.None;
+                    moved[index] = TankMovement.ApplyInput(map, tank, OpponentOf(tank), command, elapsed);
+                    TickReload(tank, elapsed);
+                    if (command.Fire) TryFire(tank);
+                }
+            }
+            for (var index = 0; index < 2; index++)
+            {
+                var tank = tanks[index];
+                if (!tank.IsComputerControlled) continue;
+                var command = controllers[index].PlanAim(elapsed);
+                TankMovement.ApplyInput(map, tank, OpponentOf(tank), command, elapsed);
+                if (command.Fire && TryFire(tank))
+                    controllers[index].ShotFired();
+            }
+            for (var index = 0; index < 2; index++)
+                motion[index] = TankMotionClassifier.Classify(before[index].Item1, before[index].Item2, tanks[index].Position, tanks[index].Heading);
+            StepShells(elapsed);
+            CollectPickups();
+        }
+
+        private void TickReload(Player tank, float elapsed)
+        {
+            if (tank.TickReload(elapsed))
+                events.Add(new MatchEvent(MatchEventKind.ReloadReady, SeatOf(tank)));
+        }
+
+        private bool TryFire(Player tank)
+        {
+            if (!tank.TryFire(settings.MuzzleOffsetOf(SeatOf(tank)), out var launch)) return false;
+            Launch(tank, launch);
+            return true;
+        }
+
+        private Vector2 FindStartingPosition(bool topLeft)
+        {
+            var one = tanks[0];
+            var two = tanks[1];
+            var corner = topLeft ? new Vector2(one.CollisionRadius, one.CollisionRadius) : new Vector2(map.Bounds.Right - two.CollisionRadius, map.Bounds.Bottom - two.CollisionRadius);
+            var result = corner;
+            var bestDistance = float.MaxValue;
+            for (var y = 0; y < map.Bounds.Height; y += map.TileHeight)
+                for (var x = 0; x < map.Bounds.Width; x += map.TileWidth)
+                {
+                    var candidate = new Vector2(x + map.TileWidth / 2.0f, y + map.TileHeight / 2.0f);
+                    if (!map.CanOccupyCircle(candidate, one.CollisionRadius)) continue;
+                    var distance = Vector2.DistanceSquared(candidate, corner);
+                    if (distance < bestDistance) { bestDistance = distance; result = candidate; }
+                }
+            return result;
+        }
+
+        private static float HeadingToward(Vector2 from, Vector2 to)
+        {
+            return (float)Math.Atan2(to.Y - from.Y, to.X - from.X);
         }
 
         // Flies every shell for the elapsed time, applying hits.

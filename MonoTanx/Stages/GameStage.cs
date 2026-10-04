@@ -54,10 +54,6 @@ namespace MonoTanx.Stages
             overviewCamera = setup.StartsInOverview;
             playerOne.Texture = tankTexture;
             playerTwo.Texture = tankTwoTexture;
-            playerOne.Position = FindStartingPosition(true);
-            playerTwo.Position = FindStartingPosition(false);
-            playerOne.Heading = HeadingToward(playerOne.Position, playerTwo.Position);
-            playerTwo.Heading = HeadingToward(playerTwo.Position, playerOne.Position);
             var pickupSpawns = new List<PickupSpawn>();
             foreach (var spawn in worldMap.PickupSpawns)
             {
@@ -73,7 +69,9 @@ namespace MonoTanx.Stages
                     // Keep malformed/unavailable pickup art from preventing the arena from loading.
                 }
             }
-            simulation = new MatchSimulation(worldMap, playerOne, playerTwo, pickupSpawns, game.Random.Gameplay);
+            simulation = new MatchSimulation(worldMap, playerOne, playerTwo, pickupSpawns, game.Random.Gameplay,
+                new SimulationSettings(MuzzleOffsetOf(playerOne), MuzzleOffsetOf(playerTwo)));
+            simulation.PlaceAtStart();
             UpdateCamera();
         }
 
@@ -120,25 +118,19 @@ namespace MonoTanx.Stages
             if (keyboard.IsKeyDown(Keys.F2) && prevKeyboardState.IsKeyUp(Keys.F2)) ToggleControl(Seat.Two);
             if (keyboard.IsKeyDown(Keys.F4) && prevKeyboardState.IsKeyUp(Keys.F4)) ToggleControl(Seat.One);
             if (keyboard.IsKeyDown(Keys.F3) && prevKeyboardState.IsKeyUp(Keys.F3)) overviewCamera = !overviewCamera;
-            var playerOneBefore = (playerOne.Position, playerOne.Heading);
-            var playerTwoBefore = (playerTwo.Position, playerTwo.Heading);
+            simulation.Step(elapsed, CommandOf(Seat.One, keyboard), CommandOf(Seat.Two, keyboard));
             foreach (var seat in Seats)
             {
                 var tank = TankOf(seat);
-                if (tank.IsComputerControlled)
-                    UpdateComputerPlayer(seat, elapsed);
-                else
-                    UpdateTank(tank, keyboard, elapsed, KeysOf(seat));
+                if (!tank.IsComputerControlled)
+                {
+                    if (simulation.Moved(seat)) UpdateTankAnimation(tank, elapsed);
+                    else { tank.AnimationTimer = 0.0f; tank.Frame = 0; }
+                }
             }
-            foreach (var seat in Seats)
-                if (TankOf(seat).IsComputerControlled)
-                    UpdateComputerFiring(seat, elapsed);
-            // judged before shells can knock a tank about
-            engineOne.Update(TankMotionClassifier.Classify(playerOneBefore.Position, playerOneBefore.Heading, playerOne.Position, playerOne.Heading), active: true, elapsed);
-            engineTwo.Update(TankMotionClassifier.Classify(playerTwoBefore.Position, playerTwoBefore.Heading, playerTwo.Position, playerTwo.Heading), active: true, elapsed);
-            simulation.StepShells(elapsed);
+            engineOne.Update(simulation.Motion(Seat.One), active: true, elapsed);
+            engineTwo.Update(simulation.Motion(Seat.Two), active: true, elapsed);
             UpdatePickupAnimations(elapsed);
-            simulation.CollectPickups();
             PlayEvents();
             UpdateCamera();
             shake.Update(elapsed, game.Random.Cosmetic);
@@ -153,14 +145,15 @@ namespace MonoTanx.Stages
             prevKeyboardState = keyboard;
         }
 
-        private void UpdateTank(Player tank, KeyboardState keyboard, float elapsed, SeatKeys keys)
+        // The human's command for a seat, or null when the computer controls it.
+        private TankCommand? CommandOf(Seat seat, KeyboardState keyboard)
         {
-            var command = keys.ToCommand(keyboard, prevKeyboardState);
-            if (TankMovement.ApplyInput(worldMap, tank, OtherTank(tank), command, elapsed))
-                UpdateTankAnimation(tank, elapsed);
-            else { tank.AnimationTimer = 0.0f; tank.Frame = 0; }
-            TickReload(tank, elapsed);
-            if (command.Fire) TryFireShell(tank);
+            return TankOf(seat).IsComputerControlled ? null : KeysOf(seat).ToCommand(keyboard, prevKeyboardState);
+        }
+
+        private static float MuzzleOffsetOf(Player tank)
+        {
+            return tank.Texture.Width / Tuning.Presentation.TankFrameCount / 2.0f + Tuning.Presentation.MuzzleClearance;
         }
 
         private static readonly Seat[] Seats = { Seat.One, Seat.Two };
@@ -170,8 +163,6 @@ namespace MonoTanx.Stages
         private ComputerController ControllerOf(Seat seat) => simulation.ControllerOf(seat);
 
         private static SeatKeys KeysOf(Seat seat) => seat == Seat.One ? SeatKeys.PlayerOne : SeatKeys.PlayerTwo;
-
-        private Player OtherTank(Player tank) => ReferenceEquals(tank, playerOne) ? playerTwo : playerOne;
 
         // Who controls each seat right now (it can change in play with F2 and F4).
         private MatchSetup CurrentSetup => new MatchSetup(
@@ -190,6 +181,9 @@ namespace MonoTanx.Stages
                 var playerTwoSeat = matchEvent.Seat == Seat.Two;
                 switch (matchEvent.Kind)
                 {
+                    case MatchEventKind.ReloadReady:
+                        audio.Play(SoundCue.Reload, playerTwo: playerTwoSeat);
+                        break;
                     case MatchEventKind.ShellFired:
                         audio.Play(SoundCue.Fire, playerTwo: playerTwoSeat);
                         if (CurrentSetup.HumanCount > 0 && ReferenceEquals(simulation.TankOf(matchEvent.Seat.Value), FollowedTank)) StartShake(Tuning.Shake.FireDuration, Tuning.Shake.FireMagnitude);
@@ -230,74 +224,19 @@ namespace MonoTanx.Stages
             }
         }
 
-        // The computer's movement for this seat: reload first, then the controller's
-        // command through the usual movement rules (it has no drive animation).
-        private void UpdateComputerPlayer(Seat seat, float elapsed)
-        {
-            var tank = TankOf(seat);
-            TickReload(tank, elapsed);
-            TankMovement.ApplyInput(worldMap, tank, OtherTank(tank), ControllerOf(seat).PlanMove(elapsed, simulation.Pickups), elapsed);
-        }
-
-        // The computer's aiming and firing, after both seats have moved.
-        private void UpdateComputerFiring(Seat seat, float elapsed)
-        {
-            var tank = TankOf(seat);
-            var controller = ControllerOf(seat);
-            var command = controller.PlanAim(elapsed);
-            TankMovement.ApplyInput(worldMap, tank, OtherTank(tank), command, elapsed);
-            if (command.Fire && TryFireShell(tank))
-                controller.ShotFired();
-        }
-
-        private Vector2 FindStartingPosition(bool topLeft)
-        {
-            var corner = topLeft ? new Vector2(playerOne.CollisionRadius, playerOne.CollisionRadius) : new Vector2(worldMap.Bounds.Right - playerTwo.CollisionRadius, worldMap.Bounds.Bottom - playerTwo.CollisionRadius);
-            var result = corner; var bestDistance = float.MaxValue;
-            for (var y = 0; y < worldMap.Bounds.Height; y += worldMap.TileHeight)
-                for (var x = 0; x < worldMap.Bounds.Width; x += worldMap.TileWidth)
-                {
-                    var candidate = new Vector2(x + worldMap.TileWidth / 2.0f, y + worldMap.TileHeight / 2.0f);
-                    if (!worldMap.CanOccupyCircle(candidate, playerOne.CollisionRadius)) continue;
-                    var distance = Vector2.DistanceSquared(candidate, corner);
-                    if (distance < bestDistance) { bestDistance = distance; result = candidate; }
-                }
-            return result;
-        }
-
-        private static float HeadingToward(Vector2 from, Vector2 to)
-        {
-            return (float)Math.Atan2(to.Y - from.Y, to.X - from.X);
-        }
-
         // Flips a seat between computer and human control. Clears the computer's
         // working state so it starts afresh when it takes control back.
         private void ToggleControl(Seat seat)
         {
             var tank = TankOf(seat);
-            tank.IsComputerControlled = !tank.IsComputerControlled;
-            ControllerOf(seat).Reset();
+            simulation.SetComputerControlled(seat, !tank.IsComputerControlled);
             tank.AnimationTimer = 0.0f;
             tank.Frame = 0;
         }
 
         private void ResetPlayerOneResources()
         {
-            playerOne.ResetFuelAndAmmunition();
-        }
-
-        private bool TryFireShell(Player tank)
-        {
-            var muzzleOffset = tank.Texture.Width / Tuning.Presentation.TankFrameCount / 2.0f + Tuning.Presentation.MuzzleClearance;
-            if (!tank.TryFire(muzzleOffset, out var launch)) return false;
-            simulation.Launch(tank, launch);
-            return true;
-        }
-
-        private void TickReload(Player tank, float elapsed)
-        {
-            if (tank.TickReload(elapsed))
-                audio.Play(SoundCue.Reload, playerTwo: ReferenceEquals(tank, playerTwo));
+            simulation.ResetFuelAndAmmunition(Seat.One);
         }
 
         private void StartShake(float duration, float magnitude)
