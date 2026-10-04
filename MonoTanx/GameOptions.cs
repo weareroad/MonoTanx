@@ -1,3 +1,4 @@
+using MonoTanx.Core;
 using System;
 using System.Globalization;
 
@@ -7,6 +8,12 @@ namespace MonoTanx
     {
         // Master seed for the run. Null means choose one at random.
         public int? Seed { get; private set; }
+
+        // Skip the menu and start a game straight away (for development and quick testing).
+        public bool Test { get; private set; }
+
+        // One or two human players. Used when a game is started from the command line.
+        public GameMode GameMode { get; private set; } = GameMode.OnePlayer;
 
         // Run in a window instead of fullscreen.
         public bool Windowed { get; private set; }
@@ -32,6 +39,13 @@ namespace MonoTanx
                             throw new ArgumentException("--seed requires an integer value.");
                         options.Seed = seed;
                         index++;
+                        break;
+                    case "--test":
+                    case "-test":
+                        options.Test = true;
+                        break;
+                    case "--two-player":
+                        options.GameMode = GameMode.TwoPlayer;
                         break;
                     case "--windowed":
                         options.Windowed = true;

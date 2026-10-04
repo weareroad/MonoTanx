@@ -97,7 +97,7 @@ dotnet test MonoTanx.slnx --no-restore
 Add or update focused xUnit tests for new or changed behavior, keeping testable logic free of graphics-device dependencies, and run the full suite before raising a PR. For gameplay, rendering, input, stage transitions, or content changes, also run the game when a graphical session is available:
 
 ```powershell
-dotnet run --project MonoTanx/MonoTanx.csproj
+dotnet run --project MonoTanx/MonoTanx.csproj -- --test
 ```
 
 Do not claim manual gameplay validation unless the game was actually launched and the affected path was exercised. If graphical validation is unavailable, report that limitation.

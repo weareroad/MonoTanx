@@ -35,13 +35,16 @@ From the repository root:
 ```sh
 dotnet build MonoTanx.slnx
 dotnet test MonoTanx.slnx
-dotnet run --project MonoTanx/MonoTanx.csproj
+dotnet run --project MonoTanx/MonoTanx.csproj            # opens the menu
+dotnet run --project MonoTanx/MonoTanx.csproj -- --test  # straight into a game
 ```
 
 ### Launch options
 
 | Option | Effect |
 |---|---|
+| `--test` | Skip the menu and start a game straight away (for development and quick testing) |
+| `--two-player` | Start games with two human players: Player 2 under human control and the whole arena in view |
 | `--seed <integer>` | Fix the run's random draws; the seed is shown in the debug overlay |
 | `--windowed` | Run in a window instead of fullscreen |
 | `--scale <1-4>` | With `--windowed`, set the window to that integer multiple of 800×600 (default 2) |
@@ -49,7 +52,7 @@ dotnet run --project MonoTanx/MonoTanx.csproj
 Options go after `--` when using `dotnet run`, and can be combined:
 
 ```sh
-dotnet run --project MonoTanx/MonoTanx.csproj -- --windowed --scale 2 --seed 123
+dotnet run --project MonoTanx/MonoTanx.csproj -- --test --windowed --scale 2 --seed 123
 ```
 
 The project targets `net10.0` and restores MonoGame and its content-pipeline tooling through NuGet. The game renders to an 800×600 logical surface and starts fullscreen by default, scaled proportionally with letterboxing where needed.
