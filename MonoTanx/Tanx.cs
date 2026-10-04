@@ -76,10 +76,10 @@ namespace MonoTanx
             ScreenScale = Math.Min(GraphicsDevice.Viewport.Width / DesignedWidth, GraphicsDevice.Viewport.Height / DesignedHeight);
 
             spriteBatch = new SpriteBatch(GraphicsDevice);
-            // --test goes straight into a game; otherwise start at the menu
+            // --test goes straight into a game; otherwise start at the home screen
             currentStage = options.Test
                 ? new GameStage(this, graphics.GraphicsDevice, Content, options.GameMode)
-                : new MenuStage(this, graphics.GraphicsDevice, Content);
+                : new HomeStage(this, graphics.GraphicsDevice, Content);
 
         }
 

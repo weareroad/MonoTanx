@@ -21,7 +21,7 @@ dotnet run --project MonoTanx/MonoTanx.csproj -- --test --seed 123   # reproduci
 
 - `Program.cs` parses the command line into `GameOptions` (`--test`, `--two-player`, `--seed <integer>`, `--windowed`, `--scale <1-4>`), then constructs and runs `Tanx`, which creates the run's `RandomStreams`.
 - `Tanx.cs` is the `Game` host. It runs a fixed 60 FPS step, draws the current stage to an 800×600 render target, and scales that to the window with proportional letterboxing. It also owns stage switching via `ChangeStage`.
-- With `--test` the game starts directly in `GameStage`; without it, it starts at `MenuStage`, a developer menu whose "Game Stage" button starts a game (a proper home screen with a start button and a one/two-player toggle is planned, see #23). `--two-player` selects `GameMode.TwoPlayer`: Player 2 starts under human control and the overview camera is on. It runs fullscreen at the desktop resolution unless `--windowed` is given, which uses a window of 800×600 times `--scale` (default 2).
+- With `--test` the game starts directly in `GameStage`; without it, it starts at `HomeStage`: Start game, a Players: 1/2 toggle, Dev menu (the old `MenuStage` of tech-demo test stages, which are holdovers from a scratch project and due for removal) and Quit. It works with the mouse or the keyboard, and `MenuSelection` holds the highlight state. `--two-player` selects `GameMode.TwoPlayer` (preselected on the home screen): Player 2 starts under human control and the overview camera is on. It runs fullscreen at the desktop resolution unless `--windowed` is given, which uses a window of 800×600 times `--scale` (default 2).
 - Stages (`Stages/`) are the screens/game states. `Core/Stage.cs` is the base type.
 
 ### Project shape
