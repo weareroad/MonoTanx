@@ -99,6 +99,7 @@ namespace MonoTanx
         {
             if (nextStage != null)
             {
+                currentStage.OnLeave();
                 currentStage = nextStage;
                 nextStage = null;
             }

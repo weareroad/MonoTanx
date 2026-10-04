@@ -34,6 +34,8 @@ namespace MonoTanx.Stages
         private float playerTwoRetaliationTimer;
         private readonly ScreenShake shake = new ScreenShake();
         private readonly GameAudio audio;
+        private readonly EngineSound engineOne;
+        private readonly EngineSound engineTwo;
         private bool debugOverlayVisible;
 
         public Player Player1 => playerOne;
@@ -42,6 +44,8 @@ namespace MonoTanx.Stages
         public GameStage(Tanx game, GraphicsDevice graphicsDevice, ContentManager content, GameMode mode = GameMode.OnePlayer) : base(game, graphicsDevice, content)
         {
             audio = new GameAudio(content, game.Options.Mute);
+            engineOne = audio.CreateEngine(playerTwo: false);
+            engineTwo = audio.CreateEngine(playerTwo: true);
             worldMap = new WorldMap(WorldMap.ResolveMapPath(content.RootDirectory, "arena_01.tmx"));
             mapRenderer = new MapRenderer(content, "arena_01.tmx", "arena_01");
             debugFont = content.Load<SpriteFont>("SpriteFonts/dogica");
@@ -99,6 +103,12 @@ namespace MonoTanx.Stages
 
         public override void PostUpdate(GameTime gameTime) { }
 
+        public override void OnLeave()
+        {
+            engineOne.Dispose();
+            engineTwo.Dispose();
+        }
+
         public override void Update(GameTime gameTime)
         {
             var keyboard = Keyboard.GetState();
@@ -106,12 +116,17 @@ namespace MonoTanx.Stages
             debugOverlayVisible = keyboard.IsKeyDown(Keys.F5);
             if (debugOverlayVisible)
             {
+                // paused: the engines fade out
+                engineOne.Update(TankMotion.Idle, active: false, elapsed);
+                engineTwo.Update(TankMotion.Idle, active: false, elapsed);
                 prevKeyboardState = keyboard;
                 return;
             }
             if (keyboard.IsKeyDown(Keys.F1) && prevKeyboardState.IsKeyUp(Keys.F1)) ResetPlayerOneResources();
             if (keyboard.IsKeyDown(Keys.F2) && prevKeyboardState.IsKeyUp(Keys.F2)) TogglePlayerTwoControl();
             if (keyboard.IsKeyDown(Keys.F3) && prevKeyboardState.IsKeyUp(Keys.F3)) overviewCamera = !overviewCamera;
+            var playerOneBefore = (playerOne.Position, playerOne.Heading);
+            var playerTwoBefore = (playerTwo.Position, playerTwo.Heading);
             UpdateTank(playerOne, keyboard, elapsed, Keys.A, Keys.D, Keys.W, Keys.S, Keys.Space);
             if (playerTwo.IsComputerControlled)
                 UpdateComputerPlayer(elapsed);
@@ -119,6 +134,9 @@ namespace MonoTanx.Stages
                 UpdateTank(playerTwo, keyboard, elapsed, Keys.Left, Keys.Right, Keys.Up, Keys.Down, Keys.Enter);
             if (playerTwo.IsComputerControlled)
                 UpdateComputerFiring(elapsed);
+            // judged before shells can knock a tank about
+            engineOne.Update(TankMotionClassifier.Classify(playerOneBefore.Position, playerOneBefore.Heading, playerOne.Position, playerOne.Heading), active: true, elapsed);
+            engineTwo.Update(TankMotionClassifier.Classify(playerTwoBefore.Position, playerTwoBefore.Heading, playerTwo.Position, playerTwo.Heading), active: true, elapsed);
             UpdateShells(elapsed);
             UpdatePickupAnimations(elapsed);
             CollectPickups(playerOne);

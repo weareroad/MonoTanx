@@ -11,6 +11,7 @@ namespace MonoTanx.Core
     public sealed class GameAudio
     {
         private readonly Dictionary<SoundCue, SoundEffect> effects = new Dictionary<SoundCue, SoundEffect>();
+        private SoundEffect engineEffect;
         private bool disabled;
 
         public bool Enabled => !disabled;
@@ -26,6 +27,15 @@ namespace MonoTanx.Core
             try
             {
                 SoundEffect.MasterVolume = Tuning.Audio.MasterVolume;
+                try
+                {
+                    engineEffect = content.Load<SoundEffect>("Audio/engine");
+                }
+                catch (ContentLoadException exception)
+                {
+                    Console.Error.WriteLine($"Audio: could not load 'engine' ({exception.Message}); engine sounds are skipped.");
+                }
+
                 foreach (SoundCue cue in Enum.GetValues(typeof(SoundCue)))
                 {
                     try
@@ -43,6 +53,9 @@ namespace MonoTanx.Core
                 Disable("no audio device available");
             }
         }
+
+        // A tank's engine drone. Silent (and harmless) when audio is off.
+        public EngineSound CreateEngine(bool playerTwo) => new EngineSound(disabled ? null : engineEffect, playerTwo);
 
         // Content name of a cue's file (under Content/Audio), for example Fire -> "fire".
         public static string AssetName(SoundCue cue) => cue.ToString().ToLowerInvariant();

@@ -39,5 +39,10 @@ namespace MonoTanx.Core
 
         public abstract void Update(GameTime gameTime);
 
+        // Called when the game moves on to another stage, to release anything held.
+        public virtual void OnLeave()
+        {
+        }
+
     }
 }
