@@ -1,6 +1,7 @@
 ﻿using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Content;
 using Microsoft.Xna.Framework.Graphics;
+using Microsoft.Xna.Framework.Input;
 using MonoTanx.Controls;
 using MonoTanx.Core;
 using System;
@@ -89,7 +90,7 @@ namespace MonoTanx.Stages
                 {
                     Position = new Vector2(xPos, 550),
                     Bounds = bounds,
-                    Text = "Press [ESC] to return to menu",
+                    Text = "Press [ESC] for the home screen",
                     PenColor = Color.Yellow
                 },
             };
@@ -114,6 +115,11 @@ namespace MonoTanx.Stages
         {
             foreach (var component in components)
                 component.Update(gameTime);
+
+            var keyboard = Keyboard.GetState();
+            if (keyboard.IsKeyDown(Keys.Escape) && prevKeyboardState.IsKeyUp(Keys.Escape))
+                game.ChangeStage(new HomeStage(game, graphicsDevice, content));
+            prevKeyboardState = keyboard;
         }
 
         private void QuitGameButton_Click(object sender, EventArgs e)

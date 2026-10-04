@@ -32,6 +32,8 @@ namespace MonoTanx.Core
             this.game = game;
             this.graphicsDevice = graphicsDevice;
             this.content = content;
+            // a key still held from the previous stage must not count as a fresh press
+            prevKeyboardState = Keyboard.GetState();
             //this.baseFont = baseFont;
         }
 

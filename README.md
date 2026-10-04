@@ -35,7 +35,7 @@ From the repository root:
 ```sh
 dotnet build MonoTanx.slnx
 dotnet test MonoTanx.slnx
-dotnet run --project MonoTanx/MonoTanx.csproj            # opens the menu
+dotnet run --project MonoTanx/MonoTanx.csproj            # opens the home screen
 dotnet run --project MonoTanx/MonoTanx.csproj -- --test  # straight into a game
 ```
 
@@ -43,8 +43,8 @@ dotnet run --project MonoTanx/MonoTanx.csproj -- --test  # straight into a game
 
 | Option | Effect |
 |---|---|
-| `--test` | Skip the menu and start a game straight away (for development and quick testing) |
-| `--two-player` | Start games with two human players: Player 2 under human control and the whole arena in view |
+| `--test` | Skip the home screen and start a game straight away (for development and quick testing) |
+| `--two-player` | Two human players: Player 2 under human control and the whole arena in view. Preselects two players on the home screen |
 | `--seed <integer>` | Fix the run's random draws; the seed is shown in the debug overlay |
 | `--windowed` | Run in a window instead of fullscreen |
 | `--scale <1-4>` | With `--windowed`, set the window to that integer multiple of 800×600 (default 2) |
@@ -57,6 +57,10 @@ dotnet run --project MonoTanx/MonoTanx.csproj -- --test --windowed --scale 2 --s
 
 The project targets `net10.0` and restores MonoGame and its content-pipeline tooling through NuGet. The game renders to an 800×600 logical surface and starts fullscreen by default, scaled proportionally with letterboxing where needed.
 
+## Home screen
+
+Unless `--test` is given, the game opens at a home screen with **Start game**, a **Players: 1 / Players: 2** setting, **Dev menu** (the old tech-demo test stages) and **Quit**. Use the mouse, or Up/Down to move, Enter or Space to choose, Left/Right to change the players setting, and Esc to quit.
+
 ## Controls
 
 | Key | Action |
@@ -68,7 +72,7 @@ The project targets `net10.0` and restores MonoGame and its content-pipeline too
 | `F2` | Switch Player 2 between computer and human control (development aid) |
 | `F3` | Switch between the following camera and an overview showing the whole arena (development aid) |
 | `F5` (hold) | Pause and show the debug overlay |
-| `Esc` | Exit |
+| `Esc` | In a game: back to the home screen (quit, when started with `--test`). On the home screen: quit |
 
 Player 2 starts computer controlled. Press `F2` to take it over (the HUD shows `CPU` or `HUMAN`), using the cursor keys to drive and turn and `Enter` to fire; press `F2` again to hand it back.
 

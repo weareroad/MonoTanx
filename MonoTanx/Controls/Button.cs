@@ -23,6 +23,11 @@ namespace MonoTanx.Controls
         public string Text { get; set; } = "";
         public float Scale { get; set; } = 1.0f;
 
+        // Highlighted by keyboard navigation (or by the mouse hovering over it).
+        public bool Selected { get; set; }
+
+        public bool IsHovering => isHovering;
+
         public Rectangle Rectangle
         {
             get
@@ -50,7 +55,9 @@ namespace MonoTanx.Controls
         {
             var colour = Color.White;
 
-            if (isHovering)
+            if (Selected)
+                colour = Color.Aquamarine;
+            else if (isHovering)
                 colour = Color.Gray;
 
             spriteBatch.Draw(texture, Rectangle, colour);
