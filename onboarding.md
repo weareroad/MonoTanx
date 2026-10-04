@@ -21,7 +21,7 @@ dotnet run --project MonoTanx/MonoTanx.csproj -- --test --seed 123   # reproduci
 
 - `Program.cs` parses the command line into `GameOptions` (`--test`, `--two-player`, `--seed <integer>`, `--windowed`, `--scale <1-4>`), then constructs and runs `Tanx`, which creates the run's `RandomStreams`.
 - `Tanx.cs` is the `Game` host. It runs a fixed 60 FPS step, draws the current stage to an 800×600 render target, and scales that to the window with proportional letterboxing. It also owns stage switching via `ChangeStage`.
-- With `--test` the game starts directly in `GameStage`; without it, it starts at `HomeStage`: Start game, a Players: 1/2 toggle, Dev menu (the old `MenuStage` of tech-demo test stages, which are holdovers from a scratch project and due for removal) and Quit. It works with the mouse or the keyboard, and `MenuSelection` holds the highlight state. `--two-player` selects `GameMode.TwoPlayer` (preselected on the home screen): Player 2 starts under human control and the overview camera is on. In a game, `Esc` returns to the home screen, or quits the application when started with `--test`. It runs fullscreen at the desktop resolution unless `--windowed` is given, which uses a window of 800×600 times `--scale` (default 2).
+- With `--test` the game starts directly in `GameStage`; without it, it starts at `HomeStage`: Start game, a Players: 1/2 toggle and Quit. It works with the mouse or the keyboard, and `MenuSelection` holds the highlight state. `--two-player` selects `GameMode.TwoPlayer` (preselected on the home screen): Player 2 starts under human control and the overview camera is on. In a game, `Esc` returns to the home screen, or quits the application when started with `--test`. It runs fullscreen at the desktop resolution unless `--windowed` is given, which uses a window of 800×600 times `--scale` (default 2).
 - Stages (`Stages/`) are the screens/game states. `Core/Stage.cs` is the base type.
 
 ### Project shape
@@ -341,7 +341,7 @@ Preserve these behaviours when changing movement, projectiles, rendering, or tim
 - `F1` refills Player 1's fuel and ammunition only; it does not touch health or Player 2.
 - `F2` toggles Player 2 between computer and human control and clears the computer's route, pursuit and timers, so it starts afresh when it takes control back.
 - Reaching 0 health currently exits the game; there is no score or round state yet.
-- Randomness comes from `RandomStreams`, created in `Tanx` from the master seed (`--seed <integer>`, otherwise random, shown in the `F5` overlay). The gameplay stream drives the heading disruption on a hit; the cosmetic stream drives screen shake, so visual draws never change gameplay. Streams are passed to the code that needs them, not held globally. `OldGameStage` uses a fixed seed (42). The seed fixes random draws but not real input or frame timing, so it does not give full replay.
+- Randomness comes from `RandomStreams`, created in `Tanx` from the master seed (`--seed <integer>`, otherwise random, shown in the `F5` overlay). The gameplay stream drives the heading disruption on a hit; the cosmetic stream drives screen shake, so visual draws never change gameplay. Streams are passed to the code that needs them, not held globally. The seed fixes random draws but not real input or frame timing, so it does not give full replay.
 
 ## Testing strategy
 
@@ -391,7 +391,6 @@ Small observations intentionally deferred from active work are recorded in [`doc
 - Projectile reflection is intentionally approximate and should later use exact tile-edge normals or authored surface metadata.
 - There is no projectile-vs-projectile, tank armor, score, round reset, or explicit game-over screen yet.
 - Destructible terrain, fog of war, advanced AI difficulty, second-human-player mode, and fuel/ammo balancing remain future work.
-- The legacy stages reached only from the developer menu (`OldGameStage` and `Sprite`) move sprites by a fixed amount per update (`Position += Velocity`), so their movement is per-iteration, not time-based. Animation in them is time-based. They are not part of the game loop and were left unchanged.
 
 ## Recommended next step
 

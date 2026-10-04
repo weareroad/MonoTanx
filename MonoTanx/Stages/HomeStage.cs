@@ -10,15 +10,13 @@ using System.Collections.Generic;
 namespace MonoTanx.Stages
 {
     // The screen shown at launch (unless --test): start a game, choose one or two
-    // players, open the developer menu, or quit. Works with the mouse or the
-    // keyboard (Up/Down to move, Enter/Space to choose, Left/Right to change the
-    // players setting, Esc to quit).
+    // players, or quit. Works with the mouse or the keyboard (Up/Down to move,
+    // Enter/Space to choose, Left/Right to change the players setting, Esc to quit).
     public class HomeStage : Stage
     {
         private const int StartItem = 0;
         private const int PlayersItem = 1;
-        private const int DeveloperMenuItem = 2;
-        private const int QuitItem = 3;
+        private const int QuitItem = 2;
 
         private readonly List<Button> buttons = new List<Button>();
         private readonly MenuSelection selection;
@@ -47,8 +45,7 @@ namespace MonoTanx.Stages
 
             MakeButton("Start game", 210, (s, e) => Activate(StartItem));
             playersButton = MakeButton(mode.Label(), 270, (s, e) => Activate(PlayersItem));
-            MakeButton("Dev menu", 330, (s, e) => Activate(DeveloperMenuItem));
-            MakeButton("Quit", 390, (s, e) => Activate(QuitItem));
+            MakeButton("Quit", 330, (s, e) => Activate(QuitItem));
             selection = new MenuSelection(buttons.Count);
 
             var bounds = new Vector2(600, 40);
@@ -127,9 +124,6 @@ namespace MonoTanx.Stages
                 case PlayersItem:
                     mode = mode.Toggle();
                     playersButton.Text = mode.Label();
-                    break;
-                case DeveloperMenuItem:
-                    game.ChangeStage(new MenuStage(game, graphicsDevice, content));
                     break;
                 case QuitItem:
                     game.Exit();
