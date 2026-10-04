@@ -63,6 +63,7 @@ The project targets `net10.0` and restores MonoGame and its content-pipeline too
 | `Space` | Fire |
 | `F1` | Refill Player 1 fuel and ammunition (development aid) |
 | `F2` | Switch Player 2 between computer and human control (development aid) |
+| `F3` | Switch between the following camera and an overview showing the whole arena (development aid) |
 | `F5` (hold) | Pause and show the debug overlay |
 | `Esc` | Exit |
 

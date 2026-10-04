@@ -142,6 +142,7 @@ This favors combinations such as a traversable bridge over water without creatin
 - At map edges, the camera clamps and Player 1 moves away from center.
 - Player 2 may be outside the visible viewport; current gameplay remains keyed to Player 1’s viewpoint.
 - The world draw translation (camera plus shake) is rounded to whole pixels. A fractional translation lets point sampling pick up neighbouring texels of the tile atlas and shows as thin seams between tiles.
+- `F3` toggles an overview camera that fits the whole arena in the playfield (about 0.81 zoom for the 960x640 arena in the 800x520 playfield, centred). `CameraView` (in `Core`) does the maths for both modes. The overview draws the world at full size into an offscreen target and scales that, because scaling the tile atlas directly would bring back neighbouring-tile seams. Whether the scale-up is smoothed or nearest-neighbour is `Tuning.Presentation.OverviewSmoothing`. The follow camera is the default; making the overview automatic for two-player games waits on the mode choice in #23.
 
 ### Shells and damage
 

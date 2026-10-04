@@ -232,6 +232,12 @@ namespace MonoTanx.Core
             // (pixels), so a new shell does not overlap its own tank.
             public const float MuzzleClearance = 4.0f;
 
+            // Whether the overview camera (F3) smooths the scaled-down arena
+            // (true) or uses nearest-neighbour (false). The arena is scaled by
+            // a non-integer factor, so nearest-neighbour gives uneven pixel
+            // sizes; smoothing is softer but even. Try both by eye.
+            public const bool OverviewSmoothing = true;
+
             // Height of the HUD strip at the top of the screen (pixels); five
             // 16px tiles. The playfield is the rest of the 600px surface.
             public const int HudHeight = 80;

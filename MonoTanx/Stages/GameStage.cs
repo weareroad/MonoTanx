@@ -22,7 +22,9 @@ namespace MonoTanx.Stages
         private readonly List<Shell> shells = new List<Shell>();
         private readonly List<Pickup> pickups = new List<Pickup>();
         private readonly List<Point> playerTwoRoute = new List<Point>();
-        private Vector2 cameraPosition;
+        private CameraView cameraView;
+        private bool overviewCamera;
+        private RenderTarget2D overviewTarget;
         private Vector2 lastPlayerOnePosition;
         private int playerTwoRouteIndex;
         private int playerTwoPickupTargetId = -1;
@@ -74,37 +76,15 @@ namespace MonoTanx.Stages
         public override void Draw(GameTime gameTime, SpriteBatch spriteBatch)
         {
             var shakeOffset = shake.Offset;
-            // Snap the world translation to whole pixels. A fractional offset makes
-            // point sampling land on tile-atlas texel boundaries and pick up
-            // neighbouring (empty) atlas texels, which shows as thin dark seams.
-            var worldOffset = new Vector2(
-                (float)Math.Round(-cameraPosition.X + shakeOffset.X),
-                (float)Math.Round(-cameraPosition.Y + HudHeight + shakeOffset.Y));
-            spriteBatch.Begin(SpriteSortMode.FrontToBack, BlendState.AlphaBlend, SamplerState.PointClamp, transformMatrix: Matrix.CreateTranslation(worldOffset.X, worldOffset.Y, 0.0f));
-            mapRenderer.Draw(spriteBatch);
-            DrawTank(spriteBatch, playerOne);
-            DrawTank(spriteBatch, playerTwo);
-            foreach (var pickup in pickups)
-            {
-                if (!pickup.Active) continue;
-                var frameWidth = pickup.Texture.Width / Tuning.Presentation.PickupFrameCount;
-                var frameHeight = pickup.Texture.Height;
-                var source = new Rectangle(pickup.Frame * frameWidth, 0, frameWidth, frameHeight);
-                var origin = new Vector2(frameWidth / 2.0f, frameHeight / 2.0f);
-                spriteBatch.Draw(pickup.Texture, pickup.Spawn.Position, source, Color.White, 0.0f, origin, 1.0f, SpriteEffects.None, 0.45f);
-            }
-            foreach (var shell in shells)
-            {
-                var offset = Tuning.Presentation.PlaceholderShellSize / 2;
-                var bounds = new Rectangle((int)shell.Position.X - offset, (int)shell.Position.Y - offset, Tuning.Presentation.PlaceholderShellSize, Tuning.Presentation.PlaceholderShellSize);
-                spriteBatch.Draw(placeholderShellTexture, bounds, null, Color.Yellow, 0.0f, Vector2.Zero, SpriteEffects.None, 0.6f);
-            }
-            spriteBatch.End();
+            if (overviewCamera)
+                DrawOverview(spriteBatch, shakeOffset);
+            else
+                DrawFollow(spriteBatch, shakeOffset);
             spriteBatch.Begin(samplerState: SamplerState.PointClamp);
             spriteBatch.Draw(placeholderShellTexture, new Rectangle(0, 0, (int)Tanx.DesignedWidth, HudHeight), new Color(48, 54, 60));
             DrawPlayerOneHud(spriteBatch);
             DrawPlayerTwoHud(spriteBatch);
-            spriteBatch.DrawString(debugFont, "P1 WASD/Space  P2 Cursor Keys/Enter  F1 reset P1  F2 P2 cpu/human  Esc quit", new Vector2(8.0f, Tanx.DesignedHeight - 24.0f), Color.White);
+            spriteBatch.DrawString(debugFont, "P1 WASD/Space  P2 Arrows/Enter  F1 refill  F2 P2 cpu  F3 view  Esc quit", new Vector2(8.0f, Tanx.DesignedHeight - 24.0f), Color.White);
             if (debugOverlayVisible)
                 DrawDebugOverlay(spriteBatch);
             spriteBatch.End();
@@ -124,6 +104,7 @@ namespace MonoTanx.Stages
             }
             if (keyboard.IsKeyDown(Keys.F1) && prevKeyboardState.IsKeyUp(Keys.F1)) ResetPlayerOneResources();
             if (keyboard.IsKeyDown(Keys.F2) && prevKeyboardState.IsKeyUp(Keys.F2)) TogglePlayerTwoControl();
+            if (keyboard.IsKeyDown(Keys.F3) && prevKeyboardState.IsKeyUp(Keys.F3)) overviewCamera = !overviewCamera;
             UpdateTank(playerOne, keyboard, elapsed, Keys.A, Keys.D, Keys.W, Keys.S, Keys.Space);
             if (playerTwo.IsComputerControlled)
                 UpdateComputerPlayer(elapsed);
@@ -532,11 +513,10 @@ namespace MonoTanx.Stages
 
         private void UpdateCamera()
         {
-            var maxX = MathHelper.Max(0.0f, worldMap.Bounds.Width - Tanx.DesignedWidth);
-            var viewportHeight = Tanx.DesignedHeight - HudHeight;
-            var maxY = MathHelper.Max(0.0f, worldMap.Bounds.Height - viewportHeight);
-            cameraPosition.X = MathHelper.Clamp(playerOne.Position.X - Tanx.DesignedWidth / 2.0f, 0.0f, maxX);
-            cameraPosition.Y = MathHelper.Clamp(playerOne.Position.Y - viewportHeight / 2.0f, 0.0f, maxY);
+            var viewport = new Vector2(Tanx.DesignedWidth, Tanx.DesignedHeight - HudHeight);
+            cameraView = overviewCamera
+                ? CameraView.Overview(worldMap.Bounds, viewport)
+                : CameraView.Follow(playerOne.Position, worldMap.Bounds, viewport);
         }
 
         private static void UpdateTankAnimation(Player tank, float elapsed)
@@ -547,6 +527,69 @@ namespace MonoTanx.Stages
 
         private static string ReloadText(Player tank) => tank.ReloadTimer > 0.0f ? tank.ReloadTimer.ToString("0.0") : "READY";
 
+        private void DrawFollow(SpriteBatch spriteBatch, Vector2 shakeOffset)
+        {
+            // Snap the world translation to whole pixels. A fractional offset makes
+            // point sampling land on tile-atlas texel boundaries and pick up
+            // neighbouring (empty) atlas texels, which shows as thin dark seams.
+            var worldOffset = new Vector2(
+                (float)Math.Round(cameraView.Offset.X + shakeOffset.X),
+                (float)Math.Round(cameraView.Offset.Y + HudHeight + shakeOffset.Y));
+            spriteBatch.Begin(SpriteSortMode.FrontToBack, BlendState.AlphaBlend, SamplerState.PointClamp, transformMatrix: Matrix.CreateTranslation(worldOffset.X, worldOffset.Y, 0.0f));
+            DrawWorld(spriteBatch);
+            spriteBatch.End();
+        }
+
+        // Draws the whole arena at full size into an offscreen target, then
+        // scales that into the playfield. (Scaling the tile atlas directly would
+        // bring back the neighbouring-tile seams.)
+        private void DrawOverview(SpriteBatch spriteBatch, Vector2 shakeOffset)
+        {
+            var bounds = worldMap.Bounds;
+            if (overviewTarget == null || overviewTarget.Width != bounds.Width || overviewTarget.Height != bounds.Height)
+                overviewTarget = new RenderTarget2D(graphicsDevice, bounds.Width, bounds.Height);
+
+            var previousTargets = graphicsDevice.GetRenderTargets();
+            graphicsDevice.SetRenderTarget(overviewTarget);
+            graphicsDevice.Clear(Color.Black);
+            spriteBatch.Begin(SpriteSortMode.FrontToBack, BlendState.AlphaBlend, SamplerState.PointClamp);
+            DrawWorld(spriteBatch);
+            spriteBatch.End();
+            graphicsDevice.SetRenderTargets(previousTargets);
+            graphicsDevice.Clear(Color.Black); // the target's contents may not survive the switch
+
+            var destination = new Rectangle(
+                (int)Math.Round(cameraView.Offset.X + shakeOffset.X),
+                (int)Math.Round(cameraView.Offset.Y + HudHeight + shakeOffset.Y),
+                (int)Math.Round(bounds.Width * cameraView.Zoom),
+                (int)Math.Round(bounds.Height * cameraView.Zoom));
+            spriteBatch.Begin(samplerState: Tuning.Presentation.OverviewSmoothing ? SamplerState.LinearClamp : SamplerState.PointClamp);
+            spriteBatch.Draw(overviewTarget, destination, Color.White);
+            spriteBatch.End();
+        }
+
+        private void DrawWorld(SpriteBatch spriteBatch)
+        {
+            mapRenderer.Draw(spriteBatch);
+            DrawTank(spriteBatch, playerOne);
+            DrawTank(spriteBatch, playerTwo);
+            foreach (var pickup in pickups)
+            {
+                if (!pickup.Active) continue;
+                var frameWidth = pickup.Texture.Width / Tuning.Presentation.PickupFrameCount;
+                var frameHeight = pickup.Texture.Height;
+                var source = new Rectangle(pickup.Frame * frameWidth, 0, frameWidth, frameHeight);
+                var origin = new Vector2(frameWidth / 2.0f, frameHeight / 2.0f);
+                spriteBatch.Draw(pickup.Texture, pickup.Spawn.Position, source, Color.White, 0.0f, origin, 1.0f, SpriteEffects.None, 0.45f);
+            }
+            foreach (var shell in shells)
+            {
+                var offset = Tuning.Presentation.PlaceholderShellSize / 2;
+                var bounds = new Rectangle((int)shell.Position.X - offset, (int)shell.Position.Y - offset, Tuning.Presentation.PlaceholderShellSize, Tuning.Presentation.PlaceholderShellSize);
+                spriteBatch.Draw(placeholderShellTexture, bounds, null, Color.Yellow, 0.0f, Vector2.Zero, SpriteEffects.None, 0.6f);
+            }
+        }
+
         private void DrawPlayerOneHud(SpriteBatch spriteBatch)
         {
             var panelWidth = (int)Tanx.DesignedWidth * 3 / 4;
@@ -555,6 +598,7 @@ namespace MonoTanx.Stages
             spriteBatch.DrawString(debugFont, $"{playerOne.Health}%", new Vector2(panelWidth - 112, 4.0f), Color.White);
             spriteBatch.DrawString(debugFont, $"Shells {playerOne.RemainingAmmunition}", new Vector2(8.0f, 25.0f), Color.White);
             spriteBatch.DrawString(debugFont, playerOne.ReloadTimer > 0.0f ? "!" : "", new Vector2(panelWidth - 32, 22.0f), Color.White);
+            spriteBatch.DrawString(debugFont, overviewCamera ? "VIEW: OVERVIEW (F3)" : "VIEW: FOLLOW (F3)", new Vector2(260.0f, 30.0f), Color.White);
             spriteBatch.DrawString(debugFont, "Fuel", new Vector2(8.0f, 52.0f), Color.White);
             DrawFuelBar(spriteBatch, new Rectangle(48, 56, panelWidth - 160, 12), playerOne);
             spriteBatch.DrawString(debugFont, $"{playerOne.Fuel / playerOne.MaximumFuel * 100.0f:0}%", new Vector2(panelWidth - 112, 52.0f), Color.White);
