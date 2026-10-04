@@ -87,7 +87,9 @@ namespace MonoTanx.Stages
             spriteBatch.Draw(placeholderShellTexture, new Rectangle(0, 0, (int)Tanx.DesignedWidth, HudHeight), new Color(48, 54, 60));
             DrawPlayerOneHud(spriteBatch);
             DrawPlayerTwoHud(spriteBatch);
-            spriteBatch.DrawString(debugFont, "P1 WASD/Space  P2 Arrows/Enter  F1 refill  F2 P2 cpu  F3 view  Esc quit", new Vector2(8.0f, Tanx.DesignedHeight - 24.0f), Color.White);
+            spriteBatch.DrawString(debugFont, game.Options.Test
+                ? "P1 WASD/Space  P2 Arrows/Enter  F1 refill  F2 P2 cpu  F3 view  Esc quit"
+                : "P1 WASD/Space  P2 Arrows/Enter  F1 refill  F2 P2 cpu  F3 view  Esc menu", new Vector2(8.0f, Tanx.DesignedHeight - 24.0f), Color.White);
             if (debugOverlayVisible)
                 DrawDebugOverlay(spriteBatch);
             spriteBatch.End();
@@ -121,7 +123,14 @@ namespace MonoTanx.Stages
             CollectPickups(playerTwo);
             UpdateCamera();
             shake.Update(elapsed, game.Random.Cosmetic);
-            if (keyboard.IsKeyDown(Keys.Escape) && prevKeyboardState.IsKeyUp(Keys.Escape)) game.Exit();
+            if (keyboard.IsKeyDown(Keys.Escape) && prevKeyboardState.IsKeyUp(Keys.Escape))
+            {
+                // --test quits straight away; otherwise go back to the home screen
+                if (game.Options.Test)
+                    game.Exit();
+                else
+                    game.ChangeStage(new HomeStage(game, graphicsDevice, content));
+            }
             prevKeyboardState = keyboard;
         }
 

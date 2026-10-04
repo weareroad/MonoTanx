@@ -21,7 +21,7 @@ dotnet run --project MonoTanx/MonoTanx.csproj -- --test --seed 123   # reproduci
 
 - `Program.cs` parses the command line into `GameOptions` (`--test`, `--two-player`, `--seed <integer>`, `--windowed`, `--scale <1-4>`), then constructs and runs `Tanx`, which creates the run's `RandomStreams`.
 - `Tanx.cs` is the `Game` host. It runs a fixed 60 FPS step, draws the current stage to an 800×600 render target, and scales that to the window with proportional letterboxing. It also owns stage switching via `ChangeStage`.
-- With `--test` the game starts directly in `GameStage`; without it, it starts at `HomeStage`: Start game, a Players: 1/2 toggle, Dev menu (the old `MenuStage` of tech-demo test stages, which are holdovers from a scratch project and due for removal) and Quit. It works with the mouse or the keyboard, and `MenuSelection` holds the highlight state. `--two-player` selects `GameMode.TwoPlayer` (preselected on the home screen): Player 2 starts under human control and the overview camera is on. It runs fullscreen at the desktop resolution unless `--windowed` is given, which uses a window of 800×600 times `--scale` (default 2).
+- With `--test` the game starts directly in `GameStage`; without it, it starts at `HomeStage`: Start game, a Players: 1/2 toggle, Dev menu (the old `MenuStage` of tech-demo test stages, which are holdovers from a scratch project and due for removal) and Quit. It works with the mouse or the keyboard, and `MenuSelection` holds the highlight state. `--two-player` selects `GameMode.TwoPlayer` (preselected on the home screen): Player 2 starts under human control and the overview camera is on. In a game, `Esc` returns to the home screen, or quits the application when started with `--test`. It runs fullscreen at the desktop resolution unless `--windowed` is given, which uses a window of 800×600 times `--scale` (default 2).
 - Stages (`Stages/`) are the screens/game states. `Core/Stage.cs` is the base type.
 
 ### Project shape
@@ -331,7 +331,7 @@ Preserve these behaviours when changing movement, projectiles, rendering, or tim
 - HUD coordinates are display coordinates and are never camera transformed.
 - Terrain behavior comes from tileset properties, not hard-coded tile IDs.
 - Screen shake (`ScreenShake`) runs entirely on elapsed time: its jitter is resampled at a fixed 60 Hz inside `Update`, so how often it is drawn does not change it or the random draws it consumes. It uses the cosmetic random stream.
-- Debug rendering (the `F5` overlay) must not change simulation behavior. Holding `F5` pauses the whole update, including the `Esc` exit check.
+- Debug rendering (the `F5` overlay) must not change simulation behavior. Holding `F5` pauses the whole update, including the `Esc` check.
 - Fuel never goes below zero. Turning and driving each cost fuel scaled by the terrain fuel multiplier; a tank without enough fuel cannot turn or drive, but can still fire.
 - Movement is resolved one axis at a time, so tanks slide along obstacles. A tank cannot enter movement-blocking terrain, leave the map, or overlap the other tank.
 - Out-of-bounds counts as blocking for movement, projectiles, and vision. Missing terrain data defaults to ground.

@@ -72,7 +72,7 @@ Unless `--test` is given, the game opens at a home screen with **Start game**, a
 | `F2` | Switch Player 2 between computer and human control (development aid) |
 | `F3` | Switch between the following camera and an overview showing the whole arena (development aid) |
 | `F5` (hold) | Pause and show the debug overlay |
-| `Esc` | Exit |
+| `Esc` | In a game: back to the home screen (quit, when started with `--test`). On the home screen: quit |
 
 Player 2 starts computer controlled. Press `F2` to take it over (the HUD shows `CPU` or `HUMAN`), using the cursor keys to drive and turn and `Enter` to fire; press `F2` again to hand it back.
 
