@@ -383,6 +383,7 @@ Prioritize deterministic logic that needs no graphics device:
 - Reflection-vector calculation.
 - Visibility queries.
 - Basic AI decisions from controlled world snapshots.
+- Whole matches: `MatchHarness` (in `MonoTanx.Tests`) runs a `MatchSimulation` on the real arena for a number of simulated seconds from a seed, with no graphics device, recording every event and calling a check after each update. `MatchSimulationSoakTests` uses it for determinism (same seed, same match), two-minute computer versus computer matches over eight seeds that assert the rules after every update (no tank on blocked terrain or overlapping, fuel, health and ammunition in range, no shell past its flight time), every combination of human and computer seats, a computer in either seat against an idle human, and scripted humans. Prefer this to building two versions and comparing logs when checking that a change to the rules or the controller leaves play unchanged.
 
 ### Integration tests
 
