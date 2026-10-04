@@ -125,7 +125,7 @@ public class ShellTests
     public void ShellIsRemovedAfterTooManyReflections()
     {
         var shell = NewShell(56, 46, 0, 100);
-        shell.ReflectionCount = Shell.MaxReflections;
+        shell.ReflectionCount = Tuning.Projectile.MaxReflections;
 
         var result = shell.Step(LoadTerrainMap(), NoTanks(), 0.05f);
 
@@ -149,7 +149,7 @@ public class ShellTests
     public void ShellCanHitAnyTankIncludingTheOneThatFiredIt()
     {
         var shooter = NewPlayer(new Vector2(20, 8), heading: 0.0f);
-        shooter.TryFire(0.0f, 100.0f, out var launch); // fired from its own centre, so it is already within range of itself
+        shooter.TryFire(0.0f, out var launch); // fired from its own centre, so it is already within range of itself
         var shell = new Shell(launch.Ammunition, launch.Position, launch.Velocity);
 
         var result = shell.Step(LoadTerrainMap(), new[] { shooter }, 0.01f);
@@ -172,7 +172,7 @@ public class ShellTests
     [Fact]
     public void ShellMissesATankOutsideTheCollisionRadius()
     {
-        var tank = NewPlayer(new Vector2(60, 8 + Shell.CollisionRadius + 6.0f + 1.0f));
+        var tank = NewPlayer(new Vector2(60, 8 + Tuning.Projectile.CollisionRadius + 6.0f + 1.0f));
         var shell = NewShell(40, 8, 100, 0);
 
         var result = shell.Step(LoadTerrainMap(), new[] { tank }, 0.2f);

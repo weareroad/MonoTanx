@@ -48,7 +48,7 @@ public class TankMovementTests
         Assert.False(drove);
         Assert.Equal(tank.TurnSpeed * Elapsed, tank.Heading, 3);
         Assert.Equal(Centre(3, 2), tank.Position);
-        Assert.Equal(tank.MaximumFuel - TankMovement.TurnFuelPerSecond * Elapsed, tank.Fuel, 3);
+        Assert.Equal(tank.MaximumFuel - Tuning.Tank.TurnFuelPerSecond * Elapsed, tank.Fuel, 3);
     }
 
     [Fact]
@@ -94,7 +94,7 @@ public class TankMovementTests
     {
         var map = LoadTerrainMap();
         var tank = NewPlayer(Centre(3, 2), heading: 0.0f);
-        var turnCost = TankMovement.TurnFuelPerSecond * Elapsed;
+        var turnCost = Tuning.Tank.TurnFuelPerSecond * Elapsed;
         tank.Fuel = turnCost + 0.01f; // enough to turn, not enough to turn and drive
 
         var drove = TankMovement.ApplyInput(map, tank, NewBystander(), 1.0f, 1.0f, Elapsed);
@@ -125,7 +125,7 @@ public class TankMovementTests
         var tank = NewPlayer(Centre(3, 2));
         tank.Fuel = 0.0f;
 
-        Assert.True(tank.TryFire(0.0f, 1.0f, out _));
+        Assert.True(tank.TryFire(0.0f, out _));
     }
 
     [Fact]

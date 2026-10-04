@@ -6,21 +6,8 @@ namespace MonoTanx.Core
 {
     public sealed class Player
     {
-        public static readonly Ammunition DefaultAmmunition = new Ammunition("standard-shell", "A basic shell for testing tank combat.", "placeholder-shell", "placeholder-shell-fire", 3.0f, 5.0f, 12);
-        public const float DefaultMaximumFuel = 200.0f;
-        public const int DefaultMaximumHealth = 100;
-        public const float DefaultForwardMovementSpeed = 90.0f;
-        public const float DefaultReverseMovementSpeed = 45.0f;
-        public const int DefaultPreferredCombatDistanceTiles = 6;
-        public const float DefaultLongRangePursuitDistanceFraction = 0.5f;
-        public const float DefaultComputerAimToleranceRadians = 0.2f;
-        public const float DefaultComputerReactionDelaySeconds = 0.25f;
-        public const float DefaultComputerFireCooldownSeconds = 3.0f;
-        public const float DefaultTurnSpeed = 2.5f;
-        public const float DefaultCollisionRadius = 6.0f;
-        public const int DefaultStartingShells = 20;
-        public const float DefaultForwardFuelPerSecond = 4.0f;
-        public const float DefaultReverseFuelMultiplier = 2.0f;
+        public static readonly Ammunition DefaultAmmunition = new Ammunition("standard-shell", "A basic shell for testing tank combat.", "placeholder-shell", "placeholder-shell-fire",
+            Tuning.StandardShell.ReloadSeconds, Tuning.StandardShell.MaxFlightSeconds, Tuning.StandardShell.Speed, Tuning.StandardShell.Damage);
 
         public string Name { get; }
         public string SpriteAsset { get; }
@@ -38,7 +25,7 @@ namespace MonoTanx.Core
         public float ComputerReactionDelaySeconds { get; set; }
         public float ComputerFireCooldownSeconds { get; set; }
         public float ForwardFuelPerSecond { get; }
-        public float ReverseFuelPerSecond => ForwardFuelPerSecond * DefaultReverseFuelMultiplier;
+        public float ReverseFuelPerSecond => ForwardFuelPerSecond * Tuning.Tank.ReverseFuelMultiplier;
         public Texture2D Texture { get; set; }
         public Vector2 Position;
         public float Heading = -MathHelper.PiOver2;
@@ -56,18 +43,18 @@ namespace MonoTanx.Core
             SpriteAsset = spriteAsset;
             Tint = tint;
             IsComputerControlled = isComputerControlled;
-            MaximumFuel = DefaultMaximumFuel;
-            MaximumHealth = DefaultMaximumHealth;
-            MovementSpeed = DefaultForwardMovementSpeed;
-            ReverseMovementSpeed = DefaultReverseMovementSpeed;
-            TurnSpeed = DefaultTurnSpeed;
-            CollisionRadius = DefaultCollisionRadius;
-            PreferredCombatDistanceTiles = DefaultPreferredCombatDistanceTiles;
-            LongRangePursuitDistanceFraction = DefaultLongRangePursuitDistanceFraction;
-            ComputerAimToleranceRadians = DefaultComputerAimToleranceRadians;
-            ComputerReactionDelaySeconds = DefaultComputerReactionDelaySeconds;
-            ComputerFireCooldownSeconds = DefaultComputerFireCooldownSeconds;
-            ForwardFuelPerSecond = DefaultForwardFuelPerSecond;
+            MaximumFuel = Tuning.Tank.MaximumFuel;
+            MaximumHealth = Tuning.Tank.MaximumHealth;
+            MovementSpeed = Tuning.Tank.ForwardSpeed;
+            ReverseMovementSpeed = Tuning.Tank.ReverseSpeed;
+            TurnSpeed = Tuning.Tank.TurnSpeed;
+            CollisionRadius = Tuning.Tank.CollisionRadius;
+            PreferredCombatDistanceTiles = Tuning.Ai.PreferredCombatDistanceTiles;
+            LongRangePursuitDistanceFraction = Tuning.Ai.LongRangePursuitDistanceFraction;
+            ComputerAimToleranceRadians = Tuning.Ai.AimToleranceRadians;
+            ComputerReactionDelaySeconds = Tuning.Ai.ReactionDelaySeconds;
+            ComputerFireCooldownSeconds = Tuning.Ai.FireCooldownSeconds;
+            ForwardFuelPerSecond = Tuning.Tank.ForwardFuelPerSecond;
             AmmunitionSlots.Add(new AmmunitionSlot(firstAmmunition, firstQuantity));
             if (secondAmmunition != null)
                 AmmunitionSlots.Add(new AmmunitionSlot(secondAmmunition, secondQuantity));
@@ -96,8 +83,9 @@ namespace MonoTanx.Core
 
         // Fires along the current heading if the reload has finished and
         // ammunition remains. The caller supplies the muzzle offset from the
-        // tank centre (which depends on its sprite) and the shell speed.
-        public bool TryFire(float muzzleOffset, float shellSpeed, out ShellLaunch launch)
+        // tank centre (which depends on its sprite); the shell speed comes from
+        // the ammunition.
+        public bool TryFire(float muzzleOffset, out ShellLaunch launch)
         {
             if (ReloadTimer > 0.0f || !TryConsumeAmmunition(out var ammunition))
             {
@@ -106,7 +94,7 @@ namespace MonoTanx.Core
             }
 
             var direction = new Vector2((float)System.Math.Cos(Heading), (float)System.Math.Sin(Heading));
-            launch = new ShellLaunch(ammunition, Position + direction * muzzleOffset, direction * shellSpeed);
+            launch = new ShellLaunch(ammunition, Position + direction * muzzleOffset, direction * ammunition.Speed);
             ReloadTimer = ammunition.ReloadTimeSeconds;
             return true;
         }

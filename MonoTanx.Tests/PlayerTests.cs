@@ -6,8 +6,8 @@ namespace MonoTanx.Tests;
 
 public class PlayerTests
 {
-    private static readonly Ammunition Small = new Ammunition("small", "", "s", "s-fire", 1.0f, 2.0f, 1);
-    private static readonly Ammunition Large = new Ammunition("large", "", "l", "l-fire", 4.0f, 6.0f, 9);
+    private static readonly Ammunition Small = new Ammunition("small", "", "s", "s-fire", 1.0f, 2.0f, 100.0f, 1);
+    private static readonly Ammunition Large = new Ammunition("large", "", "l", "l-fire", 4.0f, 6.0f, 150.0f, 9);
 
     private static Player TwoSlotPlayer() =>
         new Player("Two", "Sprites/tank", Color.White, Small, 2, Large, 3);
@@ -17,10 +17,10 @@ public class PlayerTests
     {
         var player = TestSupport.NewPlayer(Vector2.Zero);
 
-        Assert.Equal(Player.DefaultMaximumHealth, player.Health);
-        Assert.Equal(Player.DefaultMaximumFuel, player.Fuel);
-        Assert.Equal(Player.DefaultStartingShells, player.RemainingAmmunition);
-        Assert.Equal(Player.DefaultStartingShells, player.StartingAmmunition);
+        Assert.Equal(Tuning.Tank.MaximumHealth, player.Health);
+        Assert.Equal(Tuning.Tank.MaximumFuel, player.Fuel);
+        Assert.Equal(Tuning.Tank.StartingShells, player.RemainingAmmunition);
+        Assert.Equal(Tuning.Tank.StartingShells, player.StartingAmmunition);
         Assert.Equal(0.0f, player.ReloadTimer);
     }
 
@@ -103,13 +103,29 @@ public class PlayerTests
     {
         var player = TestSupport.NewPlayer(new Vector2(100.0f, 50.0f), heading: -MathHelper.PiOver2);
 
-        Assert.True(player.TryFire(10.0f, 260.0f, out var launch));
+        Assert.True(player.TryFire(10.0f, out var launch));
 
         Assert.Equal(Player.DefaultAmmunition, launch.Ammunition);
         Assert.Equal(100.0f, launch.Position.X, 3);
         Assert.Equal(40.0f, launch.Position.Y, 3);
         Assert.Equal(0.0f, launch.Velocity.X, 3);
-        Assert.Equal(-260.0f, launch.Velocity.Y, 3);
+        Assert.Equal(-Tuning.StandardShell.Speed, launch.Velocity.Y, 3);
+    }
+
+    [Fact]
+    public void ShellSpeedComesFromTheAmmunitionType()
+    {
+        var player = TwoSlotPlayer();
+        player.Heading = 0.0f;
+
+        player.TryFire(0.0f, out var first);   // first slot: Small
+        foreach (var slot in player.AmmunitionSlots) slot.Remaining = 0;
+        player.AmmunitionSlots[1].Remaining = 1;
+        player.ReloadTimer = 0.0f;
+        player.TryFire(0.0f, out var second);  // second slot: Large
+
+        Assert.Equal(Small.Speed, first.Velocity.X, 3);
+        Assert.Equal(Large.Speed, second.Velocity.X, 3);
     }
 
     [Fact]
@@ -117,9 +133,9 @@ public class PlayerTests
     {
         var player = TestSupport.NewPlayer(Vector2.Zero);
 
-        player.TryFire(0.0f, 1.0f, out _);
+        player.TryFire(0.0f, out _);
 
-        Assert.Equal(Player.DefaultStartingShells - 1, player.RemainingAmmunition);
+        Assert.Equal(Tuning.Tank.StartingShells - 1, player.RemainingAmmunition);
         Assert.Equal(Player.DefaultAmmunition.ReloadTimeSeconds, player.ReloadTimer);
     }
 
@@ -127,13 +143,13 @@ public class PlayerTests
     public void FiringIsRefusedWhileReloading()
     {
         var player = TestSupport.NewPlayer(Vector2.Zero);
-        player.TryFire(0.0f, 1.0f, out _);
+        player.TryFire(0.0f, out _);
 
-        Assert.False(player.TryFire(0.0f, 1.0f, out _));
-        Assert.Equal(Player.DefaultStartingShells - 1, player.RemainingAmmunition);
+        Assert.False(player.TryFire(0.0f, out _));
+        Assert.Equal(Tuning.Tank.StartingShells - 1, player.RemainingAmmunition);
 
         player.TickReload(Player.DefaultAmmunition.ReloadTimeSeconds);
-        Assert.True(player.TryFire(0.0f, 1.0f, out _));
+        Assert.True(player.TryFire(0.0f, out _));
     }
 
     [Fact]
@@ -142,7 +158,7 @@ public class PlayerTests
         var player = TestSupport.NewPlayer(Vector2.Zero);
         foreach (var slot in player.AmmunitionSlots) slot.Remaining = 0;
 
-        Assert.False(player.TryFire(0.0f, 1.0f, out _));
+        Assert.False(player.TryFire(0.0f, out _));
         Assert.Equal(0.0f, player.ReloadTimer);
     }
 }

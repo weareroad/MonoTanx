@@ -7,14 +7,12 @@ namespace MonoTanx.Core
     // input, rendering or Game dependencies so it can be tested directly.
     public static class TankMovement
     {
-        public const float TurnFuelPerSecond = 0.25f;
-
         // Applies turn and drive input (each -1..1) for the elapsed time.
         // Returns true when the tank drove, so the caller can animate it.
         public static bool ApplyInput(WorldMap map, Player tank, Player other, float turn, float drive, float elapsed)
         {
             var terrainFuel = map.GetFuelCostMultiplier(tank.Position);
-            var turnCost = Math.Abs(turn) * TurnFuelPerSecond * elapsed * terrainFuel;
+            var turnCost = Math.Abs(turn) * Tuning.Tank.TurnFuelPerSecond * elapsed * terrainFuel;
             var driveRate = drive < 0.0f ? tank.ReverseFuelPerSecond : tank.ForwardFuelPerSecond;
             var driveCost = Math.Abs(drive) * driveRate * elapsed * terrainFuel;
             var canTurn = turn == 0.0f || tank.Fuel >= turnCost;

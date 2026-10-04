@@ -15,7 +15,7 @@ internal static class TestSupport
 
     public static Player NewPlayer(Vector2 position, float heading = 0.0f, string name = "Test")
     {
-        var player = new Player(name, "Sprites/tank", Color.White, Player.DefaultAmmunition, Player.DefaultStartingShells);
+        var player = new Player(name, "Sprites/tank", Color.White, Player.DefaultAmmunition, Tuning.Tank.StartingShells);
         player.Position = position;
         player.Heading = heading;
         return player;

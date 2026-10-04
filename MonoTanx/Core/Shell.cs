@@ -23,12 +23,6 @@ namespace MonoTanx.Core
     // its flight, reflection and hit rules can be tested directly.
     public sealed class Shell
     {
-        public const float CollisionRadius = 3.0f;
-        public const int MaxReflections = 8;
-        private const float StepLength = 4.0f;
-        private const float ReflectionCooldownSeconds = 0.08f;
-        private const float ReflectionNudge = 2.0f;
-
         public Ammunition Ammunition;
         public Vector2 Position;
         public Vector2 Velocity;
@@ -51,7 +45,7 @@ namespace MonoTanx.Core
             if (Age >= Ammunition.MaxFlightDurationSeconds)
                 return new ShellStepResult(true, null);
 
-            var steps = Math.Max(1, (int)Math.Ceiling(Velocity.Length() * elapsed / StepLength));
+            var steps = Math.Max(1, (int)Math.Ceiling(Velocity.Length() * elapsed / Tuning.Projectile.SubStepLength));
             var stepTime = elapsed / steps;
             ReflectionCooldown = Math.Max(0.0f, ReflectionCooldown - elapsed);
             for (var step = 0; step < steps; step++)
@@ -66,15 +60,15 @@ namespace MonoTanx.Core
                     if (map.ReflectiveSurfaceIsHorizontal(Position, Velocity))
                     {
                         Velocity.Y = -Velocity.Y;
-                        Position.Y += Math.Sign(Velocity.Y) * ReflectionNudge;
+                        Position.Y += Math.Sign(Velocity.Y) * Tuning.Projectile.ReflectionNudge;
                     }
                     else
                     {
                         Velocity.X = -Velocity.X;
-                        Position.X += Math.Sign(Velocity.X) * ReflectionNudge;
+                        Position.X += Math.Sign(Velocity.X) * Tuning.Projectile.ReflectionNudge;
                     }
-                    ReflectionCooldown = ReflectionCooldownSeconds;
-                    if (++ReflectionCount > MaxReflections)
+                    ReflectionCooldown = Tuning.Projectile.ReflectionCooldownSeconds;
+                    if (++ReflectionCount > Tuning.Projectile.MaxReflections)
                         return new ShellStepResult(true, null);
                 }
                 else if (map.BlocksProjectiles(Position))
@@ -84,7 +78,7 @@ namespace MonoTanx.Core
 
                 foreach (var tank in tanks)
                 {
-                    var hitDistance = CollisionRadius + tank.CollisionRadius;
+                    var hitDistance = Tuning.Projectile.CollisionRadius + tank.CollisionRadius;
                     if (Vector2.DistanceSquared(Position, tank.Position) <= hitDistance * hitDistance)
                         return new ShellStepResult(true, tank);
                 }

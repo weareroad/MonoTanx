@@ -48,8 +48,8 @@ namespace MonoTanx
 
         protected override void Initialize()
         {
-            // lock at 60FPS
-            TargetElapsedTime = TimeSpan.FromSeconds(1.0 / 60.0f);
+            // fixed update rate
+            TargetElapsedTime = TimeSpan.FromSeconds(1.0 / Tuning.Timing.UpdatesPerSecond);
             IsFixedTimeStep = true;
 
             base.Initialize();

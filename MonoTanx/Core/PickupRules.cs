@@ -4,11 +4,9 @@ namespace MonoTanx.Core
 {
     public static class PickupRules
     {
-        public const float CollectRadius = 12.0f;
-
         public static bool InRange(Player player, PickupSpawn spawn)
         {
-            return Vector2.DistanceSquared(player.Position, spawn.Position) <= CollectRadius * CollectRadius;
+            return Vector2.DistanceSquared(player.Position, spawn.Position) <= Tuning.Pickups.CollectRadius * Tuning.Pickups.CollectRadius;
         }
 
         // Fuel is clamped to the tank's maximum. Ammunition goes to the matching

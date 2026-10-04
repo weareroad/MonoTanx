@@ -7,8 +7,8 @@ namespace MonoTanx.Tests;
 
 public class PickupRulesTests
 {
-    private static readonly Ammunition Small = new Ammunition("small", "", "s", "s-fire", 1.0f, 2.0f, 1);
-    private static readonly Ammunition Large = new Ammunition("large", "", "l", "l-fire", 4.0f, 6.0f, 9);
+    private static readonly Ammunition Small = new Ammunition("small", "", "s", "s-fire", 1.0f, 2.0f, 100.0f, 1);
+    private static readonly Ammunition Large = new Ammunition("large", "", "l", "l-fire", 4.0f, 6.0f, 100.0f, 9);
 
     private static PickupSpawn Fuel(int amount) => new PickupSpawn(1, PickupKind.Fuel, Vector2.Zero, amount, null, "Sprites/fueldrop_1");
     private static PickupSpawn Ammo(int amount, string ammunitionId) => new PickupSpawn(2, PickupKind.Ammunition, Vector2.Zero, amount, ammunitionId, "Sprites/ammodrop_1");
@@ -17,10 +17,10 @@ public class PickupRulesTests
     [Fact]
     public void PickupIsInRangeUpToTheCollectRadius()
     {
-        var player = NewPlayer(new Vector2(PickupRules.CollectRadius, 0.0f));
+        var player = NewPlayer(new Vector2(Tuning.Pickups.CollectRadius, 0.0f));
         Assert.True(PickupRules.InRange(player, Fuel(10)));
 
-        player.Position = new Vector2(PickupRules.CollectRadius + 0.01f, 0.0f);
+        player.Position = new Vector2(Tuning.Pickups.CollectRadius + 0.01f, 0.0f);
         Assert.False(PickupRules.InRange(player, Fuel(10)));
     }
 
