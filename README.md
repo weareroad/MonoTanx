@@ -46,6 +46,7 @@ dotnet run --project MonoTanx/MonoTanx.csproj -- --test  # straight into a game
 |---|---|
 | `--test` | Skip the home screen and start a game straight away (for development and quick testing) |
 | `--two-player` | Two human players: Player 2 under human control and the whole arena in view. Preselects two players on the home screen |
+| `--demo` | Two computers play each other (no humans), with the whole arena in view. Cannot be combined with `--two-player`. The match still ends when a tank is destroyed until rounds exist |
 | `--mute` | Start with all sound off |
 | `--seed <integer>` | Fix the run's random draws; the seed is shown in the debug overlay |
 | `--windowed` | Run in a window instead of fullscreen |
@@ -72,11 +73,12 @@ Unless `--test` is given, the game opens at a home screen with **Start game**, a
 | `Space` | Fire |
 | `F1` | Refill Player 1 fuel and ammunition (development aid) |
 | `F2` | Switch Player 2 between computer and human control (development aid) |
+| `F4` | Switch Player 1 between human and computer control (development aid) |
 | `F3` | Switch between the following camera and an overview showing the whole arena (development aid) |
 | `F5` (hold) | Pause and show the debug overlay |
 | `Esc` | In a game: back to the home screen (quit, when started with `--test`). On the home screen: quit |
 
-Player 2 starts computer controlled. Press `F2` to take it over (the HUD shows `CPU` or `HUMAN`), using the cursor keys to drive and turn and `Enter` to fire; press `F2` again to hand it back.
+Either player can be a human or the computer. A normal game has Player 1 human and Player 2 the computer. Press `F2` to switch Player 2, or `F4` to switch Player 1, between computer and human at any time (each player's HUD panel shows `CPU` or `HUMAN`). A human Player 1 drives with `W` `A` `S` `D` and fires with `Space`; a human Player 2 uses the cursor keys and `Enter`. Switching both to the computer gives a computer-versus-computer game.
 
 ## Developer diagnostics
 

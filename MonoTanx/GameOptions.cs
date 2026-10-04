@@ -12,8 +12,8 @@ namespace MonoTanx
         // Skip the menu and start a game straight away (for development and quick testing).
         public bool Test { get; private set; }
 
-        // One or two human players. Used when a game is started from the command line.
-        public GameMode GameMode { get; private set; } = GameMode.OnePlayer;
+        // Who controls each seat. Used when a game is started from the command line.
+        public MatchSetup Setup { get; private set; } = MatchSetup.OnePlayer;
 
         // Start with all sound off.
         public bool Mute { get; private set; }
@@ -33,6 +33,7 @@ namespace MonoTanx
         {
             var options = new GameOptions();
             var scaleGiven = false;
+            string setupFlag = null;
             for (var index = 0; index < args.Length; index++)
             {
                 switch (args[index])
@@ -48,7 +49,10 @@ namespace MonoTanx
                         options.Test = true;
                         break;
                     case "--two-player":
-                        options.GameMode = GameMode.TwoPlayer;
+                        SetSetup(options, ref setupFlag, MatchSetup.TwoPlayer, args[index]);
+                        break;
+                    case "--demo":
+                        SetSetup(options, ref setupFlag, MatchSetup.Demo, args[index]);
                         break;
                     case "--mute":
                         options.Mute = true;
@@ -72,6 +76,15 @@ namespace MonoTanx
             if (scaleGiven && !options.Windowed)
                 throw new ArgumentException("--scale only applies together with --windowed.");
             return options;
+        }
+
+        // --two-player and --demo each choose who controls the seats, so only one may be given.
+        private static void SetSetup(GameOptions options, ref string firstFlag, MatchSetup setup, string flag)
+        {
+            if (firstFlag != null && firstFlag != flag)
+                throw new ArgumentException($"{firstFlag} and {flag} cannot be combined.");
+            firstFlag = flag;
+            options.Setup = setup;
         }
     }
 }

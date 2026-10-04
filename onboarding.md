@@ -19,9 +19,9 @@ dotnet run --project MonoTanx/MonoTanx.csproj -- --test --seed 123   # reproduci
 
 ### Application boundary
 
-- `Program.cs` parses the command line into `GameOptions` (`--test`, `--two-player`, `--mute`, `--seed <integer>`, `--windowed`, `--scale <1-4>`), then constructs and runs `Tanx`, which creates the run's `RandomStreams`.
+- `Program.cs` parses the command line into `GameOptions` (`--test`, `--two-player`, `--demo`, `--mute`, `--seed <integer>`, `--windowed`, `--scale <1-4>`), then constructs and runs `Tanx`, which creates the run's `RandomStreams`.
 - `Tanx.cs` is the `Game` host. It runs a fixed 60 FPS step, draws the current stage to an 800×600 render target, and scales that to the window with proportional letterboxing. It also owns stage switching via `ChangeStage`.
-- With `--test` the game starts directly in `GameStage`; without it, it starts at `HomeStage`: Start game, a Players: 1/2 toggle and Quit. It works with the mouse or the keyboard, and `MenuSelection` holds the highlight state. `--two-player` selects `GameMode.TwoPlayer` (preselected on the home screen): Player 2 starts under human control and the overview camera is on. In a game, `Esc` returns to the home screen, or quits the application when started with `--test`. It runs fullscreen at the desktop resolution unless `--windowed` is given, which uses a window of 800×600 times `--scale` (default 2).
+- With `--test` the game starts directly in `GameStage`; without it, it starts at `HomeStage`: Start game, a Players: 1/2 toggle and Quit. It works with the mouse or the keyboard, and `MenuSelection` holds the highlight state. `--two-player` and `--demo` select the `MatchSetup` (who controls each seat; `--two-player` is preselected on the home screen): two humans, or two computers. With no human or two humans the overview camera is on. In a game, `Esc` returns to the home screen, or quits the application when started with `--test`. It runs fullscreen at the desktop resolution unless `--windowed` is given, which uses a window of 800×600 times `--scale` (default 2).
 - Stages (`Stages/`) are the screens/game states. `Core/Stage.cs` is the base type.
 
 ### Project shape
@@ -321,6 +321,15 @@ If `Amount` or `SpriteAsset` is not serialized on an instance, the loader suppli
 
 Pickup locations are authored in Tiled, but pickups are runtime entities. They animate from four-frame 64×16 sheets (four 16×16 frames), can be collected, and then become inactive/disappear. Fuel restores up to the player’s maximum. Ammunition is added to the matching slot or the first slot.
 
+## Seats and controllers
+
+Player 1 and Player 2 are *seats*; human and computer are *controllers*; any combination is valid (see the design tenet in `AGENTS.md`).
+
+- `MatchSetup` (in `Core`) says who controls each seat. `OnePlayer` is human + computer, `TwoPlayer` is human + human, and `Demo` is computer + computer. Its helpers give the human count, the follow-camera seat (the first human seat) and whether the game starts in the overview (when there is not exactly one human).
+- `GameStage` treats the seats symmetrically. Each tank has its own `ComputerState` (a private nested class holding its route, pickup target and timers, plus who it is and who it is playing), and every part of the computer's logic takes that state: nothing refers to "Player 1" or "Player 2" inside the AI. The state moves into `Core` as a controller in #51.
+- Control can change in play (`F2`, `F4`). The follow camera and the fire shake follow the first human seat as it changes, and with no human the camera is not followed.
+- Sounds are per seat, not per controller: Player 2's sounds and engine are pitch-shifted whether it is human or computer.
+
 ## Audio
 
 Design and plan: [`docs/audio-spec.md`](docs/audio-spec.md) and [`docs/audio-plan.md`](docs/audio-plan.md).
@@ -352,7 +361,7 @@ Preserve these behaviours when changing movement, projectiles, rendering, or tim
 - A shell is removed on expiry, on hitting projectile-blocking terrain, on hitting either tank (including the tank that fired it), or after more than 8 reflections.
 - A pickup is collected once and then stays inactive. Fuel is clamped to the tank's maximum; ammunition is added without a cap.
 - `F1` refills Player 1's fuel and ammunition only; it does not touch health or Player 2.
-- `F2` toggles Player 2 between computer and human control and clears the computer's route, pursuit and timers, so it starts afresh when it takes control back.
+- `F2` and `F4` toggle Player 2 and Player 1 between computer and human control; the toggled seat's computer state (route, pursuit, timers) is cleared so it starts afresh when it takes control back.
 - Reaching 0 health currently exits the game; there is no score or round state yet.
 - Randomness comes from `RandomStreams`, created in `Tanx` from the master seed (`--seed <integer>`, otherwise random, shown in the `F5` overlay). The gameplay stream drives the heading disruption on a hit; the cosmetic stream drives screen shake, so visual draws never change gameplay. Streams are passed to the code that needs them, not held globally. The seed fixes random draws but not real input or frame timing, so it does not give full replay.
 

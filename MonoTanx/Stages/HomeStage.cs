@@ -21,14 +21,14 @@ namespace MonoTanx.Stages
         private readonly List<Button> buttons = new List<Button>();
         private readonly MenuSelection selection;
         private readonly Button playersButton;
-        private GameMode mode;
+        private MatchSetup setup;
 
         public HomeStage(Tanx game, GraphicsDevice graphicsDevice, ContentManager content)
           : base(game, graphicsDevice, content)
         {
             baseFont = content.Load<SpriteFont>("SpriteFonts/pixel-emulator");
             var buttonTexture = content.Load<Texture2D>("Controls/Button");
-            mode = game.Options.GameMode;
+            setup = game.Options.Setup;
 
             Button MakeButton(string text, float y, EventHandler click)
             {
@@ -44,7 +44,7 @@ namespace MonoTanx.Stages
             }
 
             MakeButton("Start game", 210, (s, e) => Activate(StartItem));
-            playersButton = MakeButton(mode.Label(), 270, (s, e) => Activate(PlayersItem));
+            playersButton = MakeButton(setup.Label, 270, (s, e) => Activate(PlayersItem));
             MakeButton("Quit", 330, (s, e) => Activate(QuitItem));
             selection = new MenuSelection(buttons.Count);
 
@@ -119,11 +119,11 @@ namespace MonoTanx.Stages
             switch (item)
             {
                 case StartItem:
-                    game.ChangeStage(new GameStage(game, graphicsDevice, content, mode));
+                    game.ChangeStage(new GameStage(game, graphicsDevice, content, setup));
                     break;
                 case PlayersItem:
-                    mode = mode.Toggle();
-                    playersButton.Text = mode.Label();
+                    setup = setup.ToggleHumanPlayers();
+                    playersButton.Text = setup.Label;
                     break;
                 case QuitItem:
                     game.Exit();
