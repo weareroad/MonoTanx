@@ -32,7 +32,7 @@ namespace MonoTanx.Stages
         public Player Player1 => playerOne;
         public Player Player2 => playerTwo;
 
-        public GameStage(Tanx game, GraphicsDevice graphicsDevice, ContentManager content, MatchSetup setup = default) : base(game, graphicsDevice, content)
+        public GameStage(Tanx game, GraphicsDevice graphicsDevice, ContentManager content, MatchSetup setup) : base(game, graphicsDevice, content)
         {
             audio = new GameAudio(content, game.Options.Mute);
             engineOne = audio.CreateEngine(playerTwo: false);
@@ -44,9 +44,6 @@ namespace MonoTanx.Stages
             var tankTwoTexture = LoadTankTwoTexture(content, tankTexture);
             placeholderShellTexture = new Texture2D(graphicsDevice, 1, 1);
             placeholderShellTexture.SetData(new[] { Color.White });
-            // a default MatchSetup (both seats human) is not meaningful, so use the usual one-player game
-            if (setup.Equals(default(MatchSetup)))
-                setup = MatchSetup.OnePlayer;
             playerOne = new Player("Player 1", "Sprites/tank", Color.White, Player.DefaultAmmunition, Tuning.Tank.StartingShells,
                 isComputerControlled: setup.PlayerOne == PlayerControl.Computer);
             playerTwo = new Player("Player 2", "Sprites/tank2", Color.LightGray, Player.DefaultAmmunition, Tuning.Tank.StartingShells,

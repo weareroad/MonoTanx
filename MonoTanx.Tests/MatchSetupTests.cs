@@ -121,4 +121,14 @@ public class MatchSetupTests
         Assert.NotEqual(MatchSetup.OnePlayer, MatchSetup.TwoPlayer);
         Assert.Equal(MatchSetup.Demo.GetHashCode(), new MatchSetup(PlayerControl.Computer, PlayerControl.Computer).GetHashCode());
     }
+
+    // Human is the zero value of PlayerControl, so two humans is default(MatchSetup).
+    // Nothing may treat the default as "no setup given" (that once turned every
+    // two-player game into a one-player game, #76): callers pass the setup they mean.
+    [Fact]
+    public void TwoPlayerIsTheDefaultValueSoTheDefaultCannotMeanUnspecified()
+    {
+        Assert.Equal(default, MatchSetup.TwoPlayer);
+        Assert.Equal(2, default(MatchSetup).HumanCount);
+    }
 }
