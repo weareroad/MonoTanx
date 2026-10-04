@@ -337,6 +337,7 @@ Design and plan: [`docs/audio-spec.md`](docs/audio-spec.md) and [`docs/audio-pla
 
 Preserve these behaviours when changing movement, projectiles, rendering, or timing:
 
+- Either seat can be human or computer: Player 1 and Player 2 are seats, human and computer are controllers, and any combination is valid. Rules are written in terms of "self" and "the opponent" and nothing in new code assumes Player 1 is human or Player 2 is the computer. (Some seat-specific code remains in `GameStage`; see #63 and #51.)
 - Simulation state stays independent from rendering and input devices, so rules can be exercised by xUnit without a graphics device.
 - Updates use a fixed 60 FPS step (`IsFixedTimeStep`, vsync on), and the simulation is time-based: every rule takes elapsed seconds, and `FrameRateIndependenceTests` run the same simulated time at 30, 60 and 120 steps per second and expect the same result for driving, reversing, turning, fuel, reload, and shell flight. New rules that depend on time should take `elapsed` and get a test like these.
 - Map boundaries and collision geometry do not depend on the physical window scale.

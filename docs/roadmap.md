@@ -245,7 +245,7 @@ Acceptance checks:
 
 ### Phase 6: Second human player
 
-Goal: allow either AI or human control of tank two.
+Goal: allow either AI or human control of either tank (see the decision log: either seat can be human or computer).
 
 Status: partially present. The same `GameStage` path already supports cursor-key/Enter control when `Player 2` is not computer controlled; there is not yet a menu or match-creation choice for selecting that mode.
 
@@ -368,3 +368,4 @@ Record meaningful decisions here as implementation proceeds.
 | 2026-08-29 | Separate controllers from tank simulation. | Supports human, local multiplayer, and evolving AI without duplicating tank behavior. |
 | 2026-08-29 | Separate movement, projectile, and visibility terrain properties. | Ravines, water, bridges, walls, and hills require independent rule combinations. |
 | 2026-08-29 | Read tile `TerrainKind` metadata directly from TSX XML for now. | Released TiledCS does not expose per-tile properties; this preserves stable package usage while keeping Tiled as the authoring source. |
+| 2026-10-04 | Either seat (Player 1 or Player 2) can be human or computer, as a firm design tenet for all work. | Enables a computer versus computer demo (attract mode) and a deterministic headless AI soak test, and stops new code assuming Player 1 is human. Rules take "self" and "the opponent"; labels, settings and camera focus come from the seat and its controller. See #63, #64 and #51. |
