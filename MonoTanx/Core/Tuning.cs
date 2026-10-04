@@ -230,6 +230,35 @@ namespace MonoTanx.Core
             // way, so 0.15 is about 1.8 semitones up). Enough to tell the two
             // tanks apart without sounding like a different sound.
             public const float PlayerTwoPitchOffset = 0.15f;
+
+            // Engine drone, one per tank, silent when the tank is idle. Quiet so
+            // it sits under the one-shot sounds. Moving while turning plays the
+            // drive sound, not the turn sound.
+            public const float EngineForwardVolume = 0.25f;
+            public const float EngineReverseVolume = 0.25f;
+            public const float EngineTurnVolume = 0.2f;
+
+            // Engine pitch for each motion (-1 to +1, an octave either way).
+            // Forward is the drone as recorded, reverse is lower and turning is
+            // higher, so the three are easy to tell apart.
+            public const float EngineForwardPitch = 0.0f;
+            public const float EngineReversePitch = -0.35f;
+            public const float EngineTurnPitch = 0.35f;
+
+            // Seconds for the engine volume to fade across its whole 0 to 1
+            // range (so a 0.25 fade takes a quarter of this). Short enough to
+            // feel immediate, long enough to avoid clicks.
+            public const float EngineFadeSeconds = 0.5f;
+
+            // Seconds for the engine pitch to glide a whole octave. Changes of
+            // note are smooth rather than jumps.
+            public const float EnginePitchGlideSeconds = 0.25f;
+
+            // A tank counts as moving if it moves at least this far in one
+            // update (pixels), or as turning if it turns at least this much
+            // (radians). Tiny amounts from rounding do not count.
+            public const float MotionThresholdPixels = 0.05f;
+            public const float MotionThresholdRadians = 0.001f;
         }
 
         // Values tied to the art assets or the screen layout rather than to
