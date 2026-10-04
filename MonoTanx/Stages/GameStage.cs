@@ -18,11 +18,8 @@ namespace MonoTanx.Stages
         private readonly Texture2D placeholderShellTexture;
         private readonly Player playerOne;
         private readonly Player playerTwo;
-        private readonly Player[] tanks;
-        private readonly ComputerController computerOne;
-        private readonly ComputerController computerTwo;
-        private readonly List<Shell> shells = new List<Shell>();
-        private readonly List<Pickup> pickups = new List<Pickup>();
+        private readonly MatchSimulation simulation;
+        private readonly Dictionary<int, PickupVisual> pickupVisuals = new Dictionary<int, PickupVisual>();
         private CameraView cameraView;
         private bool overviewCamera;
         private RenderTarget2D overviewTarget;
@@ -61,22 +58,22 @@ namespace MonoTanx.Stages
             playerTwo.Position = FindStartingPosition(false);
             playerOne.Heading = HeadingToward(playerOne.Position, playerTwo.Position);
             playerTwo.Heading = HeadingToward(playerTwo.Position, playerOne.Position);
-            tanks = new[] { playerOne, playerTwo };
-            computerOne = new ComputerController(worldMap, playerOne, playerTwo);
-            computerTwo = new ComputerController(worldMap, playerTwo, playerOne);
+            var pickupSpawns = new List<PickupSpawn>();
             foreach (var spawn in worldMap.PickupSpawns)
             {
                 if (string.IsNullOrWhiteSpace(spawn.SpriteAsset))
                     continue;
                 try
                 {
-                    pickups.Add(new Pickup(spawn, content.Load<Texture2D>(spawn.SpriteAsset)));
+                    pickupVisuals[spawn.Id] = new PickupVisual(content.Load<Texture2D>(spawn.SpriteAsset));
+                    pickupSpawns.Add(spawn);
                 }
                 catch (ContentLoadException)
                 {
                     // Keep malformed/unavailable pickup art from preventing the arena from loading.
                 }
             }
+            simulation = new MatchSimulation(worldMap, playerOne, playerTwo, pickupSpawns, game.Random.Gameplay);
             UpdateCamera();
         }
 
@@ -139,10 +136,10 @@ namespace MonoTanx.Stages
             // judged before shells can knock a tank about
             engineOne.Update(TankMotionClassifier.Classify(playerOneBefore.Position, playerOneBefore.Heading, playerOne.Position, playerOne.Heading), active: true, elapsed);
             engineTwo.Update(TankMotionClassifier.Classify(playerTwoBefore.Position, playerTwoBefore.Heading, playerTwo.Position, playerTwo.Heading), active: true, elapsed);
-            UpdateShells(elapsed);
+            simulation.StepShells(elapsed);
             UpdatePickupAnimations(elapsed);
-            CollectPickups(playerOne);
-            CollectPickups(playerTwo);
+            simulation.CollectPickups();
+            PlayEvents();
             UpdateCamera();
             shake.Update(elapsed, game.Random.Cosmetic);
             if (keyboard.IsKeyDown(Keys.Escape) && prevKeyboardState.IsKeyUp(Keys.Escape))
@@ -170,9 +167,7 @@ namespace MonoTanx.Stages
 
         private Player TankOf(Seat seat) => seat == Seat.One ? playerOne : playerTwo;
 
-        private ComputerController ControllerOf(Seat seat) => seat == Seat.One ? computerOne : computerTwo;
-
-        private ComputerController ControllerOf(Player tank) => ReferenceEquals(tank, playerOne) ? computerOne : computerTwo;
+        private ComputerController ControllerOf(Seat seat) => simulation.ControllerOf(seat);
 
         private static SeatKeys KeysOf(Seat seat) => seat == Seat.One ? SeatKeys.PlayerOne : SeatKeys.PlayerTwo;
 
@@ -187,28 +182,50 @@ namespace MonoTanx.Stages
         // the first human seat's. With no human there is nobody to follow or to shake for.
         private Player FollowedTank => TankOf(CurrentSetup.FollowSeat);
 
-        private void CollectPickups(Player player)
+        // Turns what happened in the simulation into sound, shake and the end of the match.
+        private void PlayEvents()
         {
-            foreach (var pickup in pickups)
+            foreach (var matchEvent in simulation.Events)
             {
-                if (!pickup.Active || !PickupRules.InRange(player, pickup.Spawn))
-                    continue;
-                PickupRules.Apply(player, pickup.Spawn);
-                audio.Play(SoundCue.Pickup);
-                pickup.Active = false;
+                var playerTwoSeat = matchEvent.Seat == Seat.Two;
+                switch (matchEvent.Kind)
+                {
+                    case MatchEventKind.ShellFired:
+                        audio.Play(SoundCue.Fire, playerTwo: playerTwoSeat);
+                        if (CurrentSetup.HumanCount > 0 && ReferenceEquals(simulation.TankOf(matchEvent.Seat.Value), FollowedTank)) StartShake(Tuning.Shake.FireDuration, Tuning.Shake.FireMagnitude);
+                        break;
+                    case MatchEventKind.ShellReflected:
+                        audio.Play(SoundCue.Ping);
+                        break;
+                    case MatchEventKind.ShellHitTerrain:
+                        audio.Play(SoundCue.Crump);
+                        break;
+                    case MatchEventKind.TankHit:
+                        audio.Play(SoundCue.Explosion);
+                        StartShake(Tuning.Shake.HitDuration, Tuning.Shake.HitMagnitude);
+                        break;
+                    case MatchEventKind.PickupCollected:
+                        audio.Play(SoundCue.Pickup);
+                        break;
+                    case MatchEventKind.TankDestroyed:
+                        game.Exit();
+                        break;
+                }
             }
+            simulation.ClearEvents();
         }
 
         private void UpdatePickupAnimations(float elapsed)
         {
-            foreach (var pickup in pickups)
+            foreach (var pickup in simulation.Pickups)
             {
                 if (!pickup.Active) continue;
-                pickup.AnimationTimer += elapsed;
-                while (pickup.AnimationTimer >= Tuning.Presentation.PickupFrameSeconds)
+                var visual = pickupVisuals[pickup.Spawn.Id];
+                visual.AnimationTimer += elapsed;
+                while (visual.AnimationTimer >= Tuning.Presentation.PickupFrameSeconds)
                 {
-                    pickup.AnimationTimer -= Tuning.Presentation.PickupFrameSeconds;
-                    pickup.Frame = (pickup.Frame + 1) % Tuning.Presentation.PickupFrameCount;
+                    visual.AnimationTimer -= Tuning.Presentation.PickupFrameSeconds;
+                    visual.Frame = (visual.Frame + 1) % Tuning.Presentation.PickupFrameCount;
                 }
             }
         }
@@ -219,7 +236,7 @@ namespace MonoTanx.Stages
         {
             var tank = TankOf(seat);
             TickReload(tank, elapsed);
-            TankMovement.ApplyInput(worldMap, tank, OtherTank(tank), ControllerOf(seat).PlanMove(elapsed, pickups), elapsed);
+            TankMovement.ApplyInput(worldMap, tank, OtherTank(tank), ControllerOf(seat).PlanMove(elapsed, simulation.Pickups), elapsed);
         }
 
         // The computer's aiming and firing, after both seats have moved.
@@ -273,9 +290,7 @@ namespace MonoTanx.Stages
         {
             var muzzleOffset = tank.Texture.Width / Tuning.Presentation.TankFrameCount / 2.0f + Tuning.Presentation.MuzzleClearance;
             if (!tank.TryFire(muzzleOffset, out var launch)) return false;
-            shells.Add(new Shell(launch.Ammunition, launch.Position, launch.Velocity));
-            audio.Play(SoundCue.Fire, playerTwo: ReferenceEquals(tank, playerTwo));
-            if (CurrentSetup.HumanCount > 0 && ReferenceEquals(tank, FollowedTank)) StartShake(Tuning.Shake.FireDuration, Tuning.Shake.FireMagnitude);
+            simulation.Launch(tank, launch);
             return true;
         }
 
@@ -283,35 +298,6 @@ namespace MonoTanx.Stages
         {
             if (tank.TickReload(elapsed))
                 audio.Play(SoundCue.Reload, playerTwo: ReferenceEquals(tank, playerTwo));
-        }
-
-        private void UpdateShells(float elapsed)
-        {
-            for (var index = shells.Count - 1; index >= 0; index--)
-            {
-                var shell = shells[index];
-                var result = shell.Step(worldMap, tanks, elapsed);
-                if (result.Reflections > 0)
-                    audio.Play(SoundCue.Ping); // a shell reflects at most once per update
-                if (result.Fate == ShellFate.HitTerrain)
-                    audio.Play(SoundCue.Crump);
-                if (result.Hit != null)
-                {
-                    audio.Play(SoundCue.Explosion);
-                    DamageTank(result.Hit, shell.Ammunition.Damage, shell.Velocity);
-                }
-                if (result.Removed)
-                    shells.RemoveAt(index);
-            }
-        }
-
-        private void DamageTank(Player tank, int damage, Vector2 impactVelocity)
-        {
-            var destroyed = TankDamage.Apply(worldMap, tank, OtherTank(tank), damage, impactVelocity, game.Random.Gameplay);
-            StartShake(Tuning.Shake.HitDuration, Tuning.Shake.HitMagnitude);
-            ControllerOf(tank).Hit();
-            if (destroyed)
-                game.Exit();
         }
 
         private void StartShake(float duration, float magnitude)
@@ -381,16 +367,17 @@ namespace MonoTanx.Stages
             mapRenderer.Draw(spriteBatch);
             DrawTank(spriteBatch, playerOne);
             DrawTank(spriteBatch, playerTwo);
-            foreach (var pickup in pickups)
+            foreach (var pickup in simulation.Pickups)
             {
                 if (!pickup.Active) continue;
-                var frameWidth = pickup.Texture.Width / Tuning.Presentation.PickupFrameCount;
-                var frameHeight = pickup.Texture.Height;
-                var source = new Rectangle(pickup.Frame * frameWidth, 0, frameWidth, frameHeight);
+                var visual = pickupVisuals[pickup.Spawn.Id];
+                var frameWidth = visual.Texture.Width / Tuning.Presentation.PickupFrameCount;
+                var frameHeight = visual.Texture.Height;
+                var source = new Rectangle(visual.Frame * frameWidth, 0, frameWidth, frameHeight);
                 var origin = new Vector2(frameWidth / 2.0f, frameHeight / 2.0f);
-                spriteBatch.Draw(pickup.Texture, pickup.Spawn.Position, source, Color.White, 0.0f, origin, 1.0f, SpriteEffects.None, 0.45f);
+                spriteBatch.Draw(visual.Texture, pickup.Spawn.Position, source, Color.White, 0.0f, origin, 1.0f, SpriteEffects.None, 0.45f);
             }
-            foreach (var shell in shells)
+            foreach (var shell in simulation.Shells)
             {
                 var offset = Tuning.Presentation.PlaceholderShellSize / 2;
                 var bounds = new Rectangle((int)shell.Position.X - offset, (int)shell.Position.Y - offset, Tuning.Presentation.PlaceholderShellSize, Tuning.Presentation.PlaceholderShellSize);
@@ -461,7 +448,7 @@ namespace MonoTanx.Stages
                     continue;
                 var c = ControllerOf(seat);
                 var name = seat == Seat.One ? "P1" : "P2";
-                var mode = c.Mode(pickups).ToString().ToUpperInvariant();
+                var mode = c.Mode(simulation.Pickups).ToString().ToUpperInvariant();
                 lines.Add($"AI {name} {mode} route {c.RouteIndex}/{c.RouteLength}");
                 lines.Add($"AI {name} fire {c.FireTimer:0.00} retaliate {c.RetaliationTimer:0.00}");
             }
@@ -487,12 +474,13 @@ namespace MonoTanx.Stages
             spriteBatch.Draw(tank.Texture, tank.Position, source, tank.Tint, tank.Heading - MathHelper.Pi, new Vector2(frameWidth / 2.0f, frameHeight / 2.0f), 1.0f, SpriteEffects.None, 0.5f);
         }
 
-        private sealed class Pickup : PickupState
+        // How a pickup is drawn: its sprite and animation, kept apart from the pickup's rules state.
+        private sealed class PickupVisual
         {
             public Texture2D Texture { get; }
             public float AnimationTimer;
             public int Frame;
-            public Pickup(PickupSpawn spawn, Texture2D texture) : base(spawn) { Texture = texture; }
+            public PickupVisual(Texture2D texture) { Texture = texture; }
         }
     }
 }
