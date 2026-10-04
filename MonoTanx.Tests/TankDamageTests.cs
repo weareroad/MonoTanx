@@ -14,7 +14,7 @@ public class TankDamageTests
 
         var destroyed = TankDamage.Apply(LoadTerrainMap(), tank, NewBystander(), 12, Vector2.Zero, new Random(1));
 
-        Assert.Equal(Player.DefaultMaximumHealth - 12, tank.Health);
+        Assert.Equal(Tuning.Tank.MaximumHealth - 12, tank.Health);
         Assert.False(destroyed);
     }
 
@@ -48,7 +48,7 @@ public class TankDamageTests
 
         TankDamage.Apply(LoadTerrainMap(), tank, NewBystander(), 1, new Vector2(100, 0), new Random(1));
 
-        Assert.Equal(24.0f + TankDamage.KnockbackDistance, tank.Position.X, 3);
+        Assert.Equal(24.0f + Tuning.Damage.KnockbackDistance, tank.Position.X, 3);
         Assert.Equal(40.0f, tank.Position.Y, 3);
     }
 
@@ -70,7 +70,7 @@ public class TankDamageTests
         TankDamage.Apply(LoadTerrainMap(), tank, NewBystander(), 1, new Vector2(0, -100), new Random(1));
 
         Assert.Equal(new Vector2(56.0f, 38.1f), tank.Position);
-        Assert.Equal(Player.DefaultMaximumHealth - 1, tank.Health);
+        Assert.Equal(Tuning.Tank.MaximumHealth - 1, tank.Health);
     }
 
     [Fact]
@@ -82,7 +82,7 @@ public class TankDamageTests
 
         TankDamage.Apply(LoadTerrainMap(), tank, NewBystander(), 1, Vector2.Zero, random);
 
-        var expected = 1.0f + ((float)expectedDraw * 2.0f - 1.0f) * TankDamage.MaximumHeadingDisruptionRadians;
+        var expected = 1.0f + ((float)expectedDraw * 2.0f - 1.0f) * Tuning.Damage.MaximumHeadingDisruptionRadians;
         Assert.Equal(expected, tank.Heading, 5);
     }
 
@@ -99,6 +99,6 @@ public class TankDamageTests
         Assert.Equal(Run(42), Run(42));
         Assert.NotEqual(Run(42), Run(43));
         for (var seed = 0; seed < 50; seed++)
-            Assert.InRange(Run(seed), -TankDamage.MaximumHeadingDisruptionRadians, TankDamage.MaximumHeadingDisruptionRadians);
+            Assert.InRange(Run(seed), -Tuning.Damage.MaximumHeadingDisruptionRadians, Tuning.Damage.MaximumHeadingDisruptionRadians);
     }
 }

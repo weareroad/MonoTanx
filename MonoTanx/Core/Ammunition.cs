@@ -8,10 +8,11 @@ namespace MonoTanx.Core
         public string AudioEffectId { get; }
         public float ReloadTimeSeconds { get; }
         public float MaxFlightDurationSeconds { get; }
+        public float Speed { get; }
         public int Damage { get; }
 
         public Ammunition(string id, string description, string spriteId, string audioEffectId,
-            float reloadTimeSeconds, float maxFlightDurationSeconds, int damage)
+            float reloadTimeSeconds, float maxFlightDurationSeconds, float speed, int damage)
         {
             Id = id;
             Description = description;
@@ -19,6 +20,7 @@ namespace MonoTanx.Core
             AudioEffectId = audioEffectId;
             ReloadTimeSeconds = reloadTimeSeconds;
             MaxFlightDurationSeconds = maxFlightDurationSeconds;
+            Speed = speed;
             Damage = damage;
         }
     }

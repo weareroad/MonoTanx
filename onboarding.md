@@ -75,7 +75,7 @@ GameStage
 
 ## Current implementation reference
 
-How the current prototype behaves. Controls and the player-facing summary are in the README.
+How the current prototype behaves. Controls and the player-facing summary are in the README. Numbers quoted here are the current defaults; `Core/Tuning.cs` is the authority for every tuning value, and [`docs/tuning.md`](docs/tuning.md) explains what controls what.
 
 ### Player model
 

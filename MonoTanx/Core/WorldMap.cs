@@ -145,7 +145,7 @@ namespace MonoTanx.Core
         public bool HasLineOfSight(Vector2 start, Vector2 end)
         {
             var distance = Vector2.Distance(start, end);
-            var steps = Math.Max(1, (int)Math.Ceiling(distance / 4.0f));
+            var steps = Math.Max(1, (int)Math.Ceiling(distance / Tuning.Vision.LineOfSightStepLength));
             for (var step = 1; step < steps; step++)
             {
                 var position = Vector2.Lerp(start, end, step / (float)steps);
@@ -275,7 +275,7 @@ namespace MonoTanx.Core
                 var y = (float?)objectElement.Attribute("y") ?? 0.0f;
                 var amount = ReadIntProperty(objectElement, "Amount", 0);
                 if (amount <= 0)
-                    amount = kind == PickupKind.Fuel ? 50 : 5;
+                    amount = kind == PickupKind.Fuel ? Tuning.Pickups.DefaultFuelAmount : Tuning.Pickups.DefaultAmmunitionAmount;
                 var ammunitionId = ReadStringProperty(objectElement, "AmmunitionId", null);
                 var spriteAsset = ReadStringProperty(objectElement, "SpriteAsset", null);
                 if (string.IsNullOrWhiteSpace(spriteAsset))

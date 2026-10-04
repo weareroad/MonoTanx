@@ -66,7 +66,7 @@ public class FrameRateIndependenceTests
             TankMovement.ApplyInput(map, tank, bystander, 1.0f, 0.0f, step);
 
         Assert.Equal(tank.TurnSpeed * TotalSeconds, tank.Heading, 2);
-        Assert.Equal(tank.MaximumFuel - TankMovement.TurnFuelPerSecond * TotalSeconds, tank.Fuel, 2);
+        Assert.Equal(tank.MaximumFuel - Tuning.Tank.TurnFuelPerSecond * TotalSeconds, tank.Fuel, 2);
     }
 
     [Theory]
@@ -74,7 +74,7 @@ public class FrameRateIndependenceTests
     public void ReloadFinishesAfterTheSameElapsedTime(int stepsPerSecond)
     {
         var tank = NewPlayer(Vector2.Zero);
-        tank.TryFire(0.0f, 1.0f, out _);
+        tank.TryFire(0.0f, out _);
         var reload = Player.DefaultAmmunition.ReloadTimeSeconds;
         var step = 1.0f / stepsPerSecond;
         var steps = (int)Math.Round(reload * stepsPerSecond);

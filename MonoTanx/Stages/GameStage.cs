@@ -10,17 +10,7 @@ namespace MonoTanx.Stages
 {
     public class GameStage : Stage
     {
-        private const int TankFrameCount = 4;
-        private const float TankFrameDuration = 0.15f;
-        private const float ShellSpeed = 260.0f;
-        private const int PlaceholderShellSize = 8;
-        private const int PickupFrameCount = 4;
-        private const float PickupFrameDuration = 0.15f;
-        private const int HudHeight = 80;
-        private const float PlayerOneFireShakeDuration = 0.16f;
-        private const float PlayerOneFireShakeMagnitude = 1.8f;
-        private const float HitShakeDuration = 0.12f;
-        private const float HitShakeMagnitude = 1.0f;
+        private const int HudHeight = Tuning.Presentation.HudHeight;
 
         private readonly WorldMap worldMap;
         private readonly MapRenderer mapRenderer;
@@ -55,8 +45,8 @@ namespace MonoTanx.Stages
             var tankTwoTexture = LoadTankTwoTexture(content, tankTexture);
             placeholderShellTexture = new Texture2D(graphicsDevice, 1, 1);
             placeholderShellTexture.SetData(new[] { Color.White });
-            playerOne = new Player("Player 1", "Sprites/tank", Color.White, Player.DefaultAmmunition, Player.DefaultStartingShells);
-            playerTwo = new Player("Player 2", "Sprites/tank2", Color.LightGray, Player.DefaultAmmunition, Player.DefaultStartingShells, isComputerControlled: true);
+            playerOne = new Player("Player 1", "Sprites/tank", Color.White, Player.DefaultAmmunition, Tuning.Tank.StartingShells);
+            playerTwo = new Player("Player 2", "Sprites/tank2", Color.LightGray, Player.DefaultAmmunition, Tuning.Tank.StartingShells, isComputerControlled: true);
             playerOne.Texture = tankTexture;
             playerTwo.Texture = tankTwoTexture;
             playerOne.Position = FindStartingPosition(true);
@@ -97,7 +87,7 @@ namespace MonoTanx.Stages
             foreach (var pickup in pickups)
             {
                 if (!pickup.Active) continue;
-                var frameWidth = pickup.Texture.Width / PickupFrameCount;
+                var frameWidth = pickup.Texture.Width / Tuning.Presentation.PickupFrameCount;
                 var frameHeight = pickup.Texture.Height;
                 var source = new Rectangle(pickup.Frame * frameWidth, 0, frameWidth, frameHeight);
                 var origin = new Vector2(frameWidth / 2.0f, frameHeight / 2.0f);
@@ -105,8 +95,8 @@ namespace MonoTanx.Stages
             }
             foreach (var shell in shells)
             {
-                var offset = PlaceholderShellSize / 2;
-                var bounds = new Rectangle((int)shell.Position.X - offset, (int)shell.Position.Y - offset, PlaceholderShellSize, PlaceholderShellSize);
+                var offset = Tuning.Presentation.PlaceholderShellSize / 2;
+                var bounds = new Rectangle((int)shell.Position.X - offset, (int)shell.Position.Y - offset, Tuning.Presentation.PlaceholderShellSize, Tuning.Presentation.PlaceholderShellSize);
                 spriteBatch.Draw(placeholderShellTexture, bounds, null, Color.Yellow, 0.0f, Vector2.Zero, SpriteEffects.None, 0.6f);
             }
             spriteBatch.End();
@@ -189,10 +179,10 @@ namespace MonoTanx.Stages
             {
                 if (!pickup.Active) continue;
                 pickup.AnimationTimer += elapsed;
-                while (pickup.AnimationTimer >= PickupFrameDuration)
+                while (pickup.AnimationTimer >= Tuning.Presentation.PickupFrameSeconds)
                 {
-                    pickup.AnimationTimer -= PickupFrameDuration;
-                    pickup.Frame = (pickup.Frame + 1) % PickupFrameCount;
+                    pickup.AnimationTimer -= Tuning.Presentation.PickupFrameSeconds;
+                    pickup.Frame = (pickup.Frame + 1) % Tuning.Presentation.PickupFrameCount;
                 }
             }
         }
@@ -206,7 +196,7 @@ namespace MonoTanx.Stages
                 var retaliationHeading = HeadingToward(playerTwo.Position, playerOne.Position);
                 var retaliationTurn = Math.Sign(MathHelper.WrapAngle(retaliationHeading - playerTwo.Heading));
                 var retaliationFuel = worldMap.GetFuelCostMultiplier(playerTwo.Position);
-                var retaliationCost = Math.Abs(retaliationTurn) * TankMovement.TurnFuelPerSecond * elapsed * retaliationFuel;
+                var retaliationCost = Math.Abs(retaliationTurn) * Tuning.Tank.TurnFuelPerSecond * elapsed * retaliationFuel;
                 if (playerTwo.Fuel >= retaliationCost)
                 {
                     playerTwo.Heading = MathHelper.WrapAngle(playerTwo.Heading + retaliationTurn * playerTwo.TurnSpeed * elapsed);
@@ -245,7 +235,7 @@ namespace MonoTanx.Stages
                 var longRangeAngle = MathHelper.WrapAngle(playerTwoLongRangeHeading - playerTwo.Heading);
                 var longRangeTurn = Math.Sign(longRangeAngle);
                 var longRangeFuel = worldMap.GetFuelCostMultiplier(playerTwo.Position);
-                var longRangeTurnCost = Math.Abs(longRangeTurn) * TankMovement.TurnFuelPerSecond * elapsed * longRangeFuel;
+                var longRangeTurnCost = Math.Abs(longRangeTurn) * Tuning.Tank.TurnFuelPerSecond * elapsed * longRangeFuel;
                 var longRangeDriveCost = playerTwo.ForwardFuelPerSecond * elapsed * longRangeFuel;
                 if (playerTwo.Fuel >= longRangeTurnCost + longRangeDriveCost)
                 {
@@ -257,7 +247,7 @@ namespace MonoTanx.Stages
             }
 
             playerTwoLongRangePursuit = false;
-            if (Vector2.DistanceSquared(lastPlayerOnePosition, playerOne.Position) > 1.0f || playerTwoRouteIndex >= playerTwoRoute.Count)
+            if (Vector2.DistanceSquared(lastPlayerOnePosition, playerOne.Position) > Tuning.Ai.RouteRebuildDistance * Tuning.Ai.RouteRebuildDistance || playerTwoRouteIndex >= playerTwoRoute.Count)
             {
                 BuildPlayerTwoRoute();
                 lastPlayerOnePosition = playerOne.Position;
@@ -268,7 +258,7 @@ namespace MonoTanx.Stages
 
             var waypoint = playerTwoRoute[playerTwoRouteIndex];
             var target = worldMap.GetTileBounds(waypoint).Center.ToVector2();
-            if (Vector2.DistanceSquared(playerTwo.Position, target) < 16.0f)
+            if (Vector2.DistanceSquared(playerTwo.Position, target) < Tuning.Ai.WaypointReachedDistance * Tuning.Ai.WaypointReachedDistance)
             {
                 playerTwoRouteIndex++;
                 return;
@@ -277,9 +267,9 @@ namespace MonoTanx.Stages
             var desiredHeading = HeadingToward(playerTwo.Position, target);
             var angle = MathHelper.WrapAngle(desiredHeading - playerTwo.Heading);
             var turn = Math.Sign(angle);
-            var drive = Math.Abs(angle) < 1.1f ? 1.0f : 0.0f;
+            var drive = Math.Abs(angle) < Tuning.Ai.DriveAngleLimitRadians ? 1.0f : 0.0f;
             var terrainFuel = worldMap.GetFuelCostMultiplier(playerTwo.Position);
-            var turnCost = Math.Abs(turn) * TankMovement.TurnFuelPerSecond * elapsed * terrainFuel;
+            var turnCost = Math.Abs(turn) * Tuning.Tank.TurnFuelPerSecond * elapsed * terrainFuel;
             var driveCost = drive * playerTwo.ForwardFuelPerSecond * elapsed * terrainFuel;
             if (playerTwo.Fuel < turnCost + driveCost)
                 return;
@@ -302,7 +292,7 @@ namespace MonoTanx.Stages
             {
                 var turn = Math.Sign(MathHelper.WrapAngle(desiredHeading - playerTwo.Heading));
                 var terrainFuel = worldMap.GetFuelCostMultiplier(playerTwo.Position);
-                var turnCost = Math.Abs(turn) * TankMovement.TurnFuelPerSecond * elapsed * terrainFuel;
+                var turnCost = Math.Abs(turn) * Tuning.Tank.TurnFuelPerSecond * elapsed * terrainFuel;
                 if (playerTwo.Fuel >= turnCost)
                 {
                     playerTwo.Heading = MathHelper.WrapAngle(playerTwo.Heading + turn * playerTwo.TurnSpeed * elapsed);
@@ -326,7 +316,7 @@ namespace MonoTanx.Stages
             var desiredHeading = HeadingToward(playerOne.Position, playerTwo.Position);
             var turn = Math.Sign(MathHelper.WrapAngle(desiredHeading - playerTwo.Heading));
             var terrainFuel = worldMap.GetFuelCostMultiplier(playerTwo.Position);
-            var turnCost = Math.Abs(turn) * TankMovement.TurnFuelPerSecond * elapsed * terrainFuel;
+            var turnCost = Math.Abs(turn) * Tuning.Tank.TurnFuelPerSecond * elapsed * terrainFuel;
             var driveCost = playerTwo.ForwardFuelPerSecond * elapsed * terrainFuel;
             if (playerTwo.Fuel < turnCost + driveCost)
                 return;
@@ -337,8 +327,8 @@ namespace MonoTanx.Stages
 
         private Pickup FindPlayerTwoPickupTarget()
         {
-            var needsFuel = playerTwo.Fuel < playerTwo.MaximumFuel * 0.5f;
-            var needsAmmo = playerTwo.RemainingAmmunition < playerTwo.StartingAmmunition * 0.5f;
+            var needsFuel = playerTwo.Fuel < playerTwo.MaximumFuel * Tuning.Ai.NeedsFuelBelowFraction;
+            var needsAmmo = playerTwo.RemainingAmmunition < playerTwo.StartingAmmunition * Tuning.Ai.NeedsAmmoBelowFraction;
             if (!needsFuel && !needsAmmo) return null;
             Pickup best = null;
             var bestDistance = float.MaxValue;
@@ -363,11 +353,11 @@ namespace MonoTanx.Stages
             }
             if (playerTwoRouteIndex >= playerTwoRoute.Count) return;
             var waypoint = worldMap.GetTileBounds(playerTwoRoute[playerTwoRouteIndex]).Center.ToVector2();
-            if (Vector2.DistanceSquared(playerTwo.Position, waypoint) < 16.0f) { playerTwoRouteIndex++; return; }
+            if (Vector2.DistanceSquared(playerTwo.Position, waypoint) < Tuning.Ai.WaypointReachedDistance * Tuning.Ai.WaypointReachedDistance) { playerTwoRouteIndex++; return; }
             var desiredHeading = HeadingToward(playerTwo.Position, waypoint);
             var turn = Math.Sign(MathHelper.WrapAngle(desiredHeading - playerTwo.Heading));
             var terrainFuel = worldMap.GetFuelCostMultiplier(playerTwo.Position);
-            var turnCost = Math.Abs(turn) * TankMovement.TurnFuelPerSecond * elapsed * terrainFuel;
+            var turnCost = Math.Abs(turn) * Tuning.Tank.TurnFuelPerSecond * elapsed * terrainFuel;
             var driveCost = playerTwo.ForwardFuelPerSecond * elapsed * terrainFuel;
             if (playerTwo.Fuel < turnCost + driveCost) return;
             playerTwo.Heading = MathHelper.WrapAngle(playerTwo.Heading + turn * playerTwo.TurnSpeed * elapsed);
@@ -390,7 +380,7 @@ namespace MonoTanx.Stages
                         candidates.Add(candidate);
                 }
             candidates.Sort((a, b) => Vector2.DistanceSquared(b.ToVector2(), playerTile.ToVector2()).CompareTo(Vector2.DistanceSquared(a.ToVector2(), playerTile.ToVector2())));
-            var attempts = Math.Min(20, candidates.Count);
+            var attempts = Math.Min(Tuning.Ai.EvadeCandidateLimit, candidates.Count);
             for (var index = 0; index < attempts; index++)
             {
                 var route = FindRoute(start, candidates[index]);
@@ -407,7 +397,7 @@ namespace MonoTanx.Stages
             playerTwoRouteIndex = 0;
             var playerTile = worldMap.WorldToTile(playerOne.Position);
             var startTile = worldMap.WorldToTile(playerTwo.Position);
-            var radius = Math.Max(2, playerTwo.PreferredCombatDistanceTiles);
+            var radius = Math.Max(Tuning.Ai.MinimumCombatRingTiles, playerTwo.PreferredCombatDistanceTiles);
             var candidates = new List<Point>();
             for (var y = playerTile.Y - radius; y <= playerTile.Y + radius; y++)
                 for (var x = playerTile.X - radius; x <= playerTile.X + radius; x++)
@@ -415,7 +405,7 @@ namespace MonoTanx.Stages
                     var candidate = new Point(x, y);
                     if (!worldMap.IsInside(candidate) || !worldMap.CanOccupyCircle(worldMap.GetTileBounds(candidate).Center.ToVector2(), playerTwo.CollisionRadius)) continue;
                     var distance = Vector2.Distance(candidate.ToVector2(), playerTile.ToVector2());
-                    if (distance >= radius - 1.0f && distance <= radius + 1.0f) candidates.Add(candidate);
+                    if (distance >= radius - Tuning.Ai.CombatRingToleranceTiles && distance <= radius + Tuning.Ai.CombatRingToleranceTiles) candidates.Add(candidate);
                 }
             candidates.Sort((a, b) => Vector2.DistanceSquared(a.ToVector2(), playerTile.ToVector2()).CompareTo(Vector2.DistanceSquared(b.ToVector2(), playerTile.ToVector2())));
             foreach (var goal in candidates)
@@ -502,10 +492,10 @@ namespace MonoTanx.Stages
 
         private bool TryFireShell(Player tank)
         {
-            var muzzleOffset = tank.Texture.Width / TankFrameCount / 2.0f + 4.0f;
-            if (!tank.TryFire(muzzleOffset, ShellSpeed, out var launch)) return false;
+            var muzzleOffset = tank.Texture.Width / Tuning.Presentation.TankFrameCount / 2.0f + Tuning.Presentation.MuzzleClearance;
+            if (!tank.TryFire(muzzleOffset, out var launch)) return false;
             shells.Add(new Shell(launch.Ammunition, launch.Position, launch.Velocity));
-            if (ReferenceEquals(tank, playerOne)) StartShake(PlayerOneFireShakeDuration, PlayerOneFireShakeMagnitude);
+            if (ReferenceEquals(tank, playerOne)) StartShake(Tuning.Shake.FireDuration, Tuning.Shake.FireMagnitude);
             return true;
         }
 
@@ -525,10 +515,10 @@ namespace MonoTanx.Stages
         private void DamageTank(Player tank, int damage, Vector2 impactVelocity)
         {
             var destroyed = TankDamage.Apply(worldMap, tank, OtherTank(tank), damage, impactVelocity, game.Random.Gameplay);
-            StartShake(HitShakeDuration, HitShakeMagnitude);
+            StartShake(Tuning.Shake.HitDuration, Tuning.Shake.HitMagnitude);
             if (ReferenceEquals(tank, playerTwo))
             {
-                playerTwoRetaliationTimer = 1.5f;
+                playerTwoRetaliationTimer = Tuning.Ai.RetaliationSeconds;
                 playerTwoFireTimer = 0.0f;
             }
             if (destroyed)
@@ -552,7 +542,7 @@ namespace MonoTanx.Stages
         private static void UpdateTankAnimation(Player tank, float elapsed)
         {
             tank.AnimationTimer += elapsed;
-            while (tank.AnimationTimer >= TankFrameDuration) { tank.AnimationTimer -= TankFrameDuration; tank.Frame = (tank.Frame + 1) % TankFrameCount; }
+            while (tank.AnimationTimer >= Tuning.Presentation.TankFrameSeconds) { tank.AnimationTimer -= Tuning.Presentation.TankFrameSeconds; tank.Frame = (tank.Frame + 1) % Tuning.Presentation.TankFrameCount; }
         }
 
         private static string ReloadText(Player tank) => tank.ReloadTimer > 0.0f ? tank.ReloadTimer.ToString("0.0") : "READY";
@@ -628,7 +618,7 @@ namespace MonoTanx.Stages
 
         private static void DrawTank(SpriteBatch spriteBatch, Player tank)
         {
-            var frameWidth = tank.Texture.Width / TankFrameCount;
+            var frameWidth = tank.Texture.Width / Tuning.Presentation.TankFrameCount;
             var frameHeight = tank.Texture.Height;
             var source = new Rectangle(tank.Frame * frameWidth, 0, frameWidth, frameHeight);
             spriteBatch.Draw(tank.Texture, tank.Position, source, tank.Tint, tank.Heading - MathHelper.Pi, new Vector2(frameWidth / 2.0f, frameHeight / 2.0f), 1.0f, SpriteEffects.None, 0.5f);

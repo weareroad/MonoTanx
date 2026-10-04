@@ -8,8 +8,6 @@ namespace MonoTanx.Core
     // result does not depend on how often it is drawn.
     public sealed class ScreenShake
     {
-        public const float JitterIntervalSeconds = 1.0f / 60.0f;
-
         private float remaining;
         private float duration;
         private float magnitude;
@@ -26,7 +24,7 @@ namespace MonoTanx.Core
         public void Start(float shakeDuration, float shakeMagnitude)
         {
             if (!IsActive)
-                jitterTimer = JitterIntervalSeconds; // resample on the next update
+                jitterTimer = Tuning.Shake.JitterIntervalSeconds; // resample on the next update
             remaining = Math.Max(remaining, shakeDuration);
             duration = Math.Max(duration, shakeDuration);
             magnitude = Math.Max(magnitude, shakeMagnitude);
@@ -38,9 +36,9 @@ namespace MonoTanx.Core
                 return;
 
             jitterTimer += elapsed;
-            while (jitterTimer >= JitterIntervalSeconds)
+            while (jitterTimer >= Tuning.Shake.JitterIntervalSeconds)
             {
-                jitterTimer -= JitterIntervalSeconds;
+                jitterTimer -= Tuning.Shake.JitterIntervalSeconds;
                 noise = new Vector2(
                     (float)random.NextDouble() * 2.0f - 1.0f,
                     (float)random.NextDouble() * 2.0f - 1.0f);
