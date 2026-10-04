@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 6x4 test map for route planning. Gids: 1 ground, 4 wall (see terrain.tsx).
+     The tile at (2, 2) is a pocket sealed in by walls, so no route reaches it. -->
+<map version="1.10" tiledversion="1.12.2" orientation="orthogonal" renderorder="right-down" width="6" height="4" tilewidth="16" tileheight="16" infinite="0" nextlayerid="2" nextobjectid="1">
+ <tileset firstgid="1" source="terrain.tsx"/>
+ <layer id="1" name="Terrain" width="6" height="4">
+  <data encoding="csv">
+1,1,1,1,1,1,
+1,4,4,4,1,1,
+1,4,1,4,1,1,
+1,4,4,4,1,1
+</data>
+ </layer>
+</map>
