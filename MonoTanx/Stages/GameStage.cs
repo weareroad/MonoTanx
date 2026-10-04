@@ -33,6 +33,7 @@ namespace MonoTanx.Stages
         private float playerTwoFireTimer;
         private float playerTwoRetaliationTimer;
         private readonly ScreenShake shake = new ScreenShake();
+        private readonly GameAudio audio;
         private bool debugOverlayVisible;
 
         public Player Player1 => playerOne;
@@ -40,6 +41,7 @@ namespace MonoTanx.Stages
 
         public GameStage(Tanx game, GraphicsDevice graphicsDevice, ContentManager content, GameMode mode = GameMode.OnePlayer) : base(game, graphicsDevice, content)
         {
+            audio = new GameAudio(content, game.Options.Mute);
             worldMap = new WorldMap(WorldMap.ResolveMapPath(content.RootDirectory, "arena_01.tmx"));
             mapRenderer = new MapRenderer(content, "arena_01.tmx", "arena_01");
             debugFont = content.Load<SpriteFont>("SpriteFonts/dogica");
@@ -488,6 +490,7 @@ namespace MonoTanx.Stages
             var muzzleOffset = tank.Texture.Width / Tuning.Presentation.TankFrameCount / 2.0f + Tuning.Presentation.MuzzleClearance;
             if (!tank.TryFire(muzzleOffset, out var launch)) return false;
             shells.Add(new Shell(launch.Ammunition, launch.Position, launch.Velocity));
+            audio.Play(SoundCue.Fire, playerTwo: ReferenceEquals(tank, playerTwo));
             if (ReferenceEquals(tank, playerOne)) StartShake(Tuning.Shake.FireDuration, Tuning.Shake.FireMagnitude);
             return true;
         }

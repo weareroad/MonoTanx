@@ -211,6 +211,27 @@ namespace MonoTanx.Core
             public const float JitterIntervalSeconds = 1.0f / 60.0f;
         }
 
+        // Sound mix. All cues play centred (no panning or distance fade yet).
+        public static class Audio
+        {
+            // Overall volume (0 to 1), applied to every sound.
+            public const float MasterVolume = 1.0f;
+
+            // Volume of each one-shot cue (0 to 1). The explosion is the
+            // loudest; the rest sit below it so it stands out.
+            public const float FireVolume = 0.8f;
+            public const float ReloadVolume = 0.6f;
+            public const float ExplosionVolume = 1.0f;
+            public const float PingVolume = 0.6f;
+            public const float CrumpVolume = 0.7f;
+            public const float PickupVolume = 0.7f;
+
+            // Pitch shift for Player 2's sounds (-1 to +1, an octave either
+            // way, so 0.15 is about 1.8 semitones up). Enough to tell the two
+            // tanks apart without sounding like a different sound.
+            public const float PlayerTwoPitchOffset = 0.15f;
+        }
+
         // Values tied to the art assets or the screen layout rather than to
         // gameplay.
         public static class Presentation

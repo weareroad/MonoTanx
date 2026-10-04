@@ -22,6 +22,7 @@ Drive around the arena, manage your fuel and shells, collect fuel and ammunition
 - **Shells with limited ammunition and a reload delay.** Each tank starts with 20 standard shells and has a three-second reload between shots.
 - **Terrain-aware projectiles.** Shells fly over water, ground and ravines, and are stopped by walls and hills. Reflective surfaces bounce them, so a shell can come back at the tank that fired it.
 - **Hit feedback.** A hit reduces health and gives the struck tank a small knockback, a heading disruption, and a brief screen shake.
+- **Sound.** Each tank's shots play a sound (Player 2's at a different pitch); more cues and engine sounds are planned. The current sounds are generated placeholders; see `MonoTanx/Content/Audio/README.md` to replace them. `--mute` silences everything, and the game runs normally with no audio device.
 - **Pickups.** Fuel and ammunition pickups are placed on the map in Tiled and collected by driving over them.
 
 ### Computer opponent
@@ -45,6 +46,7 @@ dotnet run --project MonoTanx/MonoTanx.csproj -- --test  # straight into a game
 |---|---|
 | `--test` | Skip the home screen and start a game straight away (for development and quick testing) |
 | `--two-player` | Two human players: Player 2 under human control and the whole arena in view. Preselects two players on the home screen |
+| `--mute` | Start with all sound off |
 | `--seed <integer>` | Fix the run's random draws; the seed is shown in the debug overlay |
 | `--windowed` | Run in a window instead of fullscreen |
 | `--scale <1-4>` | With `--windowed`, set the window to that integer multiple of 800×600 (default 2) |

@@ -19,7 +19,7 @@ dotnet run --project MonoTanx/MonoTanx.csproj -- --test --seed 123   # reproduci
 
 ### Application boundary
 
-- `Program.cs` parses the command line into `GameOptions` (`--test`, `--two-player`, `--seed <integer>`, `--windowed`, `--scale <1-4>`), then constructs and runs `Tanx`, which creates the run's `RandomStreams`.
+- `Program.cs` parses the command line into `GameOptions` (`--test`, `--two-player`, `--mute`, `--seed <integer>`, `--windowed`, `--scale <1-4>`), then constructs and runs `Tanx`, which creates the run's `RandomStreams`.
 - `Tanx.cs` is the `Game` host. It runs a fixed 60 FPS step, draws the current stage to an 800×600 render target, and scales that to the window with proportional letterboxing. It also owns stage switching via `ChangeStage`.
 - With `--test` the game starts directly in `GameStage`; without it, it starts at `HomeStage`: Start game, a Players: 1/2 toggle and Quit. It works with the mouse or the keyboard, and `MenuSelection` holds the highlight state. `--two-player` selects `GameMode.TwoPlayer` (preselected on the home screen): Player 2 starts under human control and the overview camera is on. In a game, `Esc` returns to the home screen, or quits the application when started with `--test`. It runs fullscreen at the desktop resolution unless `--windowed` is given, which uses a window of 800×600 times `--scale` (default 2).
 - Stages (`Stages/`) are the screens/game states. `Core/Stage.cs` is the base type.
@@ -320,6 +320,16 @@ If `Amount` or `SpriteAsset` is not serialized on an instance, the loader suppli
 - Ammunition sprite: `Sprites/ammodrop_1`
 
 Pickup locations are authored in Tiled, but pickups are runtime entities. They animate from four-frame 64×16 sheets (four 16×16 frames), can be collected, and then become inactive/disappear. Fuel restores up to the player’s maximum. Ammunition is added to the matching slot or the first slot.
+
+## Audio
+
+Design and plan: [`docs/audio-spec.md`](docs/audio-spec.md) and [`docs/audio-plan.md`](docs/audio-plan.md).
+
+- `GameAudio` (in `Core`) loads the sounds through the content pipeline and plays them with `SoundEffect.Play`. `GameStage` calls it where things happen. The rules themselves stay silent and know nothing about audio.
+- `SoundCue` lists the one-shot sounds. `SoundMix` (pure) gives each cue's volume and pitch from `Tuning.Audio`; Player 2's sounds are pitch-shifted so the two tanks can be told apart.
+- Audio must never stop the game: with `--mute`, with no audio device (`NoAudioHardwareException`), or with a missing file, the affected sounds are skipped with a console message.
+- Assets are WAV only (16-bit PCM, `WavImporter` and `SoundEffectProcessor`, which need no `ffmpeg`) in `Content/Audio/`, named after the cues. The current files are generated placeholders (`tools/generate_placeholder_audio.py`); `Content/Audio/README.md` explains how to replace them. `AudioAssetTests` check every cue has a valid WAV and a pipeline entry.
+- Implemented so far: the fire cue. The other cues and the engine sounds follow the plan.
 
 ## Important invariants
 
