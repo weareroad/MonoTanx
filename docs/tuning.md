@@ -23,7 +23,7 @@ Per-tank values are defaults: `Player` copies them into instance properties, so 
 | `Ai` | Computer opponent behaviour: combat distance, aim, cadence, retaliation, pickup thresholds, route tolerances | `Player` defaults, `GameStage` |
 | `Vision` | Line-of-sight sample spacing | `WorldMap` |
 | `Shake` | Screen shake size, length and jitter rate | `GameStage`, `ScreenShake` |
-| `Presentation` | Sprite-sheet frame counts and timing, placeholder shell size, muzzle clearance, HUD height | `GameStage` |
+| `Presentation` | Sprite-sheet frame counts and timing, placeholder shell size, muzzle clearance, overview smoothing, HUD height | `GameStage` |
 
 ## Pacing numbers (current values)
 
