@@ -224,7 +224,7 @@ Status: partial. Active play, health reduction, HUD resource feedback, and a ter
 
 #### 5.2 Basic computer behavior
 
-Status: functional prototype. The computer opponent can pursue, evade, route around terrain, seek pickups, check line of sight, aim, and fire. It is deliberately kept in `GameStage` until extracting a controller provides concrete value.
+Status: functional prototype. The computer opponent can pursue, evade, route around terrain, seek pickups, check line of sight, aim, and fire. It lives in `Core/ComputerController.cs` (extracted in #51) and is unit tested.
 
 Start with readable, deterministic behavior rather than sophisticated pathfinding:
 
@@ -351,11 +351,11 @@ Fuel, fog of war, aircraft, supply drops, destructible terrain, and advanced AI 
 
 ## Resume point
 
-The playable prototype works: two `Player` entities (human and computer) drive around the hand-authored arena, spend fuel, collect pickups, and exchange shells. The solution targets .NET 10. The hardening pass (issue #16) is complete: `WorldMap` is separated from rendering (`MapRenderer`), the movement, fuel, firing, shell, damage and pickup rules live in testable `Core` classes, randomness comes from seeded `RandomStreams` (`--seed`), and `MonoTanx.Tests` covers them without a graphics device. The computer opponent, camera, shake and HUD are still in `GameStage`.
+The playable prototype works: two `Player` entities (human and computer) drive around the hand-authored arena, spend fuel, collect pickups, and exchange shells. The solution targets .NET 10. The hardening pass (issue #16) is complete: `WorldMap` is separated from rendering (`MapRenderer`), the movement, fuel, firing, shell, damage and pickup rules live in testable `Core` classes, randomness comes from seeded `RandomStreams` (`--seed`), and `MonoTanx.Tests` covers them without a graphics device. The camera, shake and HUD are still in `GameStage`; the computer opponent is now `ComputerController` in `Core` (#51).
 
 Since then: a home screen with `--test`, `--two-player`, `--windowed`, `--scale` and `--mute` launch options; a human-or-computer Player 2 (`F2`) and an overview camera (`F3`); frame-rate independence tests; every tuning value in `Core/Tuning.cs` (see `docs/tuning.md`); and audio hooks for all the planned sounds (#33). The sounds in `MonoTanx/Content/Audio/` are generated placeholders; replace them by dropping in WAVs of the same name (see the README in that folder).
 
-The next step is score and round reset: hits update a score, the round resets, and the HUD shows score, ammunition and reload state (see "Definition of the first complete match milestone"). Add focused tests for the new rules as they are written. Extract the computer opponent from `GameStage` only when a task needs it.
+The next step is score and round reset: hits update a score, the round resets, and the HUD shows score, ammunition and reload state (see "Definition of the first complete match milestone"). Add focused tests for the new rules as they are written. Next for the match loop: #70 (headless match simulation), then #45/#46.
 
 ## Decision log
 
