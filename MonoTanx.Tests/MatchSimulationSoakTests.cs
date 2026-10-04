@@ -145,5 +145,99 @@ public class MatchSimulationSoakTests
         Assert.True(match.Count(MatchEventKind.ShellFired) > 0);
     }
 
+    // Whole matches through the rounds
+
+    private static readonly int[] MatchSeeds = { 1, 7, 42, 4242 };
+    private const float LongestMatchSeconds = 3600.0f; // an hour of simulated play; the slowest of these seeds finishes in about 36 minutes (most rounds draw on the time limit)
+
+    [Theory]
+    [MemberData(nameof(MatchSeedData))]
+    public void ComputerVersusComputerPlaysAWholeMatchToAWinner(int seed)
+    {
+        var match = new MatchHarness(seed, Demo).RunMatch(LongestMatchSeconds, AssertInvariants);
+        var state = match.Session.State;
+
+        Assert.Equal(MatchPhase.MatchOver, state.Phase);
+        Assert.NotNull(state.Winner);
+        var loser = state.Winner == Seat.One ? Seat.Two : Seat.One;
+        Assert.Equal(Tuning.Match.RoundsToWin, state.ScoreOf(state.Winner.Value));
+        Assert.True(state.ScoreOf(loser) < Tuning.Match.RoundsToWin);
+        // every decided round was announced, and the match was won exactly once
+        var decided = match.StateLog.Count(e => e.Kind == MatchStateEventKind.RoundWon);
+        Assert.Equal(state.ScoreOf(Seat.One) + state.ScoreOf(Seat.Two), decided);
+        Assert.Equal(1, match.StateLog.Count(e => e.Kind == MatchStateEventKind.MatchWon));
+        Assert.Equal(decided + match.StateLog.Count(e => e.Kind == MatchStateEventKind.RoundDrawn), state.Round);
+    }
+
+    [Theory]
+    [MemberData(nameof(MatchSeedData))]
+    public void EveryRoundStartsFromTheSameCleanPosition(int seed)
+    {
+        var match = new MatchHarness(seed, Demo);
+        var start = (match.PlayerOne.Position, match.PlayerOne.Heading, match.PlayerTwo.Position, match.PlayerTwo.Heading);
+        var rounds = 0;
+
+        match.RunMatch(LongestMatchSeconds, m =>
+        {
+            if (m.Session.State.Phase != MatchPhase.Countdown) return;
+            rounds++;
+            Assert.Equal(start, (m.PlayerOne.Position, m.PlayerOne.Heading, m.PlayerTwo.Position, m.PlayerTwo.Heading));
+            Assert.Equal(m.PlayerOne.MaximumHealth, m.PlayerOne.Health);
+            Assert.Equal(m.PlayerTwo.MaximumHealth, m.PlayerTwo.Health);
+            Assert.Equal(m.PlayerOne.MaximumFuel, m.PlayerOne.Fuel);
+            Assert.Equal(m.PlayerOne.StartingAmmunition, m.PlayerOne.RemainingAmmunition);
+            Assert.Empty(m.Simulation.Shells);
+            Assert.All(m.Simulation.Pickups, p => Assert.True(p.Active));
+        });
+
+        Assert.True(rounds > 0);
+        Assert.True(match.Session.State.Round >= Tuning.Match.RoundsToWin);
+    }
+
+    [Fact]
+    public void TheSameSeedPlaysTheSameWholeMatch()
+    {
+        var first = new MatchHarness(7, Demo).RunMatch(LongestMatchSeconds);
+        var second = new MatchHarness(7, Demo).RunMatch(LongestMatchSeconds);
+
+        Assert.Equal(first.Fingerprint(), second.Fingerprint());
+        Assert.Equal(first.Session.State.Winner, second.Session.State.Winner);
+    }
+
+    [Fact]
+    public void AStalledRoundEndsInADrawOnTheTimeLimitAndIsReplayed()
+    {
+        var match = new MatchHarness(3, Demo);
+        // out of ammunition, neither computer can hurt the other
+        foreach (var tank in new[] { match.PlayerOne, match.PlayerTwo })
+            foreach (var slot in tank.AmmunitionSlots) slot.Remaining = 0;
+
+        match.RunMatch(Tuning.Match.CountdownSeconds + Tuning.Match.RoundTimeLimitSeconds + Tuning.Match.RoundOverSeconds + 1.0f, AssertInvariants);
+
+        var drawn = Assert.Single(match.StateLog, e => e.Kind == MatchStateEventKind.RoundDrawn);
+        Assert.True(drawn.Frame >= (Tuning.Match.CountdownSeconds + Tuning.Match.RoundTimeLimitSeconds) * Tuning.Timing.UpdatesPerSecond);
+        Assert.Equal(0, match.Session.State.ScoreOf(Seat.One) + match.Session.State.ScoreOf(Seat.Two));
+        Assert.Equal(2, match.Session.State.Round);
+        Assert.Equal(MatchPhase.Countdown, match.Session.State.Phase);
+        Assert.Equal(match.PlayerOne.StartingAmmunition, match.PlayerOne.RemainingAmmunition); // the replay starts with ammunition again
+    }
+
+    [Theory]
+    [InlineData(PlayerControl.Computer, PlayerControl.Computer)]
+    [InlineData(PlayerControl.Human, PlayerControl.Computer)]
+    [InlineData(PlayerControl.Computer, PlayerControl.Human)]
+    [InlineData(PlayerControl.Human, PlayerControl.Human)]
+    public void EveryCombinationOfControllersGetsThroughSeveralRounds(PlayerControl one, PlayerControl two)
+    {
+        // idle humans never fire, so a human-only match draws on the time limit and replays; a computer wins against an idle human
+        var rounds = 2 * (Tuning.Match.CountdownSeconds + Tuning.Match.RoundTimeLimitSeconds + Tuning.Match.RoundOverSeconds);
+        var match = new MatchHarness(5, new MatchSetup(one, two)).RunMatch(rounds, AssertInvariants);
+
+        Assert.True(match.StateLog.Count(e => e.Kind == MatchStateEventKind.RoundWon || e.Kind == MatchStateEventKind.RoundDrawn) >= 2
+            || match.Session.State.Phase == MatchPhase.MatchOver);
+    }
+
     public static IEnumerable<object[]> SeedData() => Seeds.Select(seed => new object[] { seed });
+
+    public static IEnumerable<object[]> MatchSeedData() => MatchSeeds.Select(seed => new object[] { seed });
 }

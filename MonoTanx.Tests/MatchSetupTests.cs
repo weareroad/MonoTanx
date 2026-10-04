@@ -131,4 +131,29 @@ public class MatchSetupTests
         Assert.Equal(default, MatchSetup.TwoPlayer);
         Assert.Equal(2, default(MatchSetup).HumanCount);
     }
+
+    [Fact]
+    public void AHumanSeatIsCalledPlayerAndALoneComputerJustComputer()
+    {
+        Assert.Equal("Player 1", MatchSetup.OnePlayer.LabelOf(Seat.One));
+        Assert.Equal("Computer", MatchSetup.OnePlayer.LabelOf(Seat.Two));
+        Assert.Equal("Player 1", MatchSetup.TwoPlayer.LabelOf(Seat.One));
+        Assert.Equal("Player 2", MatchSetup.TwoPlayer.LabelOf(Seat.Two));
+    }
+
+    [Fact]
+    public void LabelsFollowTheControllerNotTheSeat()
+    {
+        var computerFirst = new MatchSetup(PlayerControl.Computer, PlayerControl.Human);
+
+        Assert.Equal("Computer", computerFirst.LabelOf(Seat.One));
+        Assert.Equal("Player 2", computerFirst.LabelOf(Seat.Two));
+    }
+
+    [Fact]
+    public void TwoComputersAreNumbered()
+    {
+        Assert.Equal("Computer 1", MatchSetup.Demo.LabelOf(Seat.One));
+        Assert.Equal("Computer 2", MatchSetup.Demo.LabelOf(Seat.Two));
+    }
 }

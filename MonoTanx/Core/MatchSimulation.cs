@@ -82,6 +82,26 @@ namespace MonoTanx.Core
                 controller.Reset();
         }
 
+        // Starts a fresh round: both tanks back at their start positions and
+        // headings with full health, fuel and ammunition, no shells in flight, every
+        // pickup there again and the computers afresh. Control of each seat and the
+        // random stream carry on, so the same seed still gives the same matches.
+        // Events already reported are left for the stage to read.
+        public void ResetRound()
+        {
+            foreach (var tank in tanks)
+                tank.ResetResources();
+            shells.Clear();
+            foreach (var pickup in pickups)
+                pickup.Active = true;
+            PlaceAtStart();
+            for (var index = 0; index < 2; index++)
+            {
+                moved[index] = false;
+                motion[index] = TankMotion.Idle;
+            }
+        }
+
         // Hands a seat to the computer or to a human, starting the computer afresh.
         public void SetComputerControlled(Seat seat, bool computer)
         {
