@@ -18,6 +18,8 @@
     <None Include="Fixtures\*.tmx;Fixtures\*.tsx" CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\MonoTanx\Content\arena_01.tmx" Link="Fixtures\arena\arena_01.tmx" CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\MonoTanx\Content\arena_01.tsx" Link="Fixtures\arena\arena_01.tsx" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\MonoTanx\Content\Content.mgcb" Link="Fixtures\content\Content.mgcb" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\MonoTanx\Content\Audio\*.wav" Link="Fixtures\content\Audio\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\MonoTanx\MonoTanx.csproj" />

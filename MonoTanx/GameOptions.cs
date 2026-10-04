@@ -15,6 +15,9 @@ namespace MonoTanx
         // One or two human players. Used when a game is started from the command line.
         public GameMode GameMode { get; private set; } = GameMode.OnePlayer;
 
+        // Start with all sound off.
+        public bool Mute { get; private set; }
+
         // Run in a window instead of fullscreen.
         public bool Windowed { get; private set; }
 
@@ -46,6 +49,9 @@ namespace MonoTanx
                         break;
                     case "--two-player":
                         options.GameMode = GameMode.TwoPlayer;
+                        break;
+                    case "--mute":
+                        options.Mute = true;
                         break;
                     case "--windowed":
                         options.Windowed = true;

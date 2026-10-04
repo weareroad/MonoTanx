@@ -125,4 +125,21 @@ public class GameOptionsTests
         Assert.True(options.Windowed);
         Assert.Equal(1, options.Scale);
     }
+
+    [Fact]
+    public void SoundIsOnUnlessMuted()
+    {
+        Assert.False(GameOptions.Parse(Array.Empty<string>()).Mute);
+        Assert.True(GameOptions.Parse(new[] { "--mute" }).Mute);
+    }
+
+    [Fact]
+    public void MuteCombinesWithOtherOptions()
+    {
+        var options = GameOptions.Parse(new[] { "--test", "--mute", "--seed", "3" });
+
+        Assert.True(options.Mute);
+        Assert.True(options.Test);
+        Assert.Equal(3, options.Seed);
+    }
 }
