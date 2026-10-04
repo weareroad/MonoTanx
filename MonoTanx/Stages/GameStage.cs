@@ -19,19 +19,13 @@ namespace MonoTanx.Stages
         private readonly Player playerOne;
         private readonly Player playerTwo;
         private readonly Player[] tanks;
+        private readonly ComputerState computerOne;
+        private readonly ComputerState computerTwo;
         private readonly List<Shell> shells = new List<Shell>();
         private readonly List<Pickup> pickups = new List<Pickup>();
-        private readonly List<Point> playerTwoRoute = new List<Point>();
         private CameraView cameraView;
         private bool overviewCamera;
         private RenderTarget2D overviewTarget;
-        private Vector2 lastPlayerOnePosition;
-        private int playerTwoRouteIndex;
-        private int playerTwoPickupTargetId = -1;
-        private bool playerTwoLongRangePursuit;
-        private float playerTwoLongRangeHeading;
-        private float playerTwoFireTimer;
-        private float playerTwoRetaliationTimer;
         private readonly ScreenShake shake = new ScreenShake();
         private readonly GameAudio audio;
         private readonly EngineSound engineOne;
@@ -41,7 +35,7 @@ namespace MonoTanx.Stages
         public Player Player1 => playerOne;
         public Player Player2 => playerTwo;
 
-        public GameStage(Tanx game, GraphicsDevice graphicsDevice, ContentManager content, GameMode mode = GameMode.OnePlayer) : base(game, graphicsDevice, content)
+        public GameStage(Tanx game, GraphicsDevice graphicsDevice, ContentManager content, MatchSetup setup = default) : base(game, graphicsDevice, content)
         {
             audio = new GameAudio(content, game.Options.Mute);
             engineOne = audio.CreateEngine(playerTwo: false);
@@ -53,11 +47,14 @@ namespace MonoTanx.Stages
             var tankTwoTexture = LoadTankTwoTexture(content, tankTexture);
             placeholderShellTexture = new Texture2D(graphicsDevice, 1, 1);
             placeholderShellTexture.SetData(new[] { Color.White });
-            playerOne = new Player("Player 1", "Sprites/tank", Color.White, Player.DefaultAmmunition, Tuning.Tank.StartingShells);
-            playerTwo = new Player("Player 2", "Sprites/tank2", Color.LightGray, Player.DefaultAmmunition, Tuning.Tank.StartingShells, isComputerControlled: true);
-            // two humans: Player 2 is not computer controlled, and both see the whole arena
-            playerTwo.IsComputerControlled = mode == GameMode.OnePlayer;
-            overviewCamera = mode == GameMode.TwoPlayer;
+            // a default MatchSetup (both seats human) is not meaningful, so use the usual one-player game
+            if (setup.Equals(default(MatchSetup)))
+                setup = MatchSetup.OnePlayer;
+            playerOne = new Player("Player 1", "Sprites/tank", Color.White, Player.DefaultAmmunition, Tuning.Tank.StartingShells,
+                isComputerControlled: setup.PlayerOne == PlayerControl.Computer);
+            playerTwo = new Player("Player 2", "Sprites/tank2", Color.LightGray, Player.DefaultAmmunition, Tuning.Tank.StartingShells,
+                isComputerControlled: setup.PlayerTwo == PlayerControl.Computer);
+            overviewCamera = setup.StartsInOverview;
             playerOne.Texture = tankTexture;
             playerTwo.Texture = tankTwoTexture;
             playerOne.Position = FindStartingPosition(true);
@@ -65,7 +62,8 @@ namespace MonoTanx.Stages
             playerOne.Heading = HeadingToward(playerOne.Position, playerTwo.Position);
             playerTwo.Heading = HeadingToward(playerTwo.Position, playerOne.Position);
             tanks = new[] { playerOne, playerTwo };
-            lastPlayerOnePosition = playerOne.Position;
+            computerOne = new ComputerState(playerOne, playerTwo);
+            computerTwo = new ComputerState(playerTwo, playerOne);
             foreach (var spawn in worldMap.PickupSpawns)
             {
                 if (string.IsNullOrWhiteSpace(spawn.SpriteAsset))
@@ -93,9 +91,8 @@ namespace MonoTanx.Stages
             spriteBatch.Draw(placeholderShellTexture, new Rectangle(0, 0, (int)Tanx.DesignedWidth, HudHeight), new Color(48, 54, 60));
             DrawPlayerOneHud(spriteBatch);
             DrawPlayerTwoHud(spriteBatch);
-            spriteBatch.DrawString(debugFont, game.Options.Test
-                ? "P1 WASD/Space  P2 Arrows/Enter  F1 refill  F2 P2 cpu  F3 view  Esc quit"
-                : "P1 WASD/Space  P2 Arrows/Enter  F1 refill  F2 P2 cpu  F3 view  Esc menu", new Vector2(8.0f, Tanx.DesignedHeight - 24.0f), Color.White);
+            spriteBatch.DrawString(debugFont, "P1 WASD/Space  P2 Arrows/Enter  " + (game.Options.Test ? "Esc quit" : "Esc menu"), new Vector2(8.0f, Tanx.DesignedHeight - 40.0f), Color.White);
+            spriteBatch.DrawString(debugFont, "F1 refill  F2/F4 P2/P1 cpu  F3 view  F5 debug", new Vector2(8.0f, Tanx.DesignedHeight - 24.0f), Color.White);
             if (debugOverlayVisible)
                 DrawDebugOverlay(spriteBatch);
             spriteBatch.End();
@@ -123,17 +120,22 @@ namespace MonoTanx.Stages
                 return;
             }
             if (keyboard.IsKeyDown(Keys.F1) && prevKeyboardState.IsKeyUp(Keys.F1)) ResetPlayerOneResources();
-            if (keyboard.IsKeyDown(Keys.F2) && prevKeyboardState.IsKeyUp(Keys.F2)) TogglePlayerTwoControl();
+            if (keyboard.IsKeyDown(Keys.F2) && prevKeyboardState.IsKeyUp(Keys.F2)) ToggleControl(Seat.Two);
+            if (keyboard.IsKeyDown(Keys.F4) && prevKeyboardState.IsKeyUp(Keys.F4)) ToggleControl(Seat.One);
             if (keyboard.IsKeyDown(Keys.F3) && prevKeyboardState.IsKeyUp(Keys.F3)) overviewCamera = !overviewCamera;
             var playerOneBefore = (playerOne.Position, playerOne.Heading);
             var playerTwoBefore = (playerTwo.Position, playerTwo.Heading);
-            UpdateTank(playerOne, keyboard, elapsed, Keys.A, Keys.D, Keys.W, Keys.S, Keys.Space);
-            if (playerTwo.IsComputerControlled)
-                UpdateComputerPlayer(elapsed);
-            else
-                UpdateTank(playerTwo, keyboard, elapsed, Keys.Left, Keys.Right, Keys.Up, Keys.Down, Keys.Enter);
-            if (playerTwo.IsComputerControlled)
-                UpdateComputerFiring(elapsed);
+            foreach (var seat in Seats)
+            {
+                var tank = TankOf(seat);
+                if (tank.IsComputerControlled)
+                    UpdateComputerPlayer(StateOf(seat), elapsed);
+                else
+                    UpdateTank(tank, keyboard, elapsed, KeysOf(seat));
+            }
+            foreach (var seat in Seats)
+                if (TankOf(seat).IsComputerControlled)
+                    UpdateComputerFiring(StateOf(seat), elapsed);
             // judged before shells can knock a tank about
             engineOne.Update(TankMotionClassifier.Classify(playerOneBefore.Position, playerOneBefore.Heading, playerOne.Position, playerOne.Heading), active: true, elapsed);
             engineTwo.Update(TankMotionClassifier.Classify(playerTwoBefore.Position, playerTwoBefore.Heading, playerTwo.Position, playerTwo.Heading), active: true, elapsed);
@@ -154,8 +156,9 @@ namespace MonoTanx.Stages
             prevKeyboardState = keyboard;
         }
 
-        private void UpdateTank(Player tank, KeyboardState keyboard, float elapsed, Keys left, Keys right, Keys forwardKey, Keys reverseKey, Keys fireKey)
+        private void UpdateTank(Player tank, KeyboardState keyboard, float elapsed, SeatKeys keys)
         {
+            var (left, right, forwardKey, reverseKey, fireKey) = (keys.Left, keys.Right, keys.Forward, keys.Reverse, keys.Fire);
             var turn = 0.0f; var drive = 0.0f;
             if (keyboard.IsKeyDown(left)) turn -= 1.0f;
             if (keyboard.IsKeyDown(right)) turn += 1.0f;
@@ -173,7 +176,78 @@ namespace MonoTanx.Stages
             TankMovement.Move(worldMap, tank, OtherTank(tank), movement);
         }
 
+        private static readonly Seat[] Seats = { Seat.One, Seat.Two };
+
+        private static readonly SeatKeys PlayerOneKeys = new SeatKeys(Keys.A, Keys.D, Keys.W, Keys.S, Keys.Space);
+        private static readonly SeatKeys PlayerTwoKeys = new SeatKeys(Keys.Left, Keys.Right, Keys.Up, Keys.Down, Keys.Enter);
+
+        private Player TankOf(Seat seat) => seat == Seat.One ? playerOne : playerTwo;
+
+        private ComputerState StateOf(Seat seat) => seat == Seat.One ? computerOne : computerTwo;
+
+        private ComputerState StateOf(Player tank) => ReferenceEquals(tank, playerOne) ? computerOne : computerTwo;
+
+        private static SeatKeys KeysOf(Seat seat) => seat == Seat.One ? PlayerOneKeys : PlayerTwoKeys;
+
         private Player OtherTank(Player tank) => ReferenceEquals(tank, playerOne) ? playerTwo : playerOne;
+
+        // Who controls each seat right now (it can change in play with F2 and F4).
+        private MatchSetup CurrentSetup => new MatchSetup(
+            playerOne.IsComputerControlled ? PlayerControl.Computer : PlayerControl.Human,
+            playerTwo.IsComputerControlled ? PlayerControl.Computer : PlayerControl.Human);
+
+        // The tank the follow camera tracks, and the one whose gun shakes the screen:
+        // the first human seat's. With no human there is nobody to follow or to shake for.
+        private Player FollowedTank => TankOf(CurrentSetup.FollowSeat);
+
+        private readonly struct SeatKeys
+        {
+            public readonly Keys Left, Right, Forward, Reverse, Fire;
+
+            public SeatKeys(Keys left, Keys right, Keys forward, Keys reverse, Keys fire)
+            {
+                Left = left;
+                Right = right;
+                Forward = forward;
+                Reverse = reverse;
+                Fire = fire;
+            }
+        }
+
+        // The computer's working state for one seat: who it is, who it is playing,
+        // and its route, pickup target and timers. (This moves into Core with the
+        // controller, see issue #51.)
+        private sealed class ComputerState
+        {
+            public readonly Player Self;
+            public readonly Player Opponent;
+            public readonly List<Point> Route = new List<Point>();
+            public int RouteIndex;
+            public int PickupTargetId = -1;
+            public bool LongRangePursuit;
+            public float LongRangeHeading;
+            public float FireTimer;
+            public float RetaliationTimer;
+            public Vector2 LastOpponentPosition;
+
+            public ComputerState(Player self, Player opponent)
+            {
+                Self = self;
+                Opponent = opponent;
+                LastOpponentPosition = opponent.Position;
+            }
+
+            public void Reset()
+            {
+                Route.Clear();
+                RouteIndex = 0;
+                PickupTargetId = -1;
+                LongRangePursuit = false;
+                FireTimer = 0.0f;
+                RetaliationTimer = 0.0f;
+                LastOpponentPosition = Opponent.Position;
+            }
+        }
 
         private void CollectPickups(Player player)
         {
@@ -201,116 +275,116 @@ namespace MonoTanx.Stages
             }
         }
 
-        private void UpdateComputerPlayer(float elapsed)
+        private void UpdateComputerPlayer(ComputerState c, float elapsed)
         {
-            TickReload(playerTwo, elapsed);
-            playerTwoRetaliationTimer = Math.Max(0.0f, playerTwoRetaliationTimer - elapsed);
-            if (playerTwoRetaliationTimer > 0.0f)
+            TickReload(c.Self, elapsed);
+            c.RetaliationTimer = Math.Max(0.0f, c.RetaliationTimer - elapsed);
+            if (c.RetaliationTimer > 0.0f)
             {
-                var retaliationHeading = HeadingToward(playerTwo.Position, playerOne.Position);
-                var retaliationTurn = Math.Sign(MathHelper.WrapAngle(retaliationHeading - playerTwo.Heading));
-                var retaliationFuel = worldMap.GetFuelCostMultiplier(playerTwo.Position);
+                var retaliationHeading = HeadingToward(c.Self.Position, c.Opponent.Position);
+                var retaliationTurn = Math.Sign(MathHelper.WrapAngle(retaliationHeading - c.Self.Heading));
+                var retaliationFuel = worldMap.GetFuelCostMultiplier(c.Self.Position);
                 var retaliationCost = Math.Abs(retaliationTurn) * Tuning.Tank.TurnFuelPerSecond * elapsed * retaliationFuel;
-                if (playerTwo.Fuel >= retaliationCost)
+                if (c.Self.Fuel >= retaliationCost)
                 {
-                    playerTwo.Heading = MathHelper.WrapAngle(playerTwo.Heading + retaliationTurn * playerTwo.TurnSpeed * elapsed);
-                    playerTwo.Fuel = MathHelper.Max(0.0f, playerTwo.Fuel - retaliationCost);
+                    c.Self.Heading = MathHelper.WrapAngle(c.Self.Heading + retaliationTurn * c.Self.TurnSpeed * elapsed);
+                    c.Self.Fuel = MathHelper.Max(0.0f, c.Self.Fuel - retaliationCost);
                 }
                 return;
             }
 
-            var pickupTarget = FindPlayerTwoPickupTarget();
+            var pickupTarget = FindPickupTarget(c);
             if (pickupTarget != null)
             {
-                UpdateComputerPickupSeek(pickupTarget, elapsed);
+                UpdateComputerPickupSeek(c, pickupTarget, elapsed);
                 return;
             }
 
-            if (playerTwo.RemainingAmmunition == 0)
+            if (c.Self.RemainingAmmunition == 0)
             {
-                UpdateComputerEvade(elapsed);
+                UpdateComputerEvade(c, elapsed);
                 return;
             }
 
-            var playerDistance = Vector2.Distance(playerTwo.Position, playerOne.Position);
-            var longRangeThreshold = worldMap.Bounds.Width * playerTwo.LongRangePursuitDistanceFraction;
-            if (playerDistance <= longRangeThreshold && worldMap.HasLineOfSight(playerTwo.Position, playerOne.Position))
+            var playerDistance = Vector2.Distance(c.Self.Position, c.Opponent.Position);
+            var longRangeThreshold = worldMap.Bounds.Width * c.Self.LongRangePursuitDistanceFraction;
+            if (playerDistance <= longRangeThreshold && worldMap.HasLineOfSight(c.Self.Position, c.Opponent.Position))
                 return;
             if (playerDistance > longRangeThreshold)
             {
-                if (!playerTwoLongRangePursuit)
+                if (!c.LongRangePursuit)
                 {
-                    playerTwoLongRangePursuit = true;
-                    playerTwoLongRangeHeading = HeadingToward(playerTwo.Position, playerOne.Position);
-                    playerTwoRoute.Clear();
-                    playerTwoRouteIndex = 0;
+                    c.LongRangePursuit = true;
+                    c.LongRangeHeading = HeadingToward(c.Self.Position, c.Opponent.Position);
+                    c.Route.Clear();
+                    c.RouteIndex = 0;
                 }
 
-                var longRangeAngle = MathHelper.WrapAngle(playerTwoLongRangeHeading - playerTwo.Heading);
+                var longRangeAngle = MathHelper.WrapAngle(c.LongRangeHeading - c.Self.Heading);
                 var longRangeTurn = Math.Sign(longRangeAngle);
-                var longRangeFuel = worldMap.GetFuelCostMultiplier(playerTwo.Position);
+                var longRangeFuel = worldMap.GetFuelCostMultiplier(c.Self.Position);
                 var longRangeTurnCost = Math.Abs(longRangeTurn) * Tuning.Tank.TurnFuelPerSecond * elapsed * longRangeFuel;
-                var longRangeDriveCost = playerTwo.ForwardFuelPerSecond * elapsed * longRangeFuel;
-                if (playerTwo.Fuel >= longRangeTurnCost + longRangeDriveCost)
+                var longRangeDriveCost = c.Self.ForwardFuelPerSecond * elapsed * longRangeFuel;
+                if (c.Self.Fuel >= longRangeTurnCost + longRangeDriveCost)
                 {
-                    playerTwo.Heading = MathHelper.WrapAngle(playerTwo.Heading + longRangeTurn * playerTwo.TurnSpeed * elapsed);
-                    MoveTank(playerTwo, new Vector2((float)Math.Cos(playerTwo.Heading), (float)Math.Sin(playerTwo.Heading)) * playerTwo.MovementSpeed * worldMap.GetMovementSpeedMultiplier(playerTwo.Position) * elapsed);
-                    playerTwo.Fuel = MathHelper.Max(0.0f, playerTwo.Fuel - longRangeTurnCost - longRangeDriveCost);
+                    c.Self.Heading = MathHelper.WrapAngle(c.Self.Heading + longRangeTurn * c.Self.TurnSpeed * elapsed);
+                    MoveTank(c.Self, new Vector2((float)Math.Cos(c.Self.Heading), (float)Math.Sin(c.Self.Heading)) * c.Self.MovementSpeed * worldMap.GetMovementSpeedMultiplier(c.Self.Position) * elapsed);
+                    c.Self.Fuel = MathHelper.Max(0.0f, c.Self.Fuel - longRangeTurnCost - longRangeDriveCost);
                 }
                 return;
             }
 
-            playerTwoLongRangePursuit = false;
-            if (Vector2.DistanceSquared(lastPlayerOnePosition, playerOne.Position) > Tuning.Ai.RouteRebuildDistance * Tuning.Ai.RouteRebuildDistance || playerTwoRouteIndex >= playerTwoRoute.Count)
+            c.LongRangePursuit = false;
+            if (Vector2.DistanceSquared(c.LastOpponentPosition, c.Opponent.Position) > Tuning.Ai.RouteRebuildDistance * Tuning.Ai.RouteRebuildDistance || c.RouteIndex >= c.Route.Count)
             {
-                BuildPlayerTwoRoute();
-                lastPlayerOnePosition = playerOne.Position;
+                BuildRoute(c);
+                c.LastOpponentPosition = c.Opponent.Position;
             }
 
-            if (playerTwoRouteIndex >= playerTwoRoute.Count)
+            if (c.RouteIndex >= c.Route.Count)
                 return;
 
-            var waypoint = playerTwoRoute[playerTwoRouteIndex];
+            var waypoint = c.Route[c.RouteIndex];
             var target = worldMap.GetTileBounds(waypoint).Center.ToVector2();
-            if (Vector2.DistanceSquared(playerTwo.Position, target) < Tuning.Ai.WaypointReachedDistance * Tuning.Ai.WaypointReachedDistance)
+            if (Vector2.DistanceSquared(c.Self.Position, target) < Tuning.Ai.WaypointReachedDistance * Tuning.Ai.WaypointReachedDistance)
             {
-                playerTwoRouteIndex++;
+                c.RouteIndex++;
                 return;
             }
 
-            var desiredHeading = HeadingToward(playerTwo.Position, target);
-            var angle = MathHelper.WrapAngle(desiredHeading - playerTwo.Heading);
+            var desiredHeading = HeadingToward(c.Self.Position, target);
+            var angle = MathHelper.WrapAngle(desiredHeading - c.Self.Heading);
             var turn = Math.Sign(angle);
             var drive = Math.Abs(angle) < Tuning.Ai.DriveAngleLimitRadians ? 1.0f : 0.0f;
-            var terrainFuel = worldMap.GetFuelCostMultiplier(playerTwo.Position);
+            var terrainFuel = worldMap.GetFuelCostMultiplier(c.Self.Position);
             var turnCost = Math.Abs(turn) * Tuning.Tank.TurnFuelPerSecond * elapsed * terrainFuel;
-            var driveCost = drive * playerTwo.ForwardFuelPerSecond * elapsed * terrainFuel;
-            if (playerTwo.Fuel < turnCost + driveCost)
+            var driveCost = drive * c.Self.ForwardFuelPerSecond * elapsed * terrainFuel;
+            if (c.Self.Fuel < turnCost + driveCost)
                 return;
-            playerTwo.Heading = MathHelper.WrapAngle(playerTwo.Heading + turn * playerTwo.TurnSpeed * elapsed);
+            c.Self.Heading = MathHelper.WrapAngle(c.Self.Heading + turn * c.Self.TurnSpeed * elapsed);
             if (drive != 0.0f)
-                MoveTank(playerTwo, new Vector2((float)Math.Cos(playerTwo.Heading), (float)Math.Sin(playerTwo.Heading)) * playerTwo.MovementSpeed * worldMap.GetMovementSpeedMultiplier(playerTwo.Position) * elapsed);
-            playerTwo.Fuel = MathHelper.Max(0.0f, playerTwo.Fuel - turnCost - driveCost);
+                MoveTank(c.Self, new Vector2((float)Math.Cos(c.Self.Heading), (float)Math.Sin(c.Self.Heading)) * c.Self.MovementSpeed * worldMap.GetMovementSpeedMultiplier(c.Self.Position) * elapsed);
+            c.Self.Fuel = MathHelper.Max(0.0f, c.Self.Fuel - turnCost - driveCost);
         }
 
-        private void UpdateComputerFiring(float elapsed)
+        private void UpdateComputerFiring(ComputerState c, float elapsed)
         {
-            playerTwoFireTimer = Math.Max(0.0f, playerTwoFireTimer - elapsed);
-            if (playerTwoFireTimer > 0.0f || playerTwo.ReloadTimer > 0.0f)
+            c.FireTimer = Math.Max(0.0f, c.FireTimer - elapsed);
+            if (c.FireTimer > 0.0f || c.Self.ReloadTimer > 0.0f)
                 return;
 
-            var desiredHeading = HeadingToward(playerTwo.Position, playerOne.Position);
-            var aimError = Math.Abs(MathHelper.WrapAngle(desiredHeading - playerTwo.Heading));
-            var hasLineOfSight = worldMap.HasLineOfSight(playerTwo.Position, playerOne.Position);
-            if (aimError > playerTwo.ComputerAimToleranceRadians)
+            var desiredHeading = HeadingToward(c.Self.Position, c.Opponent.Position);
+            var aimError = Math.Abs(MathHelper.WrapAngle(desiredHeading - c.Self.Heading));
+            var hasLineOfSight = worldMap.HasLineOfSight(c.Self.Position, c.Opponent.Position);
+            if (aimError > c.Self.ComputerAimToleranceRadians)
             {
-                var turn = Math.Sign(MathHelper.WrapAngle(desiredHeading - playerTwo.Heading));
-                var terrainFuel = worldMap.GetFuelCostMultiplier(playerTwo.Position);
+                var turn = Math.Sign(MathHelper.WrapAngle(desiredHeading - c.Self.Heading));
+                var terrainFuel = worldMap.GetFuelCostMultiplier(c.Self.Position);
                 var turnCost = Math.Abs(turn) * Tuning.Tank.TurnFuelPerSecond * elapsed * terrainFuel;
-                if (playerTwo.Fuel >= turnCost)
+                if (c.Self.Fuel >= turnCost)
                 {
-                    playerTwo.Heading = MathHelper.WrapAngle(playerTwo.Heading + turn * playerTwo.TurnSpeed * elapsed);
-                    playerTwo.Fuel = MathHelper.Max(0.0f, playerTwo.Fuel - turnCost);
+                    c.Self.Heading = MathHelper.WrapAngle(c.Self.Heading + turn * c.Self.TurnSpeed * elapsed);
+                    c.Self.Fuel = MathHelper.Max(0.0f, c.Self.Fuel - turnCost);
                 }
                 return;
             }
@@ -318,118 +392,118 @@ namespace MonoTanx.Stages
             if (!hasLineOfSight)
                 return;
 
-            if (TryFireShell(playerTwo))
-                playerTwoFireTimer = playerTwo.ComputerFireCooldownSeconds + playerTwo.ComputerReactionDelaySeconds;
+            if (TryFireShell(c.Self))
+                c.FireTimer = c.Self.ComputerFireCooldownSeconds + c.Self.ComputerReactionDelaySeconds;
         }
 
-        private void UpdateComputerEvade(float elapsed)
+        private void UpdateComputerEvade(ComputerState c, float elapsed)
         {
             // With no ammunition, survival takes priority over positioning:
             // continuously steer and drive away from Player 1. Collision
             // resolution will slide around map obstacles.
-            var desiredHeading = HeadingToward(playerOne.Position, playerTwo.Position);
-            var turn = Math.Sign(MathHelper.WrapAngle(desiredHeading - playerTwo.Heading));
-            var terrainFuel = worldMap.GetFuelCostMultiplier(playerTwo.Position);
+            var desiredHeading = HeadingToward(c.Opponent.Position, c.Self.Position);
+            var turn = Math.Sign(MathHelper.WrapAngle(desiredHeading - c.Self.Heading));
+            var terrainFuel = worldMap.GetFuelCostMultiplier(c.Self.Position);
             var turnCost = Math.Abs(turn) * Tuning.Tank.TurnFuelPerSecond * elapsed * terrainFuel;
-            var driveCost = playerTwo.ForwardFuelPerSecond * elapsed * terrainFuel;
-            if (playerTwo.Fuel < turnCost + driveCost)
+            var driveCost = c.Self.ForwardFuelPerSecond * elapsed * terrainFuel;
+            if (c.Self.Fuel < turnCost + driveCost)
                 return;
-            playerTwo.Heading = MathHelper.WrapAngle(playerTwo.Heading + turn * playerTwo.TurnSpeed * elapsed);
-            MoveTank(playerTwo, new Vector2((float)Math.Cos(playerTwo.Heading), (float)Math.Sin(playerTwo.Heading)) * playerTwo.MovementSpeed * worldMap.GetMovementSpeedMultiplier(playerTwo.Position) * elapsed);
-            playerTwo.Fuel = MathHelper.Max(0.0f, playerTwo.Fuel - turnCost - driveCost);
+            c.Self.Heading = MathHelper.WrapAngle(c.Self.Heading + turn * c.Self.TurnSpeed * elapsed);
+            MoveTank(c.Self, new Vector2((float)Math.Cos(c.Self.Heading), (float)Math.Sin(c.Self.Heading)) * c.Self.MovementSpeed * worldMap.GetMovementSpeedMultiplier(c.Self.Position) * elapsed);
+            c.Self.Fuel = MathHelper.Max(0.0f, c.Self.Fuel - turnCost - driveCost);
         }
 
-        private Pickup FindPlayerTwoPickupTarget()
+        private Pickup FindPickupTarget(ComputerState c)
         {
-            var needsFuel = playerTwo.Fuel < playerTwo.MaximumFuel * Tuning.Ai.NeedsFuelBelowFraction;
-            var needsAmmo = playerTwo.RemainingAmmunition < playerTwo.StartingAmmunition * Tuning.Ai.NeedsAmmoBelowFraction;
+            var needsFuel = c.Self.Fuel < c.Self.MaximumFuel * Tuning.Ai.NeedsFuelBelowFraction;
+            var needsAmmo = c.Self.RemainingAmmunition < c.Self.StartingAmmunition * Tuning.Ai.NeedsAmmoBelowFraction;
             if (!needsFuel && !needsAmmo) return null;
             Pickup best = null;
             var bestDistance = float.MaxValue;
             foreach (var pickup in pickups)
             {
                 if (!pickup.Active || (pickup.Spawn.Kind == PickupKind.Fuel ? !needsFuel : !needsAmmo)) continue;
-                var distance = Vector2.DistanceSquared(playerTwo.Position, pickup.Spawn.Position);
+                var distance = Vector2.DistanceSquared(c.Self.Position, pickup.Spawn.Position);
                 if (distance < bestDistance) { bestDistance = distance; best = pickup; }
             }
             return best;
         }
 
-        private void UpdateComputerPickupSeek(Pickup target, float elapsed)
+        private void UpdateComputerPickupSeek(ComputerState c, Pickup target, float elapsed)
         {
-            if (playerTwoPickupTargetId != target.Spawn.Id || playerTwoRouteIndex >= playerTwoRoute.Count)
+            if (c.PickupTargetId != target.Spawn.Id || c.RouteIndex >= c.Route.Count)
             {
-                playerTwoPickupTargetId = target.Spawn.Id;
-                playerTwoRoute.Clear();
-                playerTwoRouteIndex = 0;
-                var route = FindRoute(worldMap.WorldToTile(playerTwo.Position), worldMap.WorldToTile(target.Spawn.Position));
-                if (route != null) { playerTwoRoute.AddRange(route); playerTwoRouteIndex = Math.Min(1, playerTwoRoute.Count); }
+                c.PickupTargetId = target.Spawn.Id;
+                c.Route.Clear();
+                c.RouteIndex = 0;
+                var route = FindRoute(c.Self.CollisionRadius, worldMap.WorldToTile(c.Self.Position), worldMap.WorldToTile(target.Spawn.Position));
+                if (route != null) { c.Route.AddRange(route); c.RouteIndex = Math.Min(1, c.Route.Count); }
             }
-            if (playerTwoRouteIndex >= playerTwoRoute.Count) return;
-            var waypoint = worldMap.GetTileBounds(playerTwoRoute[playerTwoRouteIndex]).Center.ToVector2();
-            if (Vector2.DistanceSquared(playerTwo.Position, waypoint) < Tuning.Ai.WaypointReachedDistance * Tuning.Ai.WaypointReachedDistance) { playerTwoRouteIndex++; return; }
-            var desiredHeading = HeadingToward(playerTwo.Position, waypoint);
-            var turn = Math.Sign(MathHelper.WrapAngle(desiredHeading - playerTwo.Heading));
-            var terrainFuel = worldMap.GetFuelCostMultiplier(playerTwo.Position);
+            if (c.RouteIndex >= c.Route.Count) return;
+            var waypoint = worldMap.GetTileBounds(c.Route[c.RouteIndex]).Center.ToVector2();
+            if (Vector2.DistanceSquared(c.Self.Position, waypoint) < Tuning.Ai.WaypointReachedDistance * Tuning.Ai.WaypointReachedDistance) { c.RouteIndex++; return; }
+            var desiredHeading = HeadingToward(c.Self.Position, waypoint);
+            var turn = Math.Sign(MathHelper.WrapAngle(desiredHeading - c.Self.Heading));
+            var terrainFuel = worldMap.GetFuelCostMultiplier(c.Self.Position);
             var turnCost = Math.Abs(turn) * Tuning.Tank.TurnFuelPerSecond * elapsed * terrainFuel;
-            var driveCost = playerTwo.ForwardFuelPerSecond * elapsed * terrainFuel;
-            if (playerTwo.Fuel < turnCost + driveCost) return;
-            playerTwo.Heading = MathHelper.WrapAngle(playerTwo.Heading + turn * playerTwo.TurnSpeed * elapsed);
-            MoveTank(playerTwo, new Vector2((float)Math.Cos(playerTwo.Heading), (float)Math.Sin(playerTwo.Heading)) * playerTwo.MovementSpeed * worldMap.GetMovementSpeedMultiplier(playerTwo.Position) * elapsed);
-            playerTwo.Fuel = MathHelper.Max(0.0f, playerTwo.Fuel - turnCost - driveCost);
+            var driveCost = c.Self.ForwardFuelPerSecond * elapsed * terrainFuel;
+            if (c.Self.Fuel < turnCost + driveCost) return;
+            c.Self.Heading = MathHelper.WrapAngle(c.Self.Heading + turn * c.Self.TurnSpeed * elapsed);
+            MoveTank(c.Self, new Vector2((float)Math.Cos(c.Self.Heading), (float)Math.Sin(c.Self.Heading)) * c.Self.MovementSpeed * worldMap.GetMovementSpeedMultiplier(c.Self.Position) * elapsed);
+            c.Self.Fuel = MathHelper.Max(0.0f, c.Self.Fuel - turnCost - driveCost);
         }
 
-        private void BuildPlayerTwoEvadeRoute()
+        private void BuildEvadeRoute(ComputerState c)
         {
-            playerTwoRoute.Clear();
-            playerTwoRouteIndex = 0;
-            var start = worldMap.WorldToTile(playerTwo.Position);
-            var playerTile = worldMap.WorldToTile(playerOne.Position);
+            c.Route.Clear();
+            c.RouteIndex = 0;
+            var start = worldMap.WorldToTile(c.Self.Position);
+            var playerTile = worldMap.WorldToTile(c.Opponent.Position);
             var candidates = new List<Point>();
             for (var y = 0; y < worldMap.Bounds.Height; y += worldMap.TileHeight)
                 for (var x = 0; x < worldMap.Bounds.Width; x += worldMap.TileWidth)
                 {
                     var candidate = new Point(x / worldMap.TileWidth, y / worldMap.TileHeight);
-                    if (worldMap.CanOccupyCircle(worldMap.GetTileBounds(candidate).Center.ToVector2(), playerTwo.CollisionRadius))
+                    if (worldMap.CanOccupyCircle(worldMap.GetTileBounds(candidate).Center.ToVector2(), c.Self.CollisionRadius))
                         candidates.Add(candidate);
                 }
             candidates.Sort((a, b) => Vector2.DistanceSquared(b.ToVector2(), playerTile.ToVector2()).CompareTo(Vector2.DistanceSquared(a.ToVector2(), playerTile.ToVector2())));
             var attempts = Math.Min(Tuning.Ai.EvadeCandidateLimit, candidates.Count);
             for (var index = 0; index < attempts; index++)
             {
-                var route = FindRoute(start, candidates[index]);
+                var route = FindRoute(c.Self.CollisionRadius, start, candidates[index]);
                 if (route == null) continue;
-                playerTwoRoute.AddRange(route);
-                playerTwoRouteIndex = Math.Min(1, playerTwoRoute.Count);
+                c.Route.AddRange(route);
+                c.RouteIndex = Math.Min(1, c.Route.Count);
                 return;
             }
         }
 
-        private void BuildPlayerTwoRoute()
+        private void BuildRoute(ComputerState c)
         {
-            playerTwoRoute.Clear();
-            playerTwoRouteIndex = 0;
-            var playerTile = worldMap.WorldToTile(playerOne.Position);
-            var startTile = worldMap.WorldToTile(playerTwo.Position);
-            var radius = Math.Max(Tuning.Ai.MinimumCombatRingTiles, playerTwo.PreferredCombatDistanceTiles);
+            c.Route.Clear();
+            c.RouteIndex = 0;
+            var playerTile = worldMap.WorldToTile(c.Opponent.Position);
+            var startTile = worldMap.WorldToTile(c.Self.Position);
+            var radius = Math.Max(Tuning.Ai.MinimumCombatRingTiles, c.Self.PreferredCombatDistanceTiles);
             var candidates = new List<Point>();
             for (var y = playerTile.Y - radius; y <= playerTile.Y + radius; y++)
                 for (var x = playerTile.X - radius; x <= playerTile.X + radius; x++)
                 {
                     var candidate = new Point(x, y);
-                    if (!worldMap.IsInside(candidate) || !worldMap.CanOccupyCircle(worldMap.GetTileBounds(candidate).Center.ToVector2(), playerTwo.CollisionRadius)) continue;
+                    if (!worldMap.IsInside(candidate) || !worldMap.CanOccupyCircle(worldMap.GetTileBounds(candidate).Center.ToVector2(), c.Self.CollisionRadius)) continue;
                     var distance = Vector2.Distance(candidate.ToVector2(), playerTile.ToVector2());
                     if (distance >= radius - Tuning.Ai.CombatRingToleranceTiles && distance <= radius + Tuning.Ai.CombatRingToleranceTiles) candidates.Add(candidate);
                 }
             candidates.Sort((a, b) => Vector2.DistanceSquared(a.ToVector2(), playerTile.ToVector2()).CompareTo(Vector2.DistanceSquared(b.ToVector2(), playerTile.ToVector2())));
             foreach (var goal in candidates)
             {
-                var route = FindRoute(startTile, goal);
-                if (route != null) { playerTwoRoute.AddRange(route); playerTwoRouteIndex = Math.Min(1, playerTwoRoute.Count); return; }
+                var route = FindRoute(c.Self.CollisionRadius, startTile, goal);
+                if (route != null) { c.Route.AddRange(route); c.RouteIndex = Math.Min(1, c.Route.Count); return; }
             }
         }
 
-        private List<Point> FindRoute(Point start, Point goal)
+        private List<Point> FindRoute(float radius, Point start, Point goal)
         {
             var frontier = new PriorityQueue<Point, int>();
             var cameFrom = new Dictionary<Point, Point>();
@@ -443,7 +517,7 @@ namespace MonoTanx.Stages
                 foreach (var direction in directions)
                 {
                     var next = new Point(current.X + direction.X, current.Y + direction.Y);
-                    if (!worldMap.IsInside(next) || !worldMap.CanOccupyCircle(worldMap.GetTileBounds(next).Center.ToVector2(), playerTwo.CollisionRadius)) continue;
+                    if (!worldMap.IsInside(next) || !worldMap.CanOccupyCircle(worldMap.GetTileBounds(next).Center.ToVector2(), radius)) continue;
                     var nextCost = costSoFar[current] + 1;
                     if (costSoFar.TryGetValue(next, out var oldCost) && oldCost <= nextCost) continue;
                     costSoFar[next] = nextCost;
@@ -483,20 +557,15 @@ namespace MonoTanx.Stages
             return (float)Math.Atan2(to.Y - from.Y, to.X - from.X);
         }
 
-        // Flips Player 2 between computer and human (cursor keys/Enter) control.
-        // Clears the computer's working state so it starts afresh when it takes
-        // control back.
-        private void TogglePlayerTwoControl()
+        // Flips a seat between computer and human control. Clears the computer's
+        // working state so it starts afresh when it takes control back.
+        private void ToggleControl(Seat seat)
         {
-            playerTwo.IsComputerControlled = !playerTwo.IsComputerControlled;
-            playerTwoRoute.Clear();
-            playerTwoRouteIndex = 0;
-            playerTwoPickupTargetId = -1;
-            playerTwoLongRangePursuit = false;
-            playerTwoFireTimer = 0.0f;
-            playerTwoRetaliationTimer = 0.0f;
-            playerTwo.AnimationTimer = 0.0f;
-            playerTwo.Frame = 0;
+            var tank = TankOf(seat);
+            tank.IsComputerControlled = !tank.IsComputerControlled;
+            StateOf(seat).Reset();
+            tank.AnimationTimer = 0.0f;
+            tank.Frame = 0;
         }
 
         private void ResetPlayerOneResources()
@@ -510,7 +579,7 @@ namespace MonoTanx.Stages
             if (!tank.TryFire(muzzleOffset, out var launch)) return false;
             shells.Add(new Shell(launch.Ammunition, launch.Position, launch.Velocity));
             audio.Play(SoundCue.Fire, playerTwo: ReferenceEquals(tank, playerTwo));
-            if (ReferenceEquals(tank, playerOne)) StartShake(Tuning.Shake.FireDuration, Tuning.Shake.FireMagnitude);
+            if (CurrentSetup.HumanCount > 0 && ReferenceEquals(tank, FollowedTank)) StartShake(Tuning.Shake.FireDuration, Tuning.Shake.FireMagnitude);
             return true;
         }
 
@@ -544,11 +613,9 @@ namespace MonoTanx.Stages
         {
             var destroyed = TankDamage.Apply(worldMap, tank, OtherTank(tank), damage, impactVelocity, game.Random.Gameplay);
             StartShake(Tuning.Shake.HitDuration, Tuning.Shake.HitMagnitude);
-            if (ReferenceEquals(tank, playerTwo))
-            {
-                playerTwoRetaliationTimer = Tuning.Ai.RetaliationSeconds;
-                playerTwoFireTimer = 0.0f;
-            }
+            var computer = StateOf(tank);
+            computer.RetaliationTimer = Tuning.Ai.RetaliationSeconds;
+            computer.FireTimer = 0.0f;
             if (destroyed)
                 game.Exit();
         }
@@ -563,7 +630,7 @@ namespace MonoTanx.Stages
             var viewport = new Vector2(Tanx.DesignedWidth, Tanx.DesignedHeight - HudHeight);
             cameraView = overviewCamera
                 ? CameraView.Overview(worldMap.Bounds, viewport)
-                : CameraView.Follow(playerOne.Position, worldMap.Bounds, viewport);
+                : CameraView.Follow(FollowedTank.Position, worldMap.Bounds, viewport);
         }
 
         private static void UpdateTankAnimation(Player tank, float elapsed)
@@ -644,6 +711,7 @@ namespace MonoTanx.Stages
             DrawHealthBar(spriteBatch, new Rectangle(48, 8, panelWidth - 160, 12), playerOne);
             spriteBatch.DrawString(debugFont, $"{playerOne.Health}%", new Vector2(panelWidth - 112, 4.0f), Color.White);
             spriteBatch.DrawString(debugFont, $"Shells {playerOne.RemainingAmmunition}", new Vector2(8.0f, 25.0f), Color.White);
+            spriteBatch.DrawString(debugFont, playerOne.IsComputerControlled ? "CPU (F4)" : "HUMAN (F4)", new Vector2(130.0f, 25.0f), Color.White);
             spriteBatch.DrawString(debugFont, playerOne.ReloadTimer > 0.0f ? "!" : "", new Vector2(panelWidth - 32, 22.0f), Color.White);
             spriteBatch.DrawString(debugFont, overviewCamera ? "VIEW: OVERVIEW (F3)" : "VIEW: FOLLOW (F3)", new Vector2(260.0f, 30.0f), Color.White);
             spriteBatch.DrawString(debugFont, "Fuel", new Vector2(8.0f, 52.0f), Color.White);
@@ -682,22 +750,32 @@ namespace MonoTanx.Stages
 
         private void DrawDebugOverlay(SpriteBatch spriteBatch)
         {
-            var panel = new Rectangle(8, HudHeight + 8, 360, 128);
-            spriteBatch.Draw(placeholderShellTexture, panel, Color.Black * 0.78f);
             var p1Tile = worldMap.WorldToTile(playerOne.Position);
             var p2Tile = worldMap.WorldToTile(playerTwo.Position);
-            var lines = new[]
+            var lines = new List<string>
             {
                 "DEBUG (hold F5)",
                 $"P1 pos {playerOne.Position.X:0.00},{playerOne.Position.Y:0.00} tile {p1Tile.X},{p1Tile.Y}",
                 $"P1 dir {playerOne.Heading:0.000} rad / {MathHelper.ToDegrees(playerOne.Heading):0.0} deg",
                 $"P2 pos {playerTwo.Position.X:0.00},{playerTwo.Position.Y:0.00} tile {p2Tile.X},{p2Tile.Y}",
-                $"P2 dir {playerTwo.Heading:0.000} rad / {MathHelper.ToDegrees(playerTwo.Heading):0.0} deg",
-                $"AI mode {(FindPlayerTwoPickupTarget() != null ? "PICKUP" : playerTwo.RemainingAmmunition == 0 ? "FLEE" : playerTwoLongRangePursuit ? "LONG" : "COMBAT")} route {playerTwoRouteIndex}/{playerTwoRoute.Count}",
-                $"AI fire {playerTwoFireTimer:0.00} retaliate {playerTwoRetaliationTimer:0.00} pickups {worldMap.PickupSpawns.Count}",
-                $"Seed {game.Random.Seed}"
+                $"P2 dir {playerTwo.Heading:0.000} rad / {MathHelper.ToDegrees(playerTwo.Heading):0.0} deg"
             };
-            for (var index = 0; index < lines.Length; index++)
+            // the computer's working state, for each seat it controls
+            foreach (var seat in Seats)
+            {
+                if (!TankOf(seat).IsComputerControlled)
+                    continue;
+                var c = StateOf(seat);
+                var name = seat == Seat.One ? "P1" : "P2";
+                var mode = FindPickupTarget(c) != null ? "PICKUP" : c.Self.RemainingAmmunition == 0 ? "FLEE" : c.LongRangePursuit ? "LONG" : "COMBAT";
+                lines.Add($"AI {name} {mode} route {c.RouteIndex}/{c.Route.Count}");
+                lines.Add($"AI {name} fire {c.FireTimer:0.00} retaliate {c.RetaliationTimer:0.00}");
+            }
+            lines.Add($"Seed {game.Random.Seed}  pickups {worldMap.PickupSpawns.Count}");
+
+            var panel = new Rectangle(8, HudHeight + 8, 360, lines.Count * 16);
+            spriteBatch.Draw(placeholderShellTexture, panel, Color.Black * 0.78f);
+            for (var index = 0; index < lines.Count; index++)
                 spriteBatch.DrawString(debugFont, lines[index], new Vector2(14.0f, HudHeight + 12.0f + index * 16.0f), Color.White);
         }
 

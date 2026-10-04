@@ -97,7 +97,7 @@ public class GameOptionsTests
         var options = GameOptions.Parse(Array.Empty<string>());
 
         Assert.False(options.Test);
-        Assert.Equal(GameMode.OnePlayer, options.GameMode);
+        Assert.Equal(MatchSetup.OnePlayer, options.Setup);
     }
 
     [Theory]
@@ -111,7 +111,7 @@ public class GameOptionsTests
     [Fact]
     public void TwoPlayerSelectsTheTwoPlayerMode()
     {
-        Assert.Equal(GameMode.TwoPlayer, GameOptions.Parse(new[] { "--two-player" }).GameMode);
+        Assert.Equal(MatchSetup.TwoPlayer, GameOptions.Parse(new[] { "--two-player" }).Setup);
     }
 
     [Fact]
@@ -120,7 +120,7 @@ public class GameOptionsTests
         var options = GameOptions.Parse(new[] { "--seed", "5", "--two-player", "--windowed", "--test", "--scale", "1" });
 
         Assert.True(options.Test);
-        Assert.Equal(GameMode.TwoPlayer, options.GameMode);
+        Assert.Equal(MatchSetup.TwoPlayer, options.Setup);
         Assert.Equal(5, options.Seed);
         Assert.True(options.Windowed);
         Assert.Equal(1, options.Scale);
@@ -141,5 +141,34 @@ public class GameOptionsTests
         Assert.True(options.Mute);
         Assert.True(options.Test);
         Assert.Equal(3, options.Seed);
+    }
+
+    [Fact]
+    public void DemoSelectsTwoComputers()
+    {
+        Assert.Equal(MatchSetup.Demo, GameOptions.Parse(new[] { "--demo" }).Setup);
+    }
+
+    [Fact]
+    public void DemoCombinesWithOtherOptions()
+    {
+        var options = GameOptions.Parse(new[] { "--test", "--demo", "--windowed", "--seed", "9" });
+
+        Assert.True(options.Test);
+        Assert.Equal(MatchSetup.Demo, options.Setup);
+        Assert.Equal(9, options.Seed);
+    }
+
+    [Fact]
+    public void TwoPlayerAndDemoCannotBeCombined()
+    {
+        Assert.Throws<ArgumentException>(() => GameOptions.Parse(new[] { "--two-player", "--demo" }));
+        Assert.Throws<ArgumentException>(() => GameOptions.Parse(new[] { "--demo", "--two-player" }));
+    }
+
+    [Fact]
+    public void RepeatingTheSameSetupOptionIsHarmless()
+    {
+        Assert.Equal(MatchSetup.Demo, GameOptions.Parse(new[] { "--demo", "--demo" }).Setup);
     }
 }

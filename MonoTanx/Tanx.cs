@@ -78,7 +78,7 @@ namespace MonoTanx
             spriteBatch = new SpriteBatch(GraphicsDevice);
             // --test goes straight into a game; otherwise start at the home screen
             currentStage = options.Test
-                ? new GameStage(this, graphics.GraphicsDevice, Content, options.GameMode)
+                ? new GameStage(this, graphics.GraphicsDevice, Content, options.Setup)
                 : new HomeStage(this, graphics.GraphicsDevice, Content);
 
         }
