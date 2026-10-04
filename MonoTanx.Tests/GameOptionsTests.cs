@@ -1,3 +1,4 @@
+using MonoTanx.Core;
 using Xunit;
 
 namespace MonoTanx.Tests;
@@ -88,5 +89,40 @@ public class GameOptionsTests
     public void RejectsScaleWithoutWindowed()
     {
         Assert.Throws<ArgumentException>(() => GameOptions.Parse(new[] { "--scale", "2" }));
+    }
+
+    [Fact]
+    public void DefaultsToTheMenuAndOnePlayer()
+    {
+        var options = GameOptions.Parse(Array.Empty<string>());
+
+        Assert.False(options.Test);
+        Assert.Equal(GameMode.OnePlayer, options.GameMode);
+    }
+
+    [Theory]
+    [InlineData("--test")]
+    [InlineData("-test")]
+    public void TestSkipsTheMenu(string argument)
+    {
+        Assert.True(GameOptions.Parse(new[] { argument }).Test);
+    }
+
+    [Fact]
+    public void TwoPlayerSelectsTheTwoPlayerMode()
+    {
+        Assert.Equal(GameMode.TwoPlayer, GameOptions.Parse(new[] { "--two-player" }).GameMode);
+    }
+
+    [Fact]
+    public void TestAndTwoPlayerCombineWithOtherOptionsInAnyOrder()
+    {
+        var options = GameOptions.Parse(new[] { "--seed", "5", "--two-player", "--windowed", "--test", "--scale", "1" });
+
+        Assert.True(options.Test);
+        Assert.Equal(GameMode.TwoPlayer, options.GameMode);
+        Assert.Equal(5, options.Seed);
+        Assert.True(options.Windowed);
+        Assert.Equal(1, options.Scale);
     }
 }

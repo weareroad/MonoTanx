@@ -37,6 +37,8 @@ namespace MonoTanx
 
         private readonly GameOptions options;
 
+        public GameOptions Options => options;
+
         public Tanx(GameOptions options)
         {
             this.options = options;
@@ -74,7 +76,10 @@ namespace MonoTanx
             ScreenScale = Math.Min(GraphicsDevice.Viewport.Width / DesignedWidth, GraphicsDevice.Viewport.Height / DesignedHeight);
 
             spriteBatch = new SpriteBatch(GraphicsDevice);
-            currentStage = new GameStage(this, graphics.GraphicsDevice, Content);
+            // --test goes straight into a game; otherwise start at the menu
+            currentStage = options.Test
+                ? new GameStage(this, graphics.GraphicsDevice, Content, options.GameMode)
+                : new MenuStage(this, graphics.GraphicsDevice, Content);
 
         }
 

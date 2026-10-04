@@ -151,7 +151,7 @@ namespace MonoTanx.Stages
 
         private void GameButton_Click(object sender, EventArgs e)
         {
-            game.ChangeStage(new GameStage(game, graphicsDevice, content));
+            game.ChangeStage(new GameStage(game, graphicsDevice, content, game.Options.GameMode));
         }
 
     }

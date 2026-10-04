@@ -38,7 +38,7 @@ namespace MonoTanx.Stages
         public Player Player1 => playerOne;
         public Player Player2 => playerTwo;
 
-        public GameStage(Tanx game, GraphicsDevice graphicsDevice, ContentManager content) : base(game, graphicsDevice, content)
+        public GameStage(Tanx game, GraphicsDevice graphicsDevice, ContentManager content, GameMode mode = GameMode.OnePlayer) : base(game, graphicsDevice, content)
         {
             worldMap = new WorldMap(WorldMap.ResolveMapPath(content.RootDirectory, "arena_01.tmx"));
             mapRenderer = new MapRenderer(content, "arena_01.tmx", "arena_01");
@@ -49,6 +49,9 @@ namespace MonoTanx.Stages
             placeholderShellTexture.SetData(new[] { Color.White });
             playerOne = new Player("Player 1", "Sprites/tank", Color.White, Player.DefaultAmmunition, Tuning.Tank.StartingShells);
             playerTwo = new Player("Player 2", "Sprites/tank2", Color.LightGray, Player.DefaultAmmunition, Tuning.Tank.StartingShells, isComputerControlled: true);
+            // two humans: Player 2 is not computer controlled, and both see the whole arena
+            playerTwo.IsComputerControlled = mode == GameMode.OnePlayer;
+            overviewCamera = mode == GameMode.TwoPlayer;
             playerOne.Texture = tankTexture;
             playerTwo.Texture = tankTwoTexture;
             playerOne.Position = FindStartingPosition(true);
