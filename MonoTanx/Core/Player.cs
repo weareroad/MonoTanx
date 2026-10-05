@@ -22,6 +22,7 @@ namespace MonoTanx.Core
         public int PreferredCombatDistanceTiles { get; set; }
         public float LongRangePursuitDistanceFraction { get; set; }
         public float ComputerAimToleranceRadians { get; set; }
+        public float ComputerSkill { get; set; }
         public float ComputerReactionDelaySeconds { get; set; }
         public float ComputerFireCooldownSeconds { get; set; }
         public float ForwardFuelPerSecond { get; }
@@ -52,6 +53,7 @@ namespace MonoTanx.Core
             PreferredCombatDistanceTiles = Tuning.Ai.PreferredCombatDistanceTiles;
             LongRangePursuitDistanceFraction = Tuning.Ai.LongRangePursuitDistanceFraction;
             ComputerAimToleranceRadians = Tuning.Ai.AimToleranceRadians;
+            ComputerSkill = Tuning.Ai.Skill;
             ComputerReactionDelaySeconds = Tuning.Ai.ReactionDelaySeconds;
             ComputerFireCooldownSeconds = Tuning.Ai.FireCooldownSeconds;
             ForwardFuelPerSecond = Tuning.Tank.ForwardFuelPerSecond;

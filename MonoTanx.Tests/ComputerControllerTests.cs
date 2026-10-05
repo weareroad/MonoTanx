@@ -365,6 +365,130 @@ public class ComputerControllerTests
         Assert.True(controller.PlanAim(Step).IsIdle);
     }
 
+    // Aim error
+
+    // A computer ready to shoot an opponent in clear view 48px away, with its own random stream.
+    private static (ComputerController Controller, Player Self) Shooter(Random random, float skill = 0.5f)
+    {
+        var map = LoadTerrainMap();
+        var self = NewPlayer(Centre(0, 0), 0.0f, "Self");
+        var opponent = NewPlayer(Centre(3, 0), 0.0f, "Opponent");
+        self.ComputerSkill = skill;
+        return (new ComputerController(map, self, opponent, random), self);
+    }
+
+    // The windows drawn for a run of consecutive shots.
+    private static List<float> DrawnWindows(Random random, int shots, float skill = 0.5f)
+    {
+        var (controller, _) = Shooter(random, skill);
+        var windows = new List<float>();
+        for (var shot = 0; shot < shots; shot++)
+        {
+            controller.PlanAim(Step); // starts the shot: draws its window
+            windows.Add(controller.AimError);
+            controller.ShotFired();
+            controller.PlanAim(controller.FireTimer + 0.1f); // let the cooldown pass
+        }
+        return windows;
+    }
+
+    [Fact]
+    public void WithoutAStreamTheWindowIsTheNarrowestOne()
+    {
+        var (controller, self) = Shooter(random: null);
+
+        controller.PlanAim(Step);
+
+        Assert.Equal(self.ComputerAimToleranceRadians, controller.AimError);
+    }
+
+    [Fact]
+    public void EveryShotsWindowIsWithinTheBounds()
+    {
+        var skill = 0.25f;
+        var narrowest = Tuning.Ai.AimToleranceRadians;
+        var widest = narrowest + Tuning.Ai.MaximumAimErrorRadians * (1.0f - skill);
+
+        var windows = DrawnWindows(new Random(11), 300, skill);
+
+        Assert.All(windows, window => Assert.InRange(window, narrowest, widest));
+        Assert.True(windows.Max() > narrowest + 0.8f * (widest - narrowest), "the windows never get near the top of the range");
+        Assert.True(windows.Min() < narrowest + 0.2f * (widest - narrowest), "the windows never get near the bottom of the range");
+    }
+
+    [Fact]
+    public void TheSameSeedGivesTheSameWindows()
+    {
+        Assert.Equal(DrawnWindows(new Random(5), 20), DrawnWindows(new Random(5), 20));
+        Assert.NotEqual(DrawnWindows(new Random(5), 20), DrawnWindows(new Random(6), 20));
+    }
+
+    [Fact]
+    public void EachSeatsOwnStreamGivesItDifferentWindows()
+    {
+        var streams = new RandomStreams(42);
+
+        var seatOne = DrawnWindows(streams.CreateStream("ai-1"), 20);
+        var seatTwo = DrawnWindows(streams.CreateStream("ai-2"), 20);
+
+        Assert.NotEqual(seatOne, seatTwo);
+        Assert.Equal(seatOne, DrawnWindows(new RandomStreams(42).CreateStream("ai-1"), 20)); // and each is reproducible
+    }
+
+    [Fact]
+    public void AtFullSkillThereIsNoRandomError()
+    {
+        var windows = DrawnWindows(new Random(3), 50, skill: 1.0f);
+
+        Assert.All(windows, window => Assert.Equal(Tuning.Ai.AimToleranceRadians, window, 5));
+    }
+
+    [Fact]
+    public void AtZeroSkillTheWindowsReachTheWidestRange()
+    {
+        var windows = DrawnWindows(new Random(3), 300, skill: 0.0f);
+
+        Assert.InRange(windows.Max(), Tuning.Ai.AimToleranceRadians + 0.8f * Tuning.Ai.MaximumAimErrorRadians, Tuning.Ai.AimToleranceRadians + Tuning.Ai.MaximumAimErrorRadians);
+    }
+
+    [Fact]
+    public void AShotKeepsItsWindowWhileItIsBeingAimedAndAnotherIsDrawnAfterwards()
+    {
+        var (controller, self) = Shooter(new Random(9));
+        self.Heading = 1.0f; // well off target, so it takes several updates to turn on
+        controller.PlanAim(Step);
+        var window = controller.AimError;
+
+        for (var i = 0; i < 5; i++)
+        {
+            Assert.Equal(window, controller.AimError);
+            controller.PlanAim(Step);
+        }
+        Assert.Equal(window, controller.AimError);
+
+        controller.ShotFired();
+        controller.PlanAim(controller.FireTimer + 0.1f);
+
+        Assert.NotEqual(window, controller.AimError);
+    }
+
+    [Fact]
+    public void ItFiresAsSoonAsItPointsWithinTheShotsWindowAndNotBefore()
+    {
+        var (controller, self) = Shooter(new Random(9));
+        controller.PlanAim(Step); // draws the window
+        var window = controller.AimError;
+
+        self.Heading = window + 0.01f; // just outside it
+        var outside = controller.PlanAim(Step);
+        self.Heading = window - 0.01f; // just inside it
+        var inside = controller.PlanAim(Step);
+
+        Assert.False(outside.Fire);
+        Assert.NotEqual(0.0f, outside.Turn);
+        Assert.True(inside.Fire);
+    }
+
     // The same situation with the seats swapped must give the same command: the
     // controller knows only "self" and "the opponent".
     [Theory]
@@ -453,5 +577,32 @@ public class ComputerControllerTests
                         return (self, opponent);
                     }
         throw new InvalidOperationException("the arena has no covered pair to test with");
+    }
+
+    [Fact]
+    public void TheShotWindowIsTheSameForEitherSeat()
+    {
+        var map = LoadTerrainMap();
+
+        (float Window, TankCommand Command) Aim(bool firstSeat)
+        {
+            var left = NewPlayer(Centre(0, 0), 0.5f, "Left");
+            var right = NewPlayer(Centre(3, 0), 0.0f, "Right");
+            var controller = firstSeat ? new ComputerController(map, left, right, new Random(5)) : new ComputerController(map, right, left, new Random(5));
+            if (!firstSeat)
+            {
+                (right.Position, left.Position) = (left.Position, right.Position);
+                (right.Heading, left.Heading) = (left.Heading, right.Heading);
+            }
+            var command = controller.PlanAim(Step);
+            return (controller.AimError, command);
+        }
+
+        var first = Aim(true);
+        var second = Aim(false);
+
+        Assert.Equal(first.Window, second.Window);
+        Assert.Equal(first.Command.Turn, second.Command.Turn);
+        Assert.Equal(first.Command.Fire, second.Command.Fire);
     }
 }

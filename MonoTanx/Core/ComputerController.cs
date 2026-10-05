@@ -24,6 +24,7 @@ namespace MonoTanx.Core
         private readonly WorldMap map;
         private readonly Player self;
         private readonly Player opponent;
+        private readonly Random random;
         private readonly List<Point> route = new List<Point>();
         private int routeIndex;
         private int pickupTargetId = -1;
@@ -31,10 +32,15 @@ namespace MonoTanx.Core
         private float longRangeHeading;
         private float fireTimer;
         private float retaliationTimer;
+        private float aimError;
+        private bool aimErrorDrawn;
         private Vector2 lastOpponentPosition;
 
-        public ComputerController(WorldMap map, Player self, Player opponent)
+        // The random stream is this seat's own (RandomStreams.CreateStream("ai-1") or
+        // ("ai-2")). With none, the computer makes no aiming error.
+        public ComputerController(WorldMap map, Player self, Player opponent, Random random = null)
         {
+            this.random = random;
             this.map = map;
             this.self = self;
             this.opponent = opponent;
@@ -46,6 +52,13 @@ namespace MonoTanx.Core
         public float FireTimer => fireTimer;
         public float RetaliationTimer => retaliationTimer;
         public bool LongRangePursuit => longRangePursuit;
+
+        // The largest error, in radians, the shot being prepared may have: it fires as
+        // soon as the tank points within this of the opponent. Drawn per shot.
+        public float AimError => aimError;
+
+        // What the last PlanMove asked for, for the overlay and the tests.
+        public TankCommand LastMove { get; private set; }
 
         // What the computer would be doing now, in the order it decides.
         public ComputerMode Mode(IReadOnlyList<PickupState> pickups)
@@ -67,6 +80,7 @@ namespace MonoTanx.Core
         public void ShotFired()
         {
             fireTimer = self.ComputerFireCooldownSeconds + self.ComputerReactionDelaySeconds;
+            aimErrorDrawn = false; // the next shot gets its own error
         }
 
         // Called when control changes, so the computer starts afresh.
@@ -78,12 +92,19 @@ namespace MonoTanx.Core
             longRangePursuit = false;
             fireTimer = 0.0f;
             retaliationTimer = 0.0f;
+            aimErrorDrawn = false;
             lastOpponentPosition = opponent.Position;
         }
 
         // The movement for this update. Does nothing at all when the tank cannot
         // afford both the turn and the drive.
         public TankCommand PlanMove(float elapsed, IReadOnlyList<PickupState> pickups)
+        {
+            LastMove = PlanMoveCore(elapsed, pickups);
+            return LastMove;
+        }
+
+        private TankCommand PlanMoveCore(float elapsed, IReadOnlyList<PickupState> pickups)
         {
             retaliationTimer = Math.Max(0.0f, retaliationTimer - elapsed);
             if (retaliationTimer > 0.0f)
@@ -136,9 +157,14 @@ namespace MonoTanx.Core
             if (fireTimer > 0.0f || self.ReloadTimer > 0.0f)
                 return TankCommand.None;
 
+            // this shot's window (its largest error), drawn once and kept until it is fired
+            if (!aimErrorDrawn)
+            {
+                aimError = DrawAimError();
+                aimErrorDrawn = true;
+            }
             var desiredHeading = HeadingToward(self.Position, opponent.Position);
-            var aimError = Math.Abs(MathHelper.WrapAngle(desiredHeading - self.Heading));
-            if (aimError > self.ComputerAimToleranceRadians)
+            if (Math.Abs(MathHelper.WrapAngle(desiredHeading - self.Heading)) > aimError)
             {
                 var turn = new TankCommand(TurnToward(desiredHeading), 0.0f);
                 return TankMovement.FuelCost(map, self, turn, elapsed) <= self.Fuel ? turn : TankCommand.None;
@@ -195,6 +221,17 @@ namespace MonoTanx.Core
             if (newRoute == null) return;
             route.AddRange(newRoute);
             routeIndex = Math.Min(1, route.Count);
+        }
+
+        // The largest error the next shot may have: the narrowest window plus a random
+        // extra, up to the maximum scaled by (1 - skill). Without a stream the window
+        // is the narrowest, so there is no random error.
+        private float DrawAimError()
+        {
+            var window = self.ComputerAimToleranceRadians;
+            if (random == null) return window;
+            var extra = Tuning.Ai.MaximumAimErrorRadians * (1.0f - MathHelper.Clamp(self.ComputerSkill, 0.0f, 1.0f));
+            return window + (float)random.NextDouble() * extra;
         }
 
         private PickupState FindPickupTarget(IReadOnlyList<PickupState> pickups)

@@ -175,10 +175,27 @@ namespace MonoTanx.Core
             // drives straight at Player 1.
             public const float LongRangePursuitDistanceFraction = 0.5f;
 
-            // How far off target (radians, about 11.5 degrees) it will fire.
-            // Close up this still hits; at range it often misses, which keeps
-            // it beatable.
-            public const float AimToleranceRadians = 0.2f;
+            // The smallest error (radians, about 4 degrees) a shot can have: the
+            // narrowest window around the opponent's heading in which it will
+            // fire. It cannot be smaller, because the movement and aiming phases
+            // each turn the tank up to 0.04 rad a step and a tighter window is
+            // missed over and over (the computer then hardly ever fires).
+            public const float AimToleranceRadians = 0.07f;
+
+            // How much wider than that a shot's window can be (radians) at skill 0.
+            // Each shot draws its own window uniformly between AimToleranceRadians
+            // and AimToleranceRadians plus this times (1 minus skill), from the
+            // seat's own random stream, and fires as soon as the tank points
+            // within it, so the error of a shot is random, bounded and
+            // reproducible from the seed. At the default skill the windows average
+            // 0.195 rad, which matches the fixed 0.2 rad it replaced, so the
+            // computer fires as often and hits about as often (see docs/tuning.md).
+            public const float MaximumAimErrorRadians = 0.5f;
+
+            // How good a computer seat is, from 0 (worst) to 1 (never misses by
+            // error). Scales the aim error now and, later, how well it notices
+            // incoming shells. Each seat has its own, so it can become a setting.
+            public const float Skill = 0.5f;
 
             // Pause (seconds) after it lines up before firing.
             public const float ReactionDelaySeconds = 0.25f;

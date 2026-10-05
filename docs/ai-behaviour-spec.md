@@ -26,9 +26,9 @@ Tracks GitHub issues #52 (stuck detection and seeded aim error) and #85 (evading
 
 ### Aim error (#52)
 
-- When the controller starts aiming for a shot it draws one error from its stream, uniform in ±`MaximumAimErrorRadians × (1 − skill)` (bounded by construction), and aims at the opponent's heading plus that error. It keeps that error for the whole shot, so it does not re-roll every update (which would average out) and fires when the tank is within a small tolerance of the offset heading. A new draw happens after each shot.
-- The tolerance for firing shrinks to a small value (the offset heading is what carries the error), replacing today's 0.2 rad as the thing that decides the miss.
-- The default skill and maximum error are chosen by measurement so computer-versus-computer hits per match stay close to today's (see Testing); they are in `Tuning.Ai` with comments.
+- Each shot draws one **window** (the largest error it may have) from the seat's stream, between `AimToleranceRadians` and `AimToleranceRadians + MaximumAimErrorRadians × (1 − skill)`, and the computer fires as soon as the tank points within that window of the opponent. The draw happens when it starts aiming and is kept until the shot is fired, so it does not re-roll every update, and the next shot draws afresh. The error of a shot is therefore random, bounded by its window and reproducible from the seed. With no stream there is no random error: the window is the narrowest.
+- *Changed from the first draft.* The draft aimed at the opponent plus a signed random error and fired within a tiny tolerance of that. Measured, that fires a quarter as often (the movement phase and the aiming phase each turn the tank 0.04 rad a step, so a window under about 0.07 rad is missed over and over while the tank is following a route), which would have changed the game far more than intended. Drawing the window itself keeps the firing rate and gives the same bounded, seeded, per-shot error. The narrowest window is therefore 0.07 rad, not the small tolerance the draft assumed.
+- The defaults (skill 0.5, maximum extra 0.5 rad) make the windows average 0.195 rad, the same as the fixed 0.2 rad tolerance they replace, and are chosen by measurement so computer-versus-computer hits per match stay close to today's.
 
 ### Stuck detection and recovery (#52)
 

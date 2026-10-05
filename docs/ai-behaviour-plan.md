@@ -6,7 +6,7 @@ Three PRs, each leaving the game playable, each measured with the headless harne
 1. **Per-seat AI stream, skill and aim error (#52).**
    - `MatchSimulation` takes the two per-seat AI streams (optional), the stage passes them from `game.Random`; `Player.ComputerSkill`; the aim error and its small firing tolerance in `Tuning.Ai`.
    - Controller tests for the error (reproducible, bounded, held for a shot, redrawn after, zero at skill 1, different per seat) and the mirror test.
-   - Choose the defaults so hits per match stay near the baseline; record before and after. Build comparison with the error off showing the trajectories unchanged.
+   - Choose the defaults so hits per match stay near the baseline; record before and after. With the error off (window 0.2 rad, no stream) the harness reproduced the baseline numbers exactly.
 2. **Stuck detection and recovery (#52).**
    - The progress window, the stuck state and the recovery manoeuvre in the controller, with the stuck count and `RECOVER` mode for the overlay.
    - Scripted fixture tests and the long-run headless check that no tank stays stuck; the baseline stuck count compared with after.

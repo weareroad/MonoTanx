@@ -24,7 +24,8 @@ namespace MonoTanx.Core
 
         // The gameplay random stream (RandomStreams.Gameplay): the only randomness
         // the simulation uses, so a run is reproducible from its seed.
-        public MatchSimulation(WorldMap map, Player playerOne, Player playerTwo, IEnumerable<PickupSpawn> pickupSpawns, Random random, SimulationSettings settings = default)
+        public MatchSimulation(WorldMap map, Player playerOne, Player playerTwo, IEnumerable<PickupSpawn> pickupSpawns, Random random, SimulationSettings settings = default,
+            Random aiRandomOne = null, Random aiRandomTwo = null)
         {
             this.map = map;
             this.random = random;
@@ -32,8 +33,8 @@ namespace MonoTanx.Core
             tanks = new[] { playerOne, playerTwo };
             controllers = new[]
             {
-                new ComputerController(map, playerOne, playerTwo),
-                new ComputerController(map, playerTwo, playerOne)
+                new ComputerController(map, playerOne, playerTwo, aiRandomOne),
+                new ComputerController(map, playerTwo, playerOne, aiRandomTwo)
             };
             foreach (var spawn in pickupSpawns)
                 pickups.Add(new PickupState(spawn));
