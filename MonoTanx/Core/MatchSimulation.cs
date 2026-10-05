@@ -127,7 +127,7 @@ namespace MonoTanx.Core
                 if (tank.IsComputerControlled)
                 {
                     TickReload(tank, elapsed);
-                    TankMovement.ApplyInput(map, tank, OpponentOf(tank), controllers[index].PlanMove(elapsed, pickups), elapsed);
+                    TankMovement.ApplyInput(map, tank, OpponentOf(tank), controllers[index].PlanMove(elapsed, pickups, shells), elapsed);
                 }
                 else
                 {

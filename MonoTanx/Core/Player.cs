@@ -63,6 +63,29 @@ namespace MonoTanx.Core
             ResetResources();
         }
 
+        // A copy of this tank's rules state (where it is, how it is heading, its fuel and its
+        // speeds) to try movements on, for a computer working out where it could go. Not for play.
+        public Player CopyForPrediction() => new Player(this);
+
+        private Player(Player other)
+        {
+            Name = other.Name;
+            SpriteAsset = other.SpriteAsset;
+            Tint = other.Tint;
+            IsComputerControlled = other.IsComputerControlled;
+            MaximumFuel = other.MaximumFuel;
+            MaximumHealth = other.MaximumHealth;
+            MovementSpeed = other.MovementSpeed;
+            ReverseMovementSpeed = other.ReverseMovementSpeed;
+            TurnSpeed = other.TurnSpeed;
+            CollisionRadius = other.CollisionRadius;
+            ForwardFuelPerSecond = other.ForwardFuelPerSecond;
+            Position = other.Position;
+            Heading = other.Heading;
+            Fuel = other.Fuel;
+            Health = other.Health;
+        }
+
         public void ResetResources()
         {
             Fuel = MaximumFuel;

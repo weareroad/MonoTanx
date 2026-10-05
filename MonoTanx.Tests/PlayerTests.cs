@@ -191,4 +191,22 @@ public class PlayerTests
     {
         Assert.False(TestSupport.NewPlayer(Vector2.Zero).TickReload(1.0f));
     }
+
+    [Fact]
+    public void ACopyForPredictionHasTheSameRulesStateAndMovesIndependently()
+    {
+        var player = TestSupport.NewPlayer(new Vector2(40.0f, 24.0f), 1.0f);
+        player.Fuel = 123.0f;
+
+        var copy = player.CopyForPrediction();
+        copy.Position = new Vector2(80.0f, 80.0f);
+        copy.Heading = 2.0f;
+        copy.Fuel = 5.0f;
+
+        Assert.Equal(new Vector2(40.0f, 24.0f), player.Position);
+        Assert.Equal((1.0f, 123.0f), (player.Heading, player.Fuel));
+        var fresh = player.CopyForPrediction();
+        Assert.Equal((player.Position, player.Heading, player.Fuel, player.MovementSpeed, player.TurnSpeed, player.CollisionRadius),
+            (fresh.Position, fresh.Heading, fresh.Fuel, fresh.MovementSpeed, fresh.TurnSpeed, fresh.CollisionRadius));
+    }
 }

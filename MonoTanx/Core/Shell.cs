@@ -62,6 +62,14 @@ namespace MonoTanx.Core
             Velocity = velocity;
         }
 
+        // A copy in the same state, to fly forward and see where it would go without disturbing it.
+        public Shell Clone() => new Shell(Ammunition, Position, Velocity)
+        {
+            Age = Age,
+            ReflectionCount = ReflectionCount,
+            ReflectionCooldown = ReflectionCooldown
+        };
+
         // Advances the shell by the elapsed time in short sub-steps so it cannot
         // skip over thin terrain. Tanks are tested in list order.
         public ShellStepResult Step(WorldMap map, IReadOnlyList<Player> tanks, float elapsed)

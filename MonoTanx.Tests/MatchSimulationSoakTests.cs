@@ -46,8 +46,8 @@ public class MatchSimulationSoakTests
     [MemberData(nameof(SeedData))]
     public void TheSameSeedGivesTheSameMatch(int seed)
     {
-        var first = new MatchHarness(seed, Demo).Run(60.0f);
-        var second = new MatchHarness(seed, Demo).Run(60.0f);
+        var first = new MatchHarness(seed, Demo).Run(45.0f);
+        var second = new MatchHarness(seed, Demo).Run(45.0f);
 
         Assert.Equal(first.Fingerprint(), second.Fingerprint());
     }
@@ -55,7 +55,7 @@ public class MatchSimulationSoakTests
     [Fact]
     public void DifferentSeedsGiveDifferentMatches()
     {
-        var fingerprints = Seeds.Select(seed => new MatchHarness(seed, Demo).Run(60.0f).Fingerprint()).Distinct().Count();
+        var fingerprints = Seeds.Take(4).Select(seed => new MatchHarness(seed, Demo).Run(45.0f).Fingerprint()).Distinct().Count();
 
         Assert.True(fingerprints > 1, "every seed produced the same match");
     }

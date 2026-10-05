@@ -20,7 +20,7 @@ Per-tank values are defaults: `Player` copies them into instance properties, so 
 | `Projectile` | How shells fly: hit radius, reflection limit, cooldown and nudge, sub-step length | `Shell` |
 | `Damage` | Knockback distance and random heading disruption when hit | `TankDamage` |
 | `Pickups` | Collection radius and default amounts | `PickupRules`, `WorldMap` |
-| `Ai` | Computer opponent behaviour: combat distance, aim window and its random error, skill, cadence, retaliation, pickup thresholds, route tolerances | `Player` defaults, `GameStage` |
+| `Ai` | Computer opponent behaviour: combat and firing distances, aim window and its random error, skill, relocation, evasion, stuck recovery, cadence, retaliation, pickup thresholds, route tolerances | `Player` defaults, `GameStage` |
 | `Vision` | Line-of-sight sample spacing | `WorldMap` |
 | `Audio` | Master and per-cue volumes, Player 2's pitch offset, engine volumes and pitches, fade and glide times, motion thresholds | `SoundMix`, `EngineMix`, `TankMotionClassifier` |
 | `Match` | Rounds to win, countdown and round-over pauses, round time limit, match-over pause | `MatchState`, `MatchSession` |
@@ -60,7 +60,8 @@ How two computers play each other, measured with the headless harness (`MatchHar
 
 | Stuck recovery (#52) | 1.7 | 2746 | 10% | 5 / 92 (5% decided) | 1.8 (longest run 1.7s) |
 | Closing in (#90) | 9.2 | 2981 | 49% | 54 / 68 (44% decided) | 2.8 (longest run 1.7s) |
-| Shoot and scoot (#90, this step) | 11.8 | 3216 | 59% | 71 / 56 (56% decided) | 3.0 (longest run 1.7s) |
+| Shoot and scoot (#90) | 11.8 | 3216 | 59% | 71 / 56 (56% decided) | 3.0 (longest run 1.7s) |
+| Evasion (#85, this step) | 8.9 | 3017 | 47% | 40 / 71 (36% decided) | 2.6 (longest run 1.7s) |
 
 "Stuck" counts a tank that was commanded to drive for 1.5s and moved less than 6px, in either seat. Before stuck recovery that was about 32 seconds in every minute, so between them the computers spent a large share of every round pushing against something. In one 1200s run of seed 7 about 70% of those updates were in long-range pursuit (it drives a fixed heading at the opponent and never routes around anything) and about 30% in pickup seeking, where the tank drove forward all the time it turned, and a turning circle of about 36px (90px/s at 2.5 rad/s) does not fit a 16px corridor, so it pressed into corners. Recovery fixes both: it detects the lack of progress, backs away turning, and then follows a planned route for a while instead of a straight line; and pickup seeking now drives only when roughly facing the next waypoint, as combat already did (that alone took stuck pickup updates from about 18,600 to 2 in three 1200s runs).
 
@@ -107,6 +108,24 @@ After each shot, while its cooldown runs, the computer moves to a new firing pos
 - **The still-human numbers fall, and that is real, not a bug.** Before scooting, a computer facing a motionless human kept the alignment of its first successful shot for every later one (it only turned if a new, narrower window demanded it), which is why it hit 91% of its shots. Scooting means it re-aims from a new position for every shot, so each shot's random error counts, and it hits 40%. A kill needs nine hits, and in a 90s round it has time for about 14 shots after the approach, so it cannot kill a motionless human in a round (0 of 96). Against computers, which also scoot and move, decided rounds went up, not down.
 - **What to tune if that matters.** The skill default (0.5) sets how wide a shot's window is: at skill 0.7 the windows average 0.145 rad instead of 0.195 and accuracy at 4 to 5 tiles rises. Other dials: how close it fires from (`RelocationCloserTiles`, `EngageDistanceTiles`), damage or ammunition (nine hits from 20 shells), and the round time limit. None of these was changed here.
 - **Steering is slow.** The tank steers by turning toward each route tile and drives only when roughly facing it, so it dithers and takes about 3.5s to cover three tiles; that is why the minimum relocation is two tiles, and why a relocation is sometimes cut off by the gun being ready. Better steering is a separate piece of work.
+
+### Evasion (#85)
+
+The computer now predicts every shell in flight (whoever fired it, its own rebounds included): it steps a copy with the real `Shell` rules for `EvadeLookaheadSeconds` (1.5s) with the tanks where they are, and if a shell it has noticed would hit it where it stands, it tries the eight ways of turning and driving (held for 0.5s, on a scratch copy of its tank with the real `TankMovement` rules) and takes one that gets clear, preferring the least change and the one it was already making. Dodging comes first, before retaliation, pickups and chasing, and the aim phase never turns the tank meanwhile. A shell it cannot get clear of is accepted and costs no fuel; with no fuel it cannot move.
+
+It is deliberately imperfect, so a human can still hit it: only shells within `EvadeDetectionDistance` (240px) are considered; a shell must have been flying `EvadeReactionSeconds` (0.12s) before it is noticed; and each shell is noticed with a chance drawn once from the seat's stream, 0.5 at skill 0 rising to 1 at skill 1 (0.75 at the default).
+
+| 8 seeds x 1200s | Hits/min | Accuracy | Rounds decided / drawn | Motionless in view |
+|---|---|---|---|---|
+| Computers, shoot and scoot | 11.8 | 59% | 71 / 56 (56%) | 2% |
+| Computers, evasion | 8.9 | 47% | 40 / 71 (36%) | 2% |
+| Computer vs a still human, shoot and scoot | 1.4 | 40% | 0 / 96 (0%) | 2% |
+| Computer vs a still human, evasion | 1.3 | 37% | 0 / 96 (0%) | 2% |
+
+- **Hits fall by about a quarter** (11.8 to 8.9 a minute) and the share of decided rounds from 56% to 36%, as expected: dodging is the point. The computers spend only 0.1% of their time dodging (about 2.3 dodges a minute between the two), so it is a rare, quick sidestep and not a constant wiggle.
+- **A motionless human does not shoot**, so the computer only ever dodges its own shells coming back off a wall, and those numbers hardly move; the fall in kills against a still human is the shoot-and-scoot finding above.
+- **Cost.** Predicting costs about twice the simulation time per update (about 75 microseconds for both tanks against about 35), only 0.5% of a 16.7ms frame.
+- **Dials for the tuning pass.** The notice chance (`EvadeNoticeChanceAtSkillZero`, and skill), the detection distance and the reaction time set how often it dodges successfully; the lookahead sets how far ahead rebounds are seen.
 
 ## Deliberately kept elsewhere
 

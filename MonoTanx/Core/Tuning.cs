@@ -205,6 +205,40 @@ namespace MonoTanx.Core
             // computer unable to land the nine hits a kill needs.
             public const int RelocationCloserTiles = 1;
 
+            // Evading incoming shells. It predicts every shell in flight (whoever
+            // fired it, rebounds included) this far ahead (seconds). Shells cross
+            // the arena in about 4s but a dodge only needs about 0.2s of warning,
+            // so 1.5s sees a rebound coming back along a corridor (a shell that
+            // bounces off a wall 100px away and returns has about 330px to fly,
+            // 1.3s) without simulating for no reason.
+            public const float EvadeLookaheadSeconds = 1.5f;
+
+            // Only shells within this distance (pixels) are considered: about
+            // 0.9s of flight at shell speed, plenty to react to, and it keeps the
+            // prediction to the few shells that matter.
+            public const float EvadeDetectionDistance = 240.0f;
+
+            // A shell must have been in flight this long (seconds) before it is
+            // noticed: a reaction time, so a shot from point-blank range cannot be
+            // dodged, as it could not be by a person.
+            public const float EvadeReactionSeconds = 0.12f;
+
+            // How often (seconds) the prediction steps, in the computer's search
+            // for a safe move: the shell sub-steps itself for accuracy, so this
+            // can be coarse.
+            public const float EvadeStepSeconds = 1.0f / 30.0f;
+
+            // How long (seconds) a chosen evasive move is held while it checks
+            // whether the move gets clear. 0.5s is about 45px of driving, which
+            // clears the 15px a shell needs to hit.
+            public const float EvadeHoldSeconds = 0.5f;
+
+            // The chance it notices a given shell at skill 0 (it is 1 at skill 1),
+            // drawn once per shell from its own random stream: a computer that
+            // saw every shell would be undodgeable to shoot. 0.5 at skill 0 gives
+            // 0.75 at the default skill of 0.5.
+            public const float EvadeNoticeChanceAtSkillZero = 0.5f;
+
             // Beyond this fraction of the map width it stops routing and just
             // drives straight at Player 1.
             public const float LongRangePursuitDistanceFraction = 0.5f;
