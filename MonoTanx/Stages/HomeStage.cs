@@ -16,19 +16,20 @@ namespace MonoTanx.Stages
     {
         private const int StartItem = 0;
         private const int PlayersItem = 1;
-        private const int QuitItem = 2;
+        private const int SettingsItem = 2;
+        private const int QuitItem = 3;
 
         private readonly List<Button> buttons = new List<Button>();
         private readonly MenuSelection selection;
         private readonly Button playersButton;
         private MatchSetup setup;
 
-        public HomeStage(Tanx game, GraphicsDevice graphicsDevice, ContentManager content)
+        public HomeStage(Tanx game, GraphicsDevice graphicsDevice, ContentManager content, MatchSetup? chosenSetup = null)
           : base(game, graphicsDevice, content)
         {
             baseFont = content.Load<SpriteFont>("SpriteFonts/pixel-emulator");
             var buttonTexture = content.Load<Texture2D>("Controls/Button");
-            setup = game.Options.Setup;
+            setup = chosenSetup ?? game.Options.Setup;
 
             Button MakeButton(string text, float y, EventHandler click)
             {
@@ -45,7 +46,8 @@ namespace MonoTanx.Stages
 
             MakeButton("Start game", 210, (s, e) => Activate(StartItem));
             playersButton = MakeButton(setup.Label, 270, (s, e) => Activate(PlayersItem));
-            MakeButton("Quit", 330, (s, e) => Activate(QuitItem));
+            MakeButton("Settings", 330, (s, e) => Activate(SettingsItem));
+            MakeButton("Quit", 390, (s, e) => Activate(QuitItem));
             selection = new MenuSelection(buttons.Count);
 
             var bounds = new Vector2(600, 40);
@@ -124,6 +126,9 @@ namespace MonoTanx.Stages
                 case PlayersItem:
                     setup = setup.ToggleHumanPlayers();
                     playersButton.Text = setup.Label;
+                    break;
+                case SettingsItem:
+                    game.ChangeStage(new SettingsStage(game, graphicsDevice, content, setup));
                     break;
                 case QuitItem:
                     game.Exit();

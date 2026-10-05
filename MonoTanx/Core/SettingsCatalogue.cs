@@ -191,7 +191,7 @@ namespace MonoTanx.Core
             Number(computer, SettingKeys.AiNeedsFuelBelowFraction, "Seeks fuel below", 0.0f, 1.0f, 0.05f, Tuning.Ai.NeedsFuelBelowFraction);
             Number(computer, SettingKeys.AiNeedsAmmoBelowFraction, "Seeks ammo below", 0.0f, 1.0f, 0.05f, Tuning.Ai.NeedsAmmoBelowFraction);
             Whole(computer, SettingKeys.AiRelocationChoices, "Relocation choices", 1, 8, 1, Tuning.Ai.RelocationChoices);
-            Whole(computer, SettingKeys.AiRelocationMinimumTiles, "Relocation minimum (tiles)", 1, 5, 1, Tuning.Ai.RelocationMinimumTiles);
+            Whole(computer, SettingKeys.AiRelocationMinimumTiles, "Relocation min (tiles)", 1, 5, 1, Tuning.Ai.RelocationMinimumTiles);
             Whole(computer, SettingKeys.AiRelocationCloserTiles, "Relocation closer (tiles)", 0, 3, 1, Tuning.Ai.RelocationCloserTiles);
             Number(computer, SettingKeys.AiEvadeNoticeChanceAtSkillZero, "Evade notice at skill 0", 0.0f, 1.0f, 0.05f, Tuning.Ai.EvadeNoticeChanceAtSkillZero);
             Number(computer, SettingKeys.AiEvadeReactionSeconds, "Evade reaction (s)", 0.0f, 1.0f, 0.02f, Tuning.Ai.EvadeReactionSeconds);
