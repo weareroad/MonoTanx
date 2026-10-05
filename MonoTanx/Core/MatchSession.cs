@@ -4,15 +4,18 @@ namespace MonoTanx.Core
 {
     // A whole match: the simulation and the rounds rules together, so a match can
     // be played headlessly. It decides what the simulation may do in each phase
-    // (nothing during the countdown, only shells in flight while a round's result
-    // sinks in, everything while a round is live), feeds the rounds rules what
+    // (nothing during the countdown, only shells in flight while a result sinks in,
+    // everything while a round is live), feeds the rounds rules what
     // happened, and resets the world when the next round's countdown begins.
     public sealed class MatchSession
     {
-        public MatchSession(MatchSimulation simulation)
+        private readonly int roundsToWin;
+
+        public MatchSession(MatchSimulation simulation, int roundsToWin = Tuning.Match.RoundsToWin)
         {
             Simulation = simulation;
-            State = new MatchState();
+            this.roundsToWin = roundsToWin;
+            State = new MatchState(roundsToWin);
         }
 
         public MatchSimulation Simulation { get; }
@@ -30,6 +33,7 @@ namespace MonoTanx.Core
                     Simulation.Step(elapsed, commandOne, commandTwo);
                     break;
                 case MatchPhase.RoundOver:
+                case MatchPhase.MatchOver:
                     Simulation.StepShells(elapsed);
                     break;
             }
@@ -45,7 +49,7 @@ namespace MonoTanx.Core
         public void StartNewMatch()
         {
             Simulation.ResetRound();
-            State = new MatchState();
+            State = new MatchState(roundsToWin);
         }
     }
 }

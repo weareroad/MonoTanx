@@ -157,9 +157,10 @@ namespace MonoTanx.Core
             // driving) and the 24s minimum it takes to kill, with room to spare.
             public const float RoundTimeLimitSeconds = 90.0f;
 
-            // How long a finished match stays up in a demo (no human) before the
-            // next one starts by itself (seconds); long enough to see who won.
-            public const float DemoRestartSeconds = 5.0f;
+            // How long a finished match's result stays on screen (seconds) before
+            // the next step: a demo starting its next match by itself, or a game
+            // with a human leaving the match. Long enough to read who won.
+            public const float MatchOverSeconds = 5.0f;
         }
 
         // Computer opponent. The first group are per-Player defaults; the

@@ -18,6 +18,7 @@ namespace MonoTanx.Stages
         private readonly Texture2D placeholderShellTexture;
         private readonly Player playerOne;
         private readonly Player playerTwo;
+        private readonly MatchSession session;
         private readonly MatchSimulation simulation;
         private readonly Dictionary<int, PickupVisual> pickupVisuals = new Dictionary<int, PickupVisual>();
         private CameraView cameraView;
@@ -69,6 +70,7 @@ namespace MonoTanx.Stages
             simulation = new MatchSimulation(worldMap, playerOne, playerTwo, pickupSpawns, game.Random.Gameplay,
                 new SimulationSettings(MuzzleOffsetOf(playerOne), MuzzleOffsetOf(playerTwo)));
             simulation.PlaceAtStart();
+            session = new MatchSession(simulation);
             UpdateCamera();
         }
 
@@ -83,6 +85,7 @@ namespace MonoTanx.Stages
             spriteBatch.Draw(placeholderShellTexture, new Rectangle(0, 0, (int)Tanx.DesignedWidth, HudHeight), new Color(48, 54, 60));
             DrawPlayerOneHud(spriteBatch);
             DrawPlayerTwoHud(spriteBatch);
+            DrawMatchStatus(spriteBatch);
             spriteBatch.DrawString(debugFont, "P1 WASD/Space  P2 Arrows/Enter  " + (game.Options.Test ? "Esc quit" : "Esc menu"), new Vector2(8.0f, Tanx.DesignedHeight - 40.0f), Color.White);
             spriteBatch.DrawString(debugFont, "F1 refill  F2/F4 P2/P1 cpu  F3 view  F5 debug", new Vector2(8.0f, Tanx.DesignedHeight - 24.0f), Color.White);
             if (debugOverlayVisible)
@@ -115,20 +118,23 @@ namespace MonoTanx.Stages
             if (keyboard.IsKeyDown(Keys.F2) && prevKeyboardState.IsKeyUp(Keys.F2)) ToggleControl(Seat.Two);
             if (keyboard.IsKeyDown(Keys.F4) && prevKeyboardState.IsKeyUp(Keys.F4)) ToggleControl(Seat.One);
             if (keyboard.IsKeyDown(Keys.F3) && prevKeyboardState.IsKeyUp(Keys.F3)) overviewCamera = !overviewCamera;
-            simulation.Step(elapsed, CommandOf(Seat.One, keyboard), CommandOf(Seat.Two, keyboard));
+            // the tanks only act while a round is live; in the pauses they stand still and the engines idle
+            var stepped = session.State.Phase == MatchPhase.Playing;
+            session.Step(elapsed, CommandOf(Seat.One, keyboard), CommandOf(Seat.Two, keyboard));
             foreach (var seat in Seats)
             {
                 var tank = TankOf(seat);
                 if (!tank.IsComputerControlled)
                 {
-                    if (simulation.Moved(seat)) UpdateTankAnimation(tank, elapsed);
+                    if (stepped && simulation.Moved(seat)) UpdateTankAnimation(tank, elapsed);
                     else { tank.AnimationTimer = 0.0f; tank.Frame = 0; }
                 }
             }
-            engineOne.Update(simulation.Motion(Seat.One), active: true, elapsed);
-            engineTwo.Update(simulation.Motion(Seat.Two), active: true, elapsed);
+            engineOne.Update(stepped ? simulation.Motion(Seat.One) : TankMotion.Idle, active: true, elapsed);
+            engineTwo.Update(stepped ? simulation.Motion(Seat.Two) : TankMotion.Idle, active: true, elapsed);
             UpdatePickupAnimations(elapsed);
             PlayEvents();
+            if (UpdateMatchOver()) return;
             UpdateCamera();
             shake.Update(elapsed, game.Random.Cosmetic);
             if (keyboard.IsKeyDown(Keys.Escape) && prevKeyboardState.IsKeyUp(Keys.Escape))
@@ -170,7 +176,7 @@ namespace MonoTanx.Stages
         // the first human seat's. With no human there is nobody to follow or to shake for.
         private Player FollowedTank => TankOf(CurrentSetup.FollowSeat);
 
-        // Turns what happened in the simulation into sound, shake and the end of the match.
+        // Turns what happened in the simulation into sound and shake.
         private void PlayEvents()
         {
             foreach (var matchEvent in simulation.Events)
@@ -198,12 +204,26 @@ namespace MonoTanx.Stages
                     case MatchEventKind.PickupCollected:
                         audio.Play(SoundCue.Pickup);
                         break;
-                    case MatchEventKind.TankDestroyed:
-                        game.Exit();
-                        break;
                 }
             }
             simulation.ClearEvents();
+            session.State.ClearEvents();
+        }
+
+        // Once a match is over its result stays up for a moment. Then a demo starts its
+        // next match by itself and a game with a human goes back to the home screen
+        // (until the end screen of #46). True when the stage has been left.
+        private bool UpdateMatchOver()
+        {
+            if (session.State.Phase != MatchPhase.MatchOver || session.State.PhaseTimer < Tuning.Match.MatchOverSeconds)
+                return false;
+            if (CurrentSetup.HumanCount == 0)
+            {
+                session.StartNewMatch();
+                return false;
+            }
+            game.ChangeStage(new HomeStage(game, graphicsDevice, content));
+            return true;
         }
 
         private void UpdatePickupAnimations(float elapsed)
@@ -301,8 +321,8 @@ namespace MonoTanx.Stages
         private void DrawWorld(SpriteBatch spriteBatch)
         {
             mapRenderer.Draw(spriteBatch);
-            DrawTank(spriteBatch, playerOne);
-            DrawTank(spriteBatch, playerTwo);
+            if (playerOne.Health > 0) DrawTank(spriteBatch, playerOne);
+            if (playerTwo.Health > 0) DrawTank(spriteBatch, playerTwo);
             foreach (var pickup in simulation.Pickups)
             {
                 if (!pickup.Active) continue;
@@ -349,6 +369,43 @@ namespace MonoTanx.Stages
             DrawFuelBar(spriteBatch, new Rectangle(panelX + 38, 56, gaugeWidth, 12), playerTwo);
         }
 
+        // The score and round in the middle of the playfield's top edge, and a banner
+        // for the countdown and the result of a round or the match.
+        private void DrawMatchStatus(SpriteBatch spriteBatch)
+        {
+            var state = session.State;
+            var setup = CurrentSetup;
+            var score = $"{setup.LabelOf(Seat.One)} {state.ScoreOf(Seat.One)} - {state.ScoreOf(Seat.Two)} {setup.LabelOf(Seat.Two)}   Round {state.Round}";
+            DrawCentred(spriteBatch, score, HudHeight + 6.0f, 1.0f, Color.White, panel: true);
+            var banner = BannerText(state, setup);
+            if (banner != null)
+                DrawCentred(spriteBatch, banner.Value.Text, HudHeight + (Tanx.DesignedHeight - HudHeight) / 2.0f - 20.0f, banner.Value.Scale, Color.White, panel: true);
+        }
+
+        private static (string Text, float Scale)? BannerText(MatchState state, MatchSetup setup)
+        {
+            switch (state.Phase)
+            {
+                case MatchPhase.Countdown:
+                    return (Math.Ceiling(state.CountdownRemaining).ToString("0"), 4.0f);
+                case MatchPhase.RoundOver:
+                    return (state.RoundWinner == null ? "Draw" : setup.LabelOf(state.RoundWinner.Value) + " scores", 2.0f);
+                case MatchPhase.MatchOver:
+                    return (setup.LabelOf(state.Winner.Value) + " wins the match", 2.0f);
+                default:
+                    return null;
+            }
+        }
+
+        private void DrawCentred(SpriteBatch spriteBatch, string text, float y, float scale, Color color, bool panel)
+        {
+            var size = debugFont.MeasureString(text) * scale;
+            var position = new Vector2((float)Math.Round((Tanx.DesignedWidth - size.X) / 2.0f), (float)Math.Round(y));
+            if (panel)
+                spriteBatch.Draw(placeholderShellTexture, new Rectangle((int)position.X - 8, (int)position.Y - 6, (int)size.X + 16, (int)size.Y + 12), Color.Black * 0.6f);
+            spriteBatch.DrawString(debugFont, text, position, color, 0.0f, Vector2.Zero, scale, SpriteEffects.None, 0.0f);
+        }
+
         private void DrawHealthBar(SpriteBatch spriteBatch, Rectangle bounds, Player player)
         {
             spriteBatch.Draw(placeholderShellTexture, bounds, Color.Red);
@@ -388,6 +445,7 @@ namespace MonoTanx.Stages
                 lines.Add($"AI {name} {mode} route {c.RouteIndex}/{c.RouteLength}");
                 lines.Add($"AI {name} fire {c.FireTimer:0.00} retaliate {c.RetaliationTimer:0.00}");
             }
+            lines.Add($"Match {session.State.Phase} round {session.State.Round} {session.State.PhaseTimer:0.0}s score {session.State.ScoreOf(Seat.One)}-{session.State.ScoreOf(Seat.Two)}");
             lines.Add($"Seed {game.Random.Seed}  pickups {worldMap.PickupSpawns.Count}");
 
             var panel = new Rectangle(8, HudHeight + 8, 360, lines.Count * 16);
