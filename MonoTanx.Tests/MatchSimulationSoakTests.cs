@@ -148,20 +148,23 @@ public class MatchSimulationSoakTests
     // Whole matches through the rounds
 
     private static readonly int[] MatchSeeds = { 1, 7, 42, 4242 };
-    private const float LongestMatchSeconds = 3600.0f; // an hour of simulated play; the slowest of these seeds finishes in about 36 minutes (most rounds draw on the time limit)
+    // First to 2 rather than the default 3: most computer rounds draw on the time limit, so a full
+    // first-to-3 match can take over half an hour of simulated play. The default is tested in MatchStateTests.
+    private const int WholeMatchRoundsToWin = 2;
+    private const float LongestMatchSeconds = 3600.0f; // an hour of simulated play
 
     [Theory]
     [MemberData(nameof(MatchSeedData))]
     public void ComputerVersusComputerPlaysAWholeMatchToAWinner(int seed)
     {
-        var match = new MatchHarness(seed, Demo).RunMatch(LongestMatchSeconds, AssertInvariants);
+        var match = new MatchHarness(seed, Demo, WholeMatchRoundsToWin).RunMatch(LongestMatchSeconds, AssertInvariants);
         var state = match.Session.State;
 
         Assert.Equal(MatchPhase.MatchOver, state.Phase);
         Assert.NotNull(state.Winner);
         var loser = state.Winner == Seat.One ? Seat.Two : Seat.One;
-        Assert.Equal(Tuning.Match.RoundsToWin, state.ScoreOf(state.Winner.Value));
-        Assert.True(state.ScoreOf(loser) < Tuning.Match.RoundsToWin);
+        Assert.Equal(WholeMatchRoundsToWin, state.ScoreOf(state.Winner.Value));
+        Assert.True(state.ScoreOf(loser) < WholeMatchRoundsToWin);
         // every decided round was announced, and the match was won exactly once
         var decided = match.StateLog.Count(e => e.Kind == MatchStateEventKind.RoundWon);
         Assert.Equal(state.ScoreOf(Seat.One) + state.ScoreOf(Seat.Two), decided);
@@ -173,7 +176,7 @@ public class MatchSimulationSoakTests
     [MemberData(nameof(MatchSeedData))]
     public void EveryRoundStartsFromTheSameCleanPosition(int seed)
     {
-        var match = new MatchHarness(seed, Demo);
+        var match = new MatchHarness(seed, Demo, WholeMatchRoundsToWin);
         var start = (match.PlayerOne.Position, match.PlayerOne.Heading, match.PlayerTwo.Position, match.PlayerTwo.Heading);
         var rounds = 0;
 
@@ -191,14 +194,14 @@ public class MatchSimulationSoakTests
         });
 
         Assert.True(rounds > 0);
-        Assert.True(match.Session.State.Round >= Tuning.Match.RoundsToWin);
+        Assert.True(match.Session.State.Round >= WholeMatchRoundsToWin);
     }
 
     [Fact]
     public void TheSameSeedPlaysTheSameWholeMatch()
     {
-        var first = new MatchHarness(7, Demo).RunMatch(LongestMatchSeconds);
-        var second = new MatchHarness(7, Demo).RunMatch(LongestMatchSeconds);
+        var first = new MatchHarness(7, Demo, WholeMatchRoundsToWin).RunMatch(LongestMatchSeconds);
+        var second = new MatchHarness(7, Demo, WholeMatchRoundsToWin).RunMatch(LongestMatchSeconds);
 
         Assert.Equal(first.Fingerprint(), second.Fingerprint());
         Assert.Equal(first.Session.State.Winner, second.Session.State.Winner);

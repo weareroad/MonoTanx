@@ -68,7 +68,8 @@ namespace MonoTanx.Stages
                 }
             }
             simulation = new MatchSimulation(worldMap, playerOne, playerTwo, pickupSpawns, game.Random.Gameplay,
-                new SimulationSettings(MuzzleOffsetOf(playerOne), MuzzleOffsetOf(playerTwo)));
+                new SimulationSettings(MuzzleOffsetOf(playerOne), MuzzleOffsetOf(playerTwo)),
+                game.Random.CreateStream("ai-1"), game.Random.CreateStream("ai-2"));
             simulation.PlaceAtStart();
             session = new MatchSession(simulation);
             UpdateCamera();
@@ -443,7 +444,7 @@ namespace MonoTanx.Stages
                 var name = seat == Seat.One ? "P1" : "P2";
                 var mode = c.Mode(simulation.Pickups).ToString().ToUpperInvariant();
                 lines.Add($"AI {name} {mode} route {c.RouteIndex}/{c.RouteLength}");
-                lines.Add($"AI {name} fire {c.FireTimer:0.00} retaliate {c.RetaliationTimer:0.00}");
+                lines.Add($"AI {name} fire {c.FireTimer:0.00} retaliate {c.RetaliationTimer:0.00} aim +-{c.AimError:0.00}");
             }
             lines.Add($"Match {session.State.Phase} round {session.State.Round} {session.State.PhaseTimer:0.0}s score {session.State.ScoreOf(Seat.One)}-{session.State.ScoreOf(Seat.Two)}");
             lines.Add($"Seed {game.Random.Seed}  pickups {worldMap.PickupSpawns.Count}");

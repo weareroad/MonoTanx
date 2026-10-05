@@ -452,4 +452,21 @@ public class MatchSimulationTests
         Assert.NotEqual(plain[0], plain[1]);
         Assert.Equal(plain[1], reset[1], 4); // the reset did not start the stream over
     }
+
+    [Fact]
+    public void EachSeatsComputerGetsItsOwnAimStream()
+    {
+        var map = LoadTerrainMap();
+        var one = NewPlayer(Centre(0, 0));
+        var two = NewPlayer(Centre(3, 0), MathHelper.Pi);
+        var streams = new RandomStreams(8);
+        one.IsComputerControlled = true;
+        two.IsComputerControlled = true;
+        var simulation = new MatchSimulation(map, one, two, new PickupSpawn[0], new Random(1), default, streams.CreateStream("ai-1"), streams.CreateStream("ai-2"));
+
+        simulation.Step(Step, null, null);
+
+        Assert.NotEqual(simulation.ControllerOf(Seat.One).AimError, simulation.ControllerOf(Seat.Two).AimError);
+        Assert.True(simulation.ControllerOf(Seat.One).AimError > Tuning.Ai.AimToleranceRadians - 0.0001f);
+    }
 }

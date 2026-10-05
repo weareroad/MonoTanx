@@ -20,7 +20,7 @@ Per-tank values are defaults: `Player` copies them into instance properties, so 
 | `Projectile` | How shells fly: hit radius, reflection limit, cooldown and nudge, sub-step length | `Shell` |
 | `Damage` | Knockback distance and random heading disruption when hit | `TankDamage` |
 | `Pickups` | Collection radius and default amounts | `PickupRules`, `WorldMap` |
-| `Ai` | Computer opponent behaviour: combat distance, aim, cadence, retaliation, pickup thresholds, route tolerances | `Player` defaults, `GameStage` |
+| `Ai` | Computer opponent behaviour: combat distance, aim window and its random error, skill, cadence, retaliation, pickup thresholds, route tolerances | `Player` defaults, `GameStage` |
 | `Vision` | Line-of-sight sample spacing | `WorldMap` |
 | `Audio` | Master and per-cue volumes, Player 2's pitch offset, engine volumes and pitches, fade and glide times, motion thresholds | `SoundMix`, `EngineMix`, `TankMotionClassifier` |
 | `Match` | Rounds to win, countdown and round-over pauses, round time limit, match-over pause | `MatchState`, `MatchSession` |
@@ -47,7 +47,18 @@ These follow from the values above and are checked by `TuningTests`.
 - **Hit shake is probably too weak.** Camera offsets are rounded to whole pixels, so the 1.0px hit shake rounds to no offset about half the time. 2 to 3px would show. The 1.8px fire shake is more visible. Tune by eye.
 - **Turning is nearly free.** Intentional or not, it makes fuel almost irrelevant for steering. Raise `Tank.TurnFuelPerSecond` if turning should matter.
 - **Reversing is expensive** by design (4 times the fuel per pixel).
-- **Computer aim:** the 0.2 rad tolerance gives a lateral miss of up to about 19px at 6 tiles but about 60px at 300px, so it hits close up and often misses at range.
+- **Computer aim:** each shot has its own firing window (its largest error), drawn from the seat's random stream between 0.07 rad and 0.07 plus 0.5 times (1 minus skill); at the default skill the windows average 0.195 rad, matching the fixed 0.2 rad they replaced. A window of 0.2 rad gives a lateral miss of up to about 19px at 6 tiles but about 60px at 300px, so it hits close up and often misses at range. The window cannot go below about 0.07 rad: movement and aiming each turn the tank up to 0.04 rad a step, and a tighter window is missed over and over (with 0.03 the computer fired a quarter as often).
+
+## Computer balance numbers
+
+How two computers play each other, measured with the headless harness (`MatchHarness.Measure`, in `ComputerBalanceTests`): computer in both seats on the real arena, matches restarting as in a demo. `ComputerBalanceTests` pins them loosely, so a change to the computer has to update this table on purpose. Eight seeds (1, 7, 42, 1234, 4242, 99999, 2026, 31337) of 1200 simulated seconds each, 9600s in all:
+
+| Step | Hits a minute | Shots fired | Accuracy | Rounds decided / drawn | Stuck (seconds in each minute) |
+|---|---|---|---|---|---|
+| Before #52 (fixed 0.2 rad aim tolerance) | 6.1 | 2915 | 34% | 22 / 87 (20% decided) | 32.5 |
+| Aim error (#52, this step) | 5.7 | 2692 | 34% | 17 / 89 (16% decided) | 31.6 |
+
+"Stuck" counts a tank that was commanded to drive for 1.5s and moved less than 6px, in either seat: about 32 seconds in every minute, so between them the computers spend a large share of every round pushing against something. In one 1200s run of seed 7 about 70% of those updates were in long-range pursuit (it drives a fixed heading at the opponent and never routes around anything) and about 30% in pickup seeking. That is the next step (stuck detection and recovery), and the likeliest reason three rounds in four draw.
 
 ## Deliberately kept elsewhere
 

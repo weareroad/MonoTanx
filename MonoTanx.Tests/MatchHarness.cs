@@ -23,7 +23,7 @@ internal sealed class MatchHarness
     public List<(int Frame, MatchEventKind Kind, Seat? Seat)> Log { get; } = new();
     public int Frame { get; private set; }
 
-    public MatchHarness(int seed, MatchSetup setup)
+    public MatchHarness(int seed, MatchSetup setup, int roundsToWin = Tuning.Match.RoundsToWin)
     {
         Seed = seed;
         Map = new WorldMap(TestSupport.FixturePath("arena", "arena_01.tmx"));
@@ -33,9 +33,9 @@ internal sealed class MatchHarness
             isComputerControlled: setup.PlayerTwo == PlayerControl.Computer);
         var streams = new RandomStreams(seed);
         Simulation = new MatchSimulation(Map, PlayerOne, PlayerTwo, Map.PickupSpawns, streams.Gameplay,
-            new SimulationSettings(MuzzleOffset, MuzzleOffset));
+            new SimulationSettings(MuzzleOffset, MuzzleOffset), streams.CreateStream("ai-1"), streams.CreateStream("ai-2"));
         Simulation.PlaceAtStart();
-        Session = new MatchSession(Simulation);
+        Session = new MatchSession(Simulation, roundsToWin);
     }
 
     // Runs for the simulated seconds, calling check(harness) after each update.
@@ -78,6 +78,56 @@ internal sealed class MatchHarness
 
     public List<(int Frame, MatchStateEventKind Kind, Seat? Seat)> StateLog { get; } = new();
 
+    // Plays computer against computer for the simulated seconds without stopping
+    // at the end of a match (a finished one is followed by a new one, as in a demo)
+    // and reports the numbers that say how the match plays. See BalanceReport.
+    public BalanceReport Measure(float seconds)
+    {
+        var report = new BalanceReport { Seconds = seconds };
+        var updates = (int)Math.Round(seconds * Tuning.Timing.UpdatesPerSecond);
+        var streak = new int[2];
+        var streakStart = new Vector2[2];
+        for (var i = 0; i < updates; i++)
+        {
+            Frame++;
+            var playing = Session.State.Phase == MatchPhase.Playing;
+            Session.Step(Step, null, null);
+            foreach (var matchEvent in Simulation.Events)
+            {
+                if (matchEvent.Kind == MatchEventKind.TankHit) report.Hits++;
+                if (matchEvent.Kind == MatchEventKind.ShellFired) report.ShellsFired++;
+            }
+            Simulation.ClearEvents();
+            foreach (var stateEvent in Session.State.Events)
+            {
+                if (stateEvent.Kind == MatchStateEventKind.RoundWon) report.RoundsDecided++;
+                if (stateEvent.Kind == MatchStateEventKind.RoundDrawn) report.RoundsDrawn++;
+                if (stateEvent.Kind == MatchStateEventKind.MatchWon) report.MatchesFinished++;
+            }
+            Session.State.ClearEvents();
+
+            // a tank asked to drive for a whole window that has hardly moved is stuck
+            for (var index = 0; index < 2; index++)
+            {
+                var tank = Simulation.TankOf((Seat)index);
+                var driving = playing && Simulation.ControllerOf((Seat)index).LastMove.Drive != 0.0f;
+                if (!driving) { streak[index] = 0; continue; }
+                if (streak[index] == 0) streakStart[index] = tank.Position;
+                streak[index]++;
+                if (streak[index] >= BalanceReport.StuckWindowUpdates)
+                {
+                    if (Vector2.Distance(streakStart[index], tank.Position) < BalanceReport.StuckMinimumDistance)
+                        report.StuckUpdates++;
+                    if (streak[index] % BalanceReport.StuckWindowUpdates == 0) { streakStart[index] = tank.Position; }
+                }
+            }
+
+            if (Session.State.Phase == MatchPhase.MatchOver)
+                Session.StartNewMatch();
+        }
+        return report;
+    }
+
     public int Count(MatchEventKind kind, Seat? seat = null) =>
         Log.Count(e => e.Kind == kind && (seat == null || e.Seat == seat));
 
@@ -88,4 +138,46 @@ internal sealed class MatchHarness
 
     private static string FormatTank(Player tank) =>
         $"{tank.Position.X:R},{tank.Position.Y:R},{tank.Heading:R},{tank.Fuel:R},{tank.Health},{tank.RemainingAmmunition}";
+}
+
+// How a stretch of computer-versus-computer play went. These are what a change to
+// the computer is judged by (see docs/tuning.md).
+internal sealed class BalanceReport
+{
+    // A tank commanded to drive for this many updates (1.5s) that moved less than this far counts as stuck.
+    public const int StuckWindowUpdates = 90;
+    public const float StuckMinimumDistance = 6.0f;
+
+    public float Seconds;
+    public int Hits;
+    public int ShellsFired;
+    public int RoundsDecided;
+    public int RoundsDrawn;
+    public int MatchesFinished;
+    public int StuckUpdates;
+
+    public float HitsPerMinute => Hits / (Seconds / 60.0f);
+    public float Accuracy => ShellsFired == 0 ? 0.0f : Hits / (float)ShellsFired;
+    public float DecidedShare => RoundsDecided + RoundsDrawn == 0 ? 0.0f : RoundsDecided / (float)(RoundsDecided + RoundsDrawn);
+    public float StuckSecondsPerMinute => StuckUpdates / (float)Tuning.Timing.UpdatesPerSecond / (Seconds / 60.0f);
+
+    public override string ToString() =>
+        $"{Seconds:0}s: hits {Hits} ({HitsPerMinute:0.0}/min), fired {ShellsFired}, accuracy {Accuracy:P0}, rounds decided {RoundsDecided} drawn {RoundsDrawn} (decided {DecidedShare:P0}), matches {MatchesFinished}, stuck {StuckUpdates} updates ({StuckSecondsPerMinute:0.0}s/min)";
+
+    // Several seeds added together.
+    public static BalanceReport Sum(IEnumerable<BalanceReport> reports)
+    {
+        var total = new BalanceReport();
+        foreach (var report in reports)
+        {
+            total.Seconds += report.Seconds;
+            total.Hits += report.Hits;
+            total.ShellsFired += report.ShellsFired;
+            total.RoundsDecided += report.RoundsDecided;
+            total.RoundsDrawn += report.RoundsDrawn;
+            total.MatchesFinished += report.MatchesFinished;
+            total.StuckUpdates += report.StuckUpdates;
+        }
+        return total;
+    }
 }
