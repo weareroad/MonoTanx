@@ -34,25 +34,29 @@ namespace MonoTanx.Stages
         private StreamWriter logFile;
         private bool logFinished;
 
+        // The settings this match plays with: a copy, so changing the page later cannot change a match in progress.
+        private readonly GameSettings rules;
+
         public Player Player1 => playerOne;
         public Player Player2 => playerTwo;
 
         public GameStage(Tanx game, GraphicsDevice graphicsDevice, ContentManager content, MatchSetup setup) : base(game, graphicsDevice, content)
         {
+            rules = game.Settings.Clone();
             audio = new GameAudio(content, game.Options.Mute);
             engineOne = audio.CreateEngine(playerTwo: false);
             engineTwo = audio.CreateEngine(playerTwo: true);
-            worldMap = new WorldMap(WorldMap.ResolveMapPath(content.RootDirectory, "arena_01.tmx"));
+            worldMap = new WorldMap(WorldMap.ResolveMapPath(content.RootDirectory, "arena_01.tmx"), rules);
             mapRenderer = new MapRenderer(content, "arena_01.tmx", "arena_01");
             debugFont = content.Load<SpriteFont>("SpriteFonts/dogica");
             var tankTexture = content.Load<Texture2D>("Sprites/tank");
             var tankTwoTexture = LoadTankTwoTexture(content, tankTexture);
             placeholderShellTexture = new Texture2D(graphicsDevice, 1, 1);
             placeholderShellTexture.SetData(new[] { Color.White });
-            playerOne = new Player("Player 1", "Sprites/tank", Color.White, Player.DefaultAmmunition, Tuning.Tank.StartingShells,
-                isComputerControlled: setup.PlayerOne == PlayerControl.Computer);
-            playerTwo = new Player("Player 2", "Sprites/tank2", Color.LightGray, Player.DefaultAmmunition, Tuning.Tank.StartingShells,
-                isComputerControlled: setup.PlayerTwo == PlayerControl.Computer);
+            playerOne = new Player("Player 1", "Sprites/tank", Color.White, Player.StandardAmmunition(rules), rules.GetWhole(SettingKeys.StartingShells),
+                isComputerControlled: setup.PlayerOne == PlayerControl.Computer, settings: rules, seat: Seat.One);
+            playerTwo = new Player("Player 2", "Sprites/tank2", Color.LightGray, Player.StandardAmmunition(rules), rules.GetWhole(SettingKeys.StartingShells),
+                isComputerControlled: setup.PlayerTwo == PlayerControl.Computer, settings: rules, seat: Seat.Two);
             overviewCamera = setup.StartsInOverview;
             playerOne.Texture = tankTexture;
             playerTwo.Texture = tankTwoTexture;
@@ -73,9 +77,9 @@ namespace MonoTanx.Stages
             }
             simulation = new MatchSimulation(worldMap, playerOne, playerTwo, pickupSpawns, game.Random.Gameplay,
                 new SimulationSettings(MuzzleOffsetOf(playerOne), MuzzleOffsetOf(playerTwo)),
-                game.Random.CreateStream("ai-1"), game.Random.CreateStream("ai-2"));
+                game.Random.CreateStream("ai-1"), game.Random.CreateStream("ai-2"), rules);
             simulation.PlaceAtStart();
-            session = new MatchSession(simulation);
+            session = new MatchSession(simulation, rules);
             runLog = StartRunLog();
             UpdateCamera();
         }
@@ -181,7 +185,7 @@ namespace MonoTanx.Stages
                 logFile?.WriteLine(line);
                 if (echo) Console.WriteLine(line);
             });
-            logger.Header(seed, game.Options.Arguments, CurrentSetup, typeof(GameStage).Assembly.GetName().Version?.ToString() ?? "unknown");
+            logger.Header(seed, game.Options.Arguments, CurrentSetup, typeof(GameStage).Assembly.GetName().Version?.ToString() ?? "unknown", rules);
             game.Exiting += OnGameExiting;
             return logger;
         }
@@ -267,7 +271,7 @@ namespace MonoTanx.Stages
         // True when the stage has been left.
         private bool UpdateMatchOver()
         {
-            if (session.State.Phase != MatchPhase.MatchOver || session.State.PhaseTimer < Tuning.Match.MatchOverSeconds)
+            if (session.State.Phase != MatchPhase.MatchOver || session.State.PhaseTimer < rules.Get(SettingKeys.MatchOverSeconds))
                 return false;
             if (CurrentSetup.HumanCount == 0)
             {

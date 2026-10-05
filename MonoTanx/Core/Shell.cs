@@ -53,6 +53,9 @@ namespace MonoTanx.Core
         public Vector2 Velocity;
         public float Age;
         public int ReflectionCount;
+
+        // Reflections it survives; one more removes it.
+        public int MaxReflections = Tuning.Projectile.MaxReflections;
         public float ReflectionCooldown;
 
         // Whose gun it came from, for the log (it can still hit its own tank).
@@ -70,6 +73,7 @@ namespace MonoTanx.Core
         {
             Age = Age,
             ReflectionCount = ReflectionCount,
+            MaxReflections = MaxReflections,
             ReflectionCooldown = ReflectionCooldown,
             Shooter = Shooter
         };
@@ -107,7 +111,7 @@ namespace MonoTanx.Core
                     }
                     ReflectionCooldown = Tuning.Projectile.ReflectionCooldownSeconds;
                     reflections++;
-                    if (++ReflectionCount > Tuning.Projectile.MaxReflections)
+                    if (++ReflectionCount > MaxReflections)
                         return new ShellStepResult(ShellFate.TooManyReflections, null, reflections);
                 }
                 else if (map.BlocksProjectiles(Position))

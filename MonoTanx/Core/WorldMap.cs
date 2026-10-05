@@ -62,11 +62,12 @@ namespace MonoTanx.Core
         public int TileWidth => map.TileWidth;
         public int TileHeight => map.TileHeight;
 
-        public WorldMap(string mapPath)
+        public WorldMap(string mapPath, GameSettings settings = null)
         {
             map = new TiledMap(mapPath);
             terrainByGid = LoadTerrainDefinitions(mapPath);
-            PickupSpawns = LoadPickupSpawns(mapPath);
+            settings ??= new GameSettings();
+            PickupSpawns = LoadPickupSpawns(mapPath, settings.GetWhole(SettingKeys.DefaultFuelAmount), settings.GetWhole(SettingKeys.DefaultAmmunitionAmount));
         }
 
         // Raw Tiled files are copied beside the built content. Resolve them
@@ -259,7 +260,7 @@ namespace MonoTanx.Core
             return terrainByGid;
         }
 
-        private static IReadOnlyList<PickupSpawn> LoadPickupSpawns(string mapPath)
+        private static IReadOnlyList<PickupSpawn> LoadPickupSpawns(string mapPath, int defaultFuelAmount, int defaultAmmunitionAmount)
         {
             var spawns = new List<PickupSpawn>();
             var document = XDocument.Load(mapPath);
@@ -275,7 +276,7 @@ namespace MonoTanx.Core
                 var y = (float?)objectElement.Attribute("y") ?? 0.0f;
                 var amount = ReadIntProperty(objectElement, "Amount", 0);
                 if (amount <= 0)
-                    amount = kind == PickupKind.Fuel ? Tuning.Pickups.DefaultFuelAmount : Tuning.Pickups.DefaultAmmunitionAmount;
+                    amount = kind == PickupKind.Fuel ? defaultFuelAmount : defaultAmmunitionAmount;
                 var ammunitionId = ReadStringProperty(objectElement, "AmmunitionId", null);
                 var spriteAsset = ReadStringProperty(objectElement, "SpriteAsset", null);
                 if (string.IsNullOrWhiteSpace(spriteAsset))
