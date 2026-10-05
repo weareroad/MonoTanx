@@ -167,9 +167,21 @@ namespace MonoTanx.Core
         // rest are used directly by GameStage.
         public static class Ai
         {
-            // Distance (in tiles) it tries to keep from Player 1 when
-            // closing in. About 96px, well inside shell range.
-            public const int PreferredCombatDistanceTiles = 6;
+            // The distance (in tiles) it closes in to before it stops and shoots:
+            // it routes to a tile this far from the opponent, give or take the
+            // combat ring tolerance below, and holds once it is within that ring.
+            // 5 tiles is 80px, about where a shot's aim error can still hit: an
+            // error of the average 0.195 rad misses by distance times 0.195, which
+            // is under the 15px a shell needs to hit a tank (9px shell plus 6px
+            // tank) out to about 77px. Fighting from further out (it used to hold
+            // anywhere within half the map width) wasted its shells.
+            public const int EngageDistanceTiles = 6;
+
+            // The farthest (in tiles) it will fire from. A little beyond the
+            // engage distance so a shot lined up as it arrives is not thrown away,
+            // but no further: 7 tiles is 112px, where the average window still
+            // has a fair chance and the widest (0.32 rad) has little.
+            public const int FireDistanceTiles = 8;
 
             // Beyond this fraction of the map width it stops routing and just
             // drives straight at Player 1.

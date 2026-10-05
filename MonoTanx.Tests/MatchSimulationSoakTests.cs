@@ -82,7 +82,7 @@ public class MatchSimulationSoakTests
             : new MatchSetup(PlayerControl.Human, PlayerControl.Computer);
         var humanSeat = computerSeat == Seat.One ? Seat.Two : Seat.One;
 
-        var match = new MatchHarness(7, setup).Run(90.0f, AssertInvariants);
+        var match = new MatchHarness(7, setup).Run(240.0f, AssertInvariants); // long enough to cross the arena, perhaps fetch a pickup first, and shoot
 
         Assert.True(match.Count(MatchEventKind.ShellFired, computerSeat) > 0, "the computer never fired");
         Assert.Equal(0, match.Count(MatchEventKind.ShellFired, humanSeat)); // an idle human never fires
@@ -148,9 +148,8 @@ public class MatchSimulationSoakTests
     // Whole matches through the rounds
 
     private static readonly int[] MatchSeeds = { 7, 42 };
-    // First to 2 rather than the default 3, with a shell that kills in two hits: most computer rounds
-    // draw on the time limit with the real shell, so a real match takes hours of simulated play. The
-    // match rules at their defaults are tested in MatchStateTests.
+    // First to 2 rather than the default 3 keeps these runs short. The match rules at their defaults are
+    // tested in MatchStateTests.
     private const int WholeMatchRoundsToWin = 2;
     private const float LongestMatchSeconds = 3600.0f; // an hour of simulated play
 
@@ -158,7 +157,7 @@ public class MatchSimulationSoakTests
     [MemberData(nameof(MatchSeedData))]
     public void ComputerVersusComputerPlaysAWholeMatchToAWinner(int seed)
     {
-        var match = new MatchHarness(seed, Demo, WholeMatchRoundsToWin, MatchHarness.DecisiveShell).RunMatch(LongestMatchSeconds, AssertInvariants);
+        var match = new MatchHarness(seed, Demo, WholeMatchRoundsToWin).RunMatch(LongestMatchSeconds, AssertInvariants);
         var state = match.Session.State;
 
         Assert.Equal(MatchPhase.MatchOver, state.Phase);
@@ -177,7 +176,7 @@ public class MatchSimulationSoakTests
     [MemberData(nameof(MatchSeedData))]
     public void EveryRoundStartsFromTheSameCleanPosition(int seed)
     {
-        var match = new MatchHarness(seed, Demo, WholeMatchRoundsToWin, MatchHarness.DecisiveShell);
+        var match = new MatchHarness(seed, Demo, WholeMatchRoundsToWin);
         var start = (match.PlayerOne.Position, match.PlayerOne.Heading, match.PlayerTwo.Position, match.PlayerTwo.Heading);
         var rounds = 0;
 
@@ -201,8 +200,8 @@ public class MatchSimulationSoakTests
     [Fact]
     public void TheSameSeedPlaysTheSameWholeMatch()
     {
-        var first = new MatchHarness(7, Demo, WholeMatchRoundsToWin, MatchHarness.DecisiveShell).RunMatch(LongestMatchSeconds);
-        var second = new MatchHarness(7, Demo, WholeMatchRoundsToWin, MatchHarness.DecisiveShell).RunMatch(LongestMatchSeconds);
+        var first = new MatchHarness(7, Demo, WholeMatchRoundsToWin).RunMatch(LongestMatchSeconds);
+        var second = new MatchHarness(7, Demo, WholeMatchRoundsToWin).RunMatch(LongestMatchSeconds);
 
         Assert.Equal(first.Fingerprint(), second.Fingerprint());
         Assert.Equal(first.Session.State.Winner, second.Session.State.Winner);

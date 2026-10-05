@@ -4,7 +4,7 @@ Two PRs against #90, each measured with the headless harness, before evasion (#8
 
 1. **Approach, fire discipline and the motionless measure.**
    - First, in the harness: the "motionless in view" measure, and the numbers recorded for today's computer (accuracy, hits a minute, decided rounds, motionless time, against computers and against a motionless human).
-   - `EngageDistanceTiles` and `FireDistanceTiles` in `Tuning.Ai` (replacing `PreferredCombatDistanceTiles` as the ring); the controller approaches by route when in view but beyond the engage distance, holds at it, and the aim phase fires only within the fire distance; `APPROACH` overlay mode.
+   - `EngageDistanceTiles` (6) and `FireDistanceTiles` (8) in `Tuning.Ai` (replacing `PreferredCombatDistanceTiles` as the ring); the controller approaches by route when in view but beyond the hold distance, holds inside it, and the aim phase fires only within the fire distance with a view and turns only once stopped. (The `APPROACH` overlay mode is not added: the existing Combat mode covers it.)
    - Controller tests (approach, hold, no view, lake between, fire discipline, mirror) and the balance numbers; tune the two distances against the targets in the spec.
 2. **Shoot and scoot.**
    - `RoutePlanner` returns the candidate firing positions (ring tiles with a view); after each shot the controller relocates during its cooldown to one of the nearest few, chosen from the seat's stream; `RELOCATE` overlay mode.

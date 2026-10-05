@@ -35,6 +35,114 @@ public class ComputerControllerTests
         return (new ComputerController(map, self, opponent), self, opponent);
     }
 
+    // The 24x5 divided map's open bottom row: seat one at the left end and the opponent at the right
+    // end, 336px apart, beyond long range (192px) with nothing between them.
+    private static (ComputerController Controller, Player Self, Player Opponent) FarDuel()
+    {
+        var map = new WorldMap(FixturePath("divided.tmx"));
+        var self = NewPlayer(Centre(2, 4), 0.0f, "Self");
+        var opponent = NewPlayer(Centre(23, 4), 0.0f, "Opponent");
+        return (new ComputerController(map, self, opponent), self, opponent);
+    }
+
+    // The same map with seat one at the left edge and the opponent the given number of tiles to its
+    // right in the open row 2, in clear view (up to 10 tiles: the wall in column 11 is beyond them).
+    private static (ComputerController Controller, Player Self, Player Opponent, WorldMap Map) Engagement(float tilesApart)
+    {
+        var map = new WorldMap(FixturePath("divided.tmx"));
+        var self = NewPlayer(Centre(0, 2), 0.0f, "Self");
+        var opponent = NewPlayer(Centre(0, 2) + new Vector2(tilesApart * 16.0f, 0.0f), 0.0f, "Opponent");
+        Assert.True(map.HasLineOfSight(self.Position, opponent.Position), "the fixture should give a clear view");
+        return (new ComputerController(map, self, opponent), self, opponent, map);
+    }
+
+    [Fact]
+    public void InViewButBeyondTheHoldDistanceItClosesInInsteadOfHolding()
+    {
+        var (controller, self, opponent, map) = Engagement(10.0f); // 160px: past the ring, inside long range
+
+        var command = controller.PlanMove(Step, NoPickups);
+
+        Assert.False(command.IsIdle);
+        Assert.Equal(ComputerMode.Combat, controller.Mode(NoPickups));
+        var before = Vector2.Distance(self.Position, opponent.Position);
+        Drive(controller, map, self, opponent, 2.0f);
+        Assert.True(Vector2.Distance(self.Position, opponent.Position) < before - 20.0f, "it did not close in");
+    }
+
+    [Fact]
+    public void WithinTheRingItStopsAndHolds()
+    {
+        var (controller, _, _, _) = Engagement(6.0f); // 96px, inside the 120px hold distance
+
+        Assert.True(controller.PlanMove(Step, NoPickups).IsIdle);
+    }
+
+    [Fact]
+    public void ItClosesInUntilItIsWithinTheHoldDistanceThenStaysPut()
+    {
+        var (controller, self, opponent, map) = Engagement(9.0f);
+
+        Drive(controller, map, self, opponent, 8.0f);
+        var settled = self.Position;
+        Drive(controller, map, self, opponent, 2.0f);
+
+        var holdDistance = (Tuning.Ai.EngageDistanceTiles + Tuning.Ai.CombatRingToleranceTiles + 0.5f) * 16.0f;
+        Assert.True(Vector2.Distance(self.Position, opponent.Position) <= holdDistance);
+        Assert.Equal(settled, self.Position);
+    }
+
+    [Fact]
+    public void ItDoesNotFireFromBeyondTheFireDistanceEvenWhenLinedUp()
+    {
+        var (controller, _, _, _) = Engagement(Tuning.Ai.FireDistanceTiles + 1.0f);
+
+        Assert.True(controller.PlanAim(Step).IsIdle);
+    }
+
+    [Fact]
+    public void ItFiresFromInsideTheFireDistanceWhenLinedUp()
+    {
+        var (controller, _, _, _) = Engagement(Tuning.Ai.FireDistanceTiles - 1.0f);
+
+        Assert.True(controller.PlanAim(Step).Fire);
+    }
+
+    [Fact]
+    public void WhileStillClosingInItDoesNotTurnToAimItLeavesTheSteeringToTheMovementPhase()
+    {
+        var (controller, self, _, _) = Engagement(Tuning.Ai.FireDistanceTiles - 0.3f); // past the hold distance but inside the fire distance
+        self.Heading = 1.0f; // well off the opponent
+
+        var command = controller.PlanAim(Step);
+
+        Assert.False(command.Fire);
+        Assert.Equal(0.0f, command.Turn);
+    }
+
+    [Fact]
+    public void OnceItHasStoppedItTurnsToAim()
+    {
+        var (controller, self, _, _) = Engagement(5.0f);
+        self.Heading = 1.0f;
+
+        var command = controller.PlanAim(Step);
+
+        Assert.False(command.Fire);
+        Assert.NotEqual(0.0f, command.Turn);
+    }
+
+    [Fact]
+    public void WithoutAViewItNeitherTurnsToAimNorFires()
+    {
+        var map = Walled();
+        var self = NewPlayer(Centre(0, 0), 2.0f, "Self"); // facing well away from the sealed pocket at (2, 2)
+        var opponent = NewPlayer(Centre(2, 2), 0.0f, "Opponent");
+        var controller = new ComputerController(map, self, opponent);
+
+        Assert.True(controller.PlanAim(Step).IsIdle);
+    }
+
     [Fact]
     public void AfterBeingHitItTurnsOnTheOpponentAndDoesNotDrive()
     {
@@ -188,7 +296,7 @@ public class ComputerControllerTests
     [Fact]
     public void BeyondLongRangeItDrivesStraightTowardTheOpponent()
     {
-        var (controller, _, _) = Duel(0, 7);
+        var (controller, _, _) = FarDuel();
 
         var command = controller.PlanMove(Step, NoPickups);
 
@@ -201,9 +309,9 @@ public class ComputerControllerTests
     [Fact]
     public void LongRangePursuitKeepsTheHeadingItStartedWith()
     {
-        var (controller, self, opponent) = Duel(0, 7);
+        var (controller, self, opponent) = FarDuel();
         controller.PlanMove(Step, NoPickups); // heading toward the opponent is 0
-        opponent.Position = Centre(7, 3);     // the opponent moves, but the pursuit heading stays
+        opponent.Position = Centre(23, 0);    // the opponent moves, but the pursuit heading stays
 
         var command = controller.PlanMove(Step, NoPickups);
 
@@ -566,9 +674,9 @@ public class ComputerControllerTests
 
         Drive(controller, map, self, opponent, 20.0f);
 
-        // it found its way to the gap in the bottom row (y from 64) and into the wall's column (x 176 to 192)
-        // instead of staying wedged against the wall's face
-        Assert.True(self.Position.Y > 64.0f && self.Position.X > 176.0f, $"never got through the gap: at {self.Position}");
+        // it found its way through the gap in the bottom row and past the wall (x 176 to 192, it then
+        // closes in on the opponent) instead of staying wedged against the wall's face
+        Assert.True(self.Position.X > 192.0f, $"never got through the gap: at {self.Position}");
         Assert.InRange(controller.StuckCount, 1, 3);
     }
 
@@ -770,7 +878,7 @@ public class ComputerControllerTests
                         if (!map.CanOccupyCircle(self, radius) || !map.CanOccupyCircle(opponent, radius)) continue;
                         if (Vector2.Distance(self, opponent) > threshold * 0.9f || Vector2.Distance(self, opponent) < 4 * map.TileWidth) continue;
                         if (map.HasLineOfSight(self, opponent)) continue;
-                        if (RoutePlanner.FindCombatRoute(map, radius, new Point(sx, sy), new Point(ox, oy), Tuning.Ai.PreferredCombatDistanceTiles) == null) continue;
+                        if (RoutePlanner.FindCombatRoute(map, radius, new Point(sx, sy), new Point(ox, oy), Tuning.Ai.EngageDistanceTiles) == null) continue;
                         return (self, opponent);
                     }
         throw new InvalidOperationException("the arena has no covered pair to test with");

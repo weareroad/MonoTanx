@@ -119,7 +119,7 @@ public class TuningTests
         Assert.Equal(Tuning.Tank.CollisionRadius, player.CollisionRadius);
         Assert.Equal(Tuning.Tank.ForwardFuelPerSecond, player.ForwardFuelPerSecond);
         Assert.Equal(Tuning.Tank.ForwardFuelPerSecond * Tuning.Tank.ReverseFuelMultiplier, player.ReverseFuelPerSecond);
-        Assert.Equal(Tuning.Ai.PreferredCombatDistanceTiles, player.PreferredCombatDistanceTiles);
+        Assert.Equal(Tuning.Ai.EngageDistanceTiles, player.PreferredCombatDistanceTiles);
         Assert.Equal(Tuning.Ai.LongRangePursuitDistanceFraction, player.LongRangePursuitDistanceFraction);
         Assert.Equal(Tuning.Ai.AimToleranceRadians, player.ComputerAimToleranceRadians);
         Assert.Equal(Tuning.Ai.ReactionDelaySeconds, player.ComputerReactionDelaySeconds);
