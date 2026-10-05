@@ -54,9 +54,11 @@ Run `MonoTanx --help` (or `-h`, `-?`) to list these in the terminal, with how th
 | `--windowed` | Run in a window instead of fullscreen |
 | `--scale <1-4>` | With `--windowed`, set the window to that integer multiple of 800×600 (default 2) |
 | `--log` | Echo the run log to the console as the game is played (it is always written to a file; the path and the seed are printed at the start). It records shots, hits, pickups, rounds and what the computer decides: dodges, shells it did not notice, getting stuck |
+| `--settings <path>` | Read (and save) the settings from this file instead of the per-user one (`%AppData%\MonoTanx\settings.json` on Windows, `~/.config/MonoTanx/settings.json` on Linux and macOS), so different sets of tuning values can be kept side by side |
+| `--set <key>=<value>` | Override one setting for this run on top of the settings file, without saving it (for example `--set ai.skill=0.9`); can be repeated. Keys are the names used in the settings file |
 | `--help`, `-h`, `-?`, `/?` | Print the options and exit. Always wins over everything else on the line |
 
-Options can be given in any order. Conflicting options (`--two-player` with `--demo`, `--scale` without `--windowed`) are rejected with a message rather than one quietly overriding the other; repeating `--seed` or `--scale` is allowed and the last value wins.
+Options can be given in any order. Conflicting options (`--two-player` with `--demo`, `--scale` without `--windowed`) are rejected with a message rather than one quietly overriding the other; repeating `--seed`, `--scale` or `--settings` is allowed and the last value wins, and `--set` can be repeated.
 
 Options go after `--` when using `dotnet run`, and can be combined:
 

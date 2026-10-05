@@ -39,10 +39,28 @@ namespace MonoTanx
 
         public GameOptions Options => options;
 
+        // Where the settings are read from and saved to.
+        public string SettingsPath { get; }
+
+        // The settings as stored in the file: what the settings page edits and saves.
+        public GameSettings StoredSettings { get; }
+
+        // What a match plays with: the stored settings with any --set values on top.
+        public GameSettings Settings { get; }
+
         public Tanx(GameOptions options)
         {
             this.options = options;
             Random = new RandomStreams(options.Seed ?? RandomStreams.NewSeed());
+
+            SettingsPath = options.SettingsPath ?? SettingsFile.DefaultPath;
+            var load = SettingsFile.Load(SettingsPath);
+            foreach (var problem in load.Problems)
+                Console.Error.WriteLine(problem);
+            StoredSettings = load.Settings;
+            Settings = StoredSettings.Clone();
+            foreach (var pair in options.SettingOverrides)
+                Settings.Set(pair.Key, pair.Value);
             graphics = new GraphicsDeviceManager(this);
             Content.RootDirectory = "Content";
             IsMouseVisible = true;
