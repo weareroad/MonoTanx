@@ -33,13 +33,13 @@ Found by hand-testing stuck recovery: with a human standing still in range, the 
 
 ### Keeping moving (PR 2)
 
-- **Shoot and scoot.** After each shot, while its cooldown runs, it relocates: it picks a new firing position, a tile at the engage distance from the opponent that has a clear view of it, from the nearest few chosen by the seat's own random stream so it is not predictable, and drives there by the usual route. When the cooldown ends it is already settled and shoots. Waiting without moving is then only the last moments before a shot, so it does not look frozen, even against a motionless opponent.
+- **Shoot and scoot.** After each shot, while its cooldown runs, it relocates: it picks a new firing position, a tile on a ring one tile *closer* than the combat ring (4 to 5 tiles; measured: 57% of shots hit from 3 tiles, 48% from 4, 20% from 5 to 6) that has a clear view of the opponent and is at least two tiles from where it fired, from the nearest three chosen by the seat's own random stream so it is not predictable, and drives there by the usual route. It stops relocating on arrival, when the gun is ready (it shoots from wherever it is, which is still a place with a view, since steering is slow and a three-tile trip takes about 3.5s), or when hit. When the cooldown ends it is usually already settled and shoots. Waiting without moving is then only the last moments before a shot, so it does not look frozen, even against a motionless opponent.
 - The aim phase does not fire or turn while it is relocating (the cooldown is running), so it does not fight the route steering. Hit while relocating, it retaliates as now.
-- The firing positions come from `RoutePlanner` (a new function returning the candidate ring tiles with a view), pure and tested on fixtures.
+- The firing positions come from `RoutePlanner.FindFiringPositions` (the ring tiles with a view, nearest the opponent first), pure and tested on fixtures. Relocation does not happen with no ammunition (it flees).
 
 ### Overlay and measurement
 
-- New overlay modes `APPROACH` and `RELOCATE` alongside the existing ones.
+- A new overlay mode `RELOCATE` alongside the existing ones (no `APPROACH`: Combat covers it).
 - New harness measure: **seconds a computer tank stood motionless with the opponent in view and nothing it was waiting on** (not retaliating, recovering, or inside the last second before a shot). Acceptance: against a motionless human it is a small share of the time.
 
 ## Testing

@@ -794,6 +794,182 @@ public class ComputerControllerTests
         Assert.Equal(Moves(true), Moves(false));
     }
 
+    // Shoot and scoot: relocating while the gun cools down
+
+    private static readonly Point TargetTile = new Point(30, 20);
+
+    // On the real arena, seat one standing on one of the firing positions around a still opponent.
+    private static (ComputerController Controller, Player Self, Player Opponent, WorldMap Map, List<Point> Positions) OnTheRing(Random random = null, int startingPosition = 0)
+    {
+        var map = new WorldMap(FixturePath("arena", "arena_01.tmx"));
+        var ring = Tuning.Ai.EngageDistanceTiles - Tuning.Ai.RelocationCloserTiles;
+        var positions = RoutePlanner.FindFiringPositions(map, Tuning.Tank.CollisionRadius, TargetTile, ring);
+        var self = NewPlayer(map.GetTileBounds(positions[startingPosition]).Center.ToVector2(), 0.0f, "Self");
+        var opponent = NewPlayer(map.GetTileBounds(TargetTile).Center.ToVector2(), 0.0f, "Opponent");
+        self.Heading = (float)Math.Atan2(opponent.Position.Y - self.Position.Y, opponent.Position.X - self.Position.X); // facing it
+        return (new ComputerController(map, self, opponent, random), self, opponent, map, positions);
+    }
+
+    // Plays movement and the aim phase's cooldown tick for the given seconds, applying only the movement.
+    private static void Cool(ComputerController controller, WorldMap map, Player self, Player opponent, float seconds, Action<float> each = null)
+    {
+        for (var elapsed = 0.0f; elapsed < seconds; elapsed += Step)
+        {
+            TankMovement.ApplyInput(map, self, opponent, controller.PlanMove(Step, NoPickups), Step);
+            controller.PlanAim(Step); // ticks the fire cooldown down
+            each?.Invoke(elapsed);
+        }
+    }
+
+    private static float CooldownSeconds(Player self) => self.ComputerFireCooldownSeconds + self.ComputerReactionDelaySeconds;
+
+    [Fact]
+    public void AfterAShotItMovesToANewFiringPositionWhileTheGunCoolsDown()
+    {
+        var (controller, self, opponent, map, positions) = OnTheRing();
+        var start = self.Position;
+        controller.ShotFired();
+
+        var command = controller.PlanMove(Step, NoPickups);
+
+        Assert.True(controller.Relocating);
+        Assert.Equal(ComputerMode.Relocate, controller.Mode(NoPickups));
+        Assert.False(command.IsIdle);
+        Cool(controller, map, self, opponent, 2.5f);
+        Assert.True(Vector2.Distance(start, self.Position) > 16.0f, "it did not really move");
+    }
+
+    [Fact]
+    public void WhenTheGunIsReadyItIsOnAFiringPositionOrCloseEnoughToHoldWithAViewOfTheOpponent()
+    {
+        var (controller, self, opponent, map, positions) = OnTheRing();
+        controller.ShotFired();
+
+        Cool(controller, map, self, opponent, CooldownSeconds(self) + 0.1f);
+
+        Assert.False(controller.Relocating);
+        Assert.True(map.HasLineOfSight(self.Position, opponent.Position));
+        var holdDistance = (Tuning.Ai.EngageDistanceTiles + Tuning.Ai.CombatRingToleranceTiles + 0.5f) * 16.0f;
+        Assert.True(Vector2.Distance(self.Position, opponent.Position) <= holdDistance, "it is too far to shoot from");
+    }
+
+    [Fact]
+    public void ItNeverMovesToAPositionLessThanTheMinimumDistanceAway()
+    {
+        for (var seed = 0; seed < 8; seed++)
+        {
+            var (controller, self, opponent, map, _) = OnTheRing(new Random(seed));
+            controller.ShotFired();
+            controller.PlanMove(Step, NoPickups);
+            Assert.True(controller.Relocating, $"seed {seed}: it did not relocate");
+            Assert.Equal(ComputerMode.Relocate, controller.Mode(NoPickups));
+            var goal = controller.RelocationGoal.Value;
+            var start = map.WorldToTile(self.Position);
+
+            Assert.True(Math.Max(Math.Abs(goal.X - start.X), Math.Abs(goal.Y - start.Y)) >= Tuning.Ai.RelocationMinimumTiles, $"seed {seed}: from {start} to {goal}");
+        }
+    }
+
+    [Fact]
+    public void WhichPositionItPicksComesFromItsOwnStream()
+    {
+        Point Chosen(int seed)
+        {
+            var (controller, _, _, _, _) = OnTheRing(new Random(seed));
+            controller.ShotFired();
+            controller.PlanMove(Step, NoPickups);
+            return controller.RelocationGoal.Value;
+        }
+
+        var positions = Enumerable.Range(0, 12).Select(Chosen).Distinct().ToList();
+
+        Assert.True(positions.Count > 1, "every seed picked the same position");
+        Assert.Equal(Chosen(5), Chosen(5));
+    }
+
+    [Fact]
+    public void BeingHitWhileRelocatingCancelsItAndItRetaliates()
+    {
+        var (controller, self, opponent, map, _) = OnTheRing();
+        controller.ShotFired();
+        controller.PlanMove(Step, NoPickups);
+        Assert.True(controller.Relocating);
+
+        controller.Hit();
+        var command = controller.PlanMove(Step, NoPickups);
+
+        Assert.False(controller.Relocating);
+        Assert.Equal(0.0f, command.Drive); // retaliation turns on the spot
+    }
+
+    [Fact]
+    public void WithoutAmmunitionItDoesNotScootItFlees()
+    {
+        var (controller, self, _, _, _) = OnTheRing();
+        foreach (var slot in self.AmmunitionSlots) slot.Remaining = 0;
+        controller.ShotFired();
+
+        controller.PlanMove(Step, NoPickups);
+
+        Assert.Equal(ComputerMode.Flee, controller.Mode(NoPickups));
+    }
+
+    [Fact]
+    public void WithNowhereToSeeTheOpponentFromItDoesNotRelocate()
+    {
+        var map = Walled();
+        var self = NewPlayer(Centre(0, 0), 0.0f, "Self");
+        var opponent = NewPlayer(Centre(2, 2), 0.0f, "Opponent"); // in a sealed pocket
+        var controller = new ComputerController(map, self, opponent);
+        controller.ShotFired();
+
+        controller.PlanMove(Step, NoPickups);
+
+        Assert.False(controller.Relocating);
+    }
+
+    [Fact]
+    public void TheCooldownEndingBeforeItArrivesEndsTheRelocation()
+    {
+        var (controller, self, opponent, map, _) = OnTheRing();
+        controller.ShotFired();
+        controller.PlanMove(Step, NoPickups);
+        Assert.True(controller.Relocating);
+
+        // the gun is ready again (as if after a long cooldown): it stops where it is
+        controller.PlanAim(self.ComputerFireCooldownSeconds + self.ComputerReactionDelaySeconds + 1.0f);
+        controller.PlanMove(Step, NoPickups);
+
+        Assert.False(controller.Relocating);
+    }
+
+    [Fact]
+    public void RelocationIsTheSameForEitherSeat()
+    {
+        var map = new WorldMap(FixturePath("arena", "arena_01.tmx"));
+        var ring = Tuning.Ai.EngageDistanceTiles - Tuning.Ai.RelocationCloserTiles;
+        var positions = RoutePlanner.FindFiringPositions(map, Tuning.Tank.CollisionRadius, TargetTile, ring);
+
+        Point Goal(bool firstSeat)
+        {
+            var one = NewPlayer(map.GetTileBounds(positions[0]).Center.ToVector2(), 0.0f, "One");
+            var two = NewPlayer(map.GetTileBounds(TargetTile).Center.ToVector2(), 0.0f, "Two");
+            var (self, opponent) = firstSeat ? (one, two) : (two, one);
+            if (!firstSeat)
+            {
+                (self.Position, opponent.Position) = (opponent.Position, self.Position);
+                (self.Heading, opponent.Heading) = (opponent.Heading, self.Heading);
+            }
+            self.Heading = (float)Math.Atan2(opponent.Position.Y - self.Position.Y, opponent.Position.X - self.Position.X);
+            var controller = new ComputerController(map, self, opponent, new Random(3));
+            controller.ShotFired();
+            controller.PlanMove(Step, NoPickups);
+            return controller.RelocationGoal.Value;
+        }
+
+        Assert.Equal(Goal(true), Goal(false));
+    }
+
     // The same situation with the seats swapped must give the same command: the
     // controller knows only "self" and "the opponent".
     [Theory]

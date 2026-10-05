@@ -27,7 +27,7 @@ Drive around the arena, manage your fuel and shells, collect fuel and ammunition
 
 ### Computer opponent
 
-Player 2 pursues, evades and routes around terrain, seeks pickups when low on fuel or ammunition, retaliates when hit, backs away when it gets stuck, closes in to about six tiles before it shoots, and only fires with a clear line of sight and some aiming error.
+Player 2 pursues, evades and routes around terrain, seeks pickups when low on fuel or ammunition, retaliates when hit, backs away when it gets stuck, closes in to about six tiles before it shoots, moves to a new firing position after each shot, and only fires with a clear line of sight and some aiming error.
 
 ## Build and run
 

@@ -7,7 +7,7 @@ Two PRs against #90, each measured with the headless harness, before evasion (#8
    - `EngageDistanceTiles` (6) and `FireDistanceTiles` (8) in `Tuning.Ai` (replacing `PreferredCombatDistanceTiles` as the ring); the controller approaches by route when in view but beyond the hold distance, holds inside it, and the aim phase fires only within the fire distance with a view and turns only once stopped. (The `APPROACH` overlay mode is not added: the existing Combat mode covers it.)
    - Controller tests (approach, hold, no view, lake between, fire discipline, mirror) and the balance numbers; tune the two distances against the targets in the spec.
 2. **Shoot and scoot.**
-   - `RoutePlanner` returns the candidate firing positions (ring tiles with a view); after each shot the controller relocates during its cooldown to one of the nearest few, chosen from the seat's stream; `RELOCATE` overlay mode.
+   - `RoutePlanner.FindFiringPositions` returns the candidate firing positions (ring tiles with a view, on a ring one tile closer than the combat ring); after each shot the controller relocates during its cooldown to one of the nearest three at least two tiles away, chosen from the seat's stream; `RELOCATE` overlay mode.
    - Controller tests (moves during the cooldown, lands on a viewing tile at the engage distance, seeded choice, settled before the cooldown ends, retaliation interrupts, mirror) and the balance numbers, including motionless-in-view time.
    - Update `docs/tuning.md`, `onboarding.md` (the controller's behaviour) and the roadmap.
 

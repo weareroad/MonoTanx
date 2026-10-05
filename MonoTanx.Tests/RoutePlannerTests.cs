@@ -245,4 +245,60 @@ public class RoutePlannerTests
 
         Assert.Null(RoutePlanner.FindCombatRoute(map, Radius, new Point(0, 0), new Point(2, 2), 6, alternative: 1));
     }
+
+    // Firing positions
+
+    private static WorldMap Divided() => new WorldMap(FixturePath("divided.tmx"));
+
+    [Fact]
+    public void FiringPositionsAreOccupiableTilesOnTheNearHalfOfTheRingWithAViewOfTheOpponent()
+    {
+        var map = Arena();
+        var opponent = new Point(30, 20);
+        var ring = 5;
+
+        var positions = RoutePlanner.FindFiringPositions(map, Radius, opponent, ring);
+
+        Assert.NotEmpty(positions);
+        foreach (var tile in positions)
+        {
+            var distance = Vector2.Distance(tile.ToVector2(), opponent.ToVector2());
+            Assert.InRange(distance, ring - Tuning.Ai.CombatRingToleranceTiles, ring);
+            Assert.True(map.CanOccupyCircle(map.GetTileBounds(tile).Center.ToVector2(), Radius), $"{tile} cannot be occupied");
+            Assert.True(map.HasLineOfSight(map.GetTileBounds(tile).Center.ToVector2(), map.GetTileBounds(opponent).Center.ToVector2()), $"{tile} cannot see the opponent");
+        }
+    }
+
+    [Fact]
+    public void FiringPositionsAreNearestTheOpponentFirst()
+    {
+        var map = Arena();
+        var opponent = new Point(30, 20);
+
+        var positions = RoutePlanner.FindFiringPositions(map, Radius, opponent, 5);
+
+        var distances = positions.Select(tile => Vector2.DistanceSquared(tile.ToVector2(), opponent.ToVector2())).ToList();
+        Assert.Equal(distances.OrderBy(d => d), distances);
+    }
+
+    [Fact]
+    public void ATileWithoutAViewOfTheOpponentIsNotAFiringPosition()
+    {
+        var map = Divided(); // a wall down column 11 with a gap in the bottom row
+        var opponent = new Point(14, 2);
+
+        var positions = RoutePlanner.FindFiringPositions(map, Radius, opponent, 4);
+
+        Assert.NotEmpty(positions);
+        // none is on the far side of the wall (x 10 or less; x = 11 is the wall's own column, open only in the gap row)
+        Assert.All(positions, tile => Assert.True(tile.X >= 11, $"{tile} is behind the wall"));
+    }
+
+    [Fact]
+    public void WithNowhereToSeeTheOpponentFromThereAreNoFiringPositions()
+    {
+        var map = Walled(); // the opponent is in a sealed pocket
+
+        Assert.Empty(RoutePlanner.FindFiringPositions(map, Radius, new Point(2, 2), 2));
+    }
 }

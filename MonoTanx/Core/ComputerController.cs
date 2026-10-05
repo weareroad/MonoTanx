@@ -1,6 +1,7 @@
 using Microsoft.Xna.Framework;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace MonoTanx.Core
 {
@@ -13,7 +14,10 @@ namespace MonoTanx.Core
         Combat,
 
         // Backing away after getting stuck.
-        Recover
+        Recover,
+
+        // Moving to a new firing position while the gun cools down.
+        Relocate
     }
 
     // The computer opponent for one seat. It speaks of "self" and "the opponent",
@@ -31,6 +35,10 @@ namespace MonoTanx.Core
         private readonly List<Point> route = new List<Point>();
         private int routeIndex;
         private int pickupTargetId = -1;
+        private readonly List<Point> relocationRoute = new List<Point>();
+        private int relocationIndex;
+        private bool relocationPending;
+        private bool relocating;
         private bool longRangePursuit;
         private float longRangeHeading;
         private float fireTimer;
@@ -72,6 +80,12 @@ namespace MonoTanx.Core
         public int StuckCount { get; private set; }
         public bool Recovering => recoveryTimer > 0.0f;
 
+        // Whether it is moving to a new firing position after a shot.
+        public bool Relocating => relocating;
+
+        // The tile it is moving to while relocating, for the tests and the overlay.
+        public Point? RelocationGoal => relocating && relocationRoute.Count > 0 ? relocationRoute[relocationRoute.Count - 1] : (Point?)null;
+
         // The largest error, in radians, the shot being prepared may have: it fires as
         // soon as the tank points within this of the opponent. Drawn per shot.
         public float AimError => aimError;
@@ -83,6 +97,7 @@ namespace MonoTanx.Core
         public ComputerMode Mode(IReadOnlyList<PickupState> pickups)
         {
             if (Recovering) return ComputerMode.Recover;
+            if (relocating && self.RemainingAmmunition > 0) return ComputerMode.Relocate;
             if (FindPickupTarget(pickups) != null) return ComputerMode.Pickup;
             if (self.RemainingAmmunition == 0) return ComputerMode.Flee;
             return longRangePursuit ? ComputerMode.Long : ComputerMode.Combat;
@@ -94,6 +109,8 @@ namespace MonoTanx.Core
         {
             retaliationTimer = Tuning.Ai.RetaliationSeconds;
             fireTimer = 0.0f;
+            relocationPending = false;
+            relocating = false; // the cooldown is cancelled, so there is nothing left to move for
         }
 
         // Called by the stage after a successful shot, to start the fire cooldown.
@@ -101,6 +118,7 @@ namespace MonoTanx.Core
         {
             fireTimer = self.ComputerFireCooldownSeconds + self.ComputerReactionDelaySeconds;
             aimErrorDrawn = false; // the next shot gets its own error
+            relocationPending = true; // and it moves somewhere new while the gun cools down
         }
 
         // Called when control changes, so the computer starts afresh.
@@ -108,6 +126,10 @@ namespace MonoTanx.Core
         {
             route.Clear();
             routeIndex = 0;
+            relocationRoute.Clear();
+            relocationIndex = 0;
+            relocationPending = false;
+            relocating = false;
             pickupTargetId = -1;
             longRangePursuit = false;
             fireTimer = 0.0f;
@@ -219,6 +241,10 @@ namespace MonoTanx.Core
                 return Affordable(new TankCommand(TurnToward(HeadingToward(opponent.Position, self.Position)), 1.0f), elapsed);
             }
 
+            var relocation = PlanRelocation(elapsed);
+            if (relocation.HasValue)
+                return relocation.Value;
+
             var distance = Vector2.Distance(self.Position, opponent.Position);
             var longRangeThreshold = map.Bounds.Width * self.LongRangePursuitDistanceFraction;
             if (distance <= HoldDistance && map.HasLineOfSight(self.Position, opponent.Position))
@@ -295,19 +321,70 @@ namespace MonoTanx.Core
         // Pickup seeking drives all the time it turns; combat only when roughly facing.
         private TankCommand FollowRoute(float elapsed, bool driveOnlyWhenFacing)
         {
-            if (routeIndex >= route.Count)
+            return Follow(route, ref routeIndex, elapsed, driveOnlyWhenFacing);
+        }
+
+        private TankCommand Follow(List<Point> waypoints, ref int index, float elapsed, bool driveOnlyWhenFacing)
+        {
+            if (index >= waypoints.Count)
                 return TankCommand.None;
 
-            var waypoint = map.GetTileBounds(route[routeIndex]).Center.ToVector2();
+            var waypoint = map.GetTileBounds(waypoints[index]).Center.ToVector2();
             if (Vector2.DistanceSquared(self.Position, waypoint) < Tuning.Ai.WaypointReachedDistance * Tuning.Ai.WaypointReachedDistance)
             {
-                routeIndex++;
+                index++;
                 return TankCommand.None;
             }
 
             var angle = MathHelper.WrapAngle(HeadingToward(self.Position, waypoint) - self.Heading);
             var drive = !driveOnlyWhenFacing || Math.Abs(angle) < Tuning.Ai.DriveAngleLimitRadians ? 1.0f : 0.0f;
             return Affordable(new TankCommand(Math.Sign(angle), drive), elapsed);
+        }
+
+        // After a shot, while the gun cools down, move to a new firing position instead of standing
+        // still. Null when it is not relocating (so the usual rules decide).
+        private TankCommand? PlanRelocation(float elapsed)
+        {
+            if (relocationPending)
+            {
+                relocationPending = false;
+                relocating = ChooseFiringPosition();
+            }
+            if (!relocating)
+                return null;
+            // settled when it has arrived, or the gun is ready and it is time to shoot from where it is
+            if (fireTimer <= 0.0f || relocationIndex >= relocationRoute.Count)
+            {
+                relocating = false;
+                return null;
+            }
+            return Follow(relocationRoute, ref relocationIndex, elapsed, driveOnlyWhenFacing: true);
+        }
+
+        // Picks one of the nearest few firing positions that is a real move away, from this seat's
+        // stream (the nearest without one), and plans the way there. False when there is nowhere to go.
+        private bool ChooseFiringPosition()
+        {
+            var here = map.WorldToTile(self.Position);
+            var candidates = RoutePlanner.FindFiringPositions(map, self.CollisionRadius, map.WorldToTile(opponent.Position), self.PreferredCombatDistanceTiles - Tuning.Ai.RelocationCloserTiles)
+                .Where(tile => Math.Max(Math.Abs(tile.X - here.X), Math.Abs(tile.Y - here.Y)) >= Tuning.Ai.RelocationMinimumTiles)
+                .OrderBy(tile => Vector2.DistanceSquared(tile.ToVector2(), here.ToVector2()))
+                .Take(Tuning.Ai.RelocationChoices)
+                .ToList();
+            if (candidates.Count == 0)
+                return false;
+            var first = random == null ? 0 : random.Next(candidates.Count);
+            for (var offset = 0; offset < candidates.Count; offset++)
+            {
+                var goal = candidates[(first + offset) % candidates.Count];
+                var path = RoutePlanner.FindRoute(map, self.CollisionRadius, here, goal);
+                if (path == null) continue;
+                relocationRoute.Clear();
+                relocationRoute.AddRange(path);
+                relocationIndex = Math.Min(1, relocationRoute.Count);
+                return true;
+            }
+            return false;
         }
 
         private void BuildCombatRoute(int alternative)

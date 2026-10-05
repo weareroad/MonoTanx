@@ -59,7 +59,8 @@ How two computers play each other, measured with the headless harness (`MatchHar
 | Aim error (#52, previous step) | 5.7 | 2692 | 34% | 17 / 89 (16% decided) | 31.6 |
 
 | Stuck recovery (#52) | 1.7 | 2746 | 10% | 5 / 92 (5% decided) | 1.8 (longest run 1.7s) |
-| Closing in (#90, this step) | 9.2 | 2981 | 49% | 54 / 68 (44% decided) | 2.8 (longest run 1.7s) |
+| Closing in (#90) | 9.2 | 2981 | 49% | 54 / 68 (44% decided) | 2.8 (longest run 1.7s) |
+| Shoot and scoot (#90, this step) | 11.8 | 3216 | 59% | 71 / 56 (56% decided) | 3.0 (longest run 1.7s) |
 
 "Stuck" counts a tank that was commanded to drive for 1.5s and moved less than 6px, in either seat. Before stuck recovery that was about 32 seconds in every minute, so between them the computers spent a large share of every round pushing against something. In one 1200s run of seed 7 about 70% of those updates were in long-range pursuit (it drives a fixed heading at the opponent and never routes around anything) and about 30% in pickup seeking, where the tank drove forward all the time it turned, and a turning circle of about 36px (90px/s at 2.5 rad/s) does not fit a 16px corridor, so it pressed into corners. Recovery fixes both: it detects the lack of progress, backs away turning, and then follows a planned route for a while instead of a straight line; and pickup seeking now drives only when roughly facing the next waypoint, as combat already did (that alone took stuck pickup updates from about 18,600 to 2 in three 1200s runs).
 
@@ -89,6 +90,23 @@ The computer now routes in to a combat ring `EngageDistanceTiles` (6, about 96px
 - **Against a human who stands still it hits 91%** of its shots (it closes to within a few tiles), so the computer is lethal to a motionless target. Against a human who moves it will hit far less; hand-testing is the judge of whether it is too hard.
 - **Still draws against a motionless human about half the time**, mostly because it goes for a pickup first when its fuel is below half (a long trip: it arrives with fuel at 80 of 200 after 60 seconds), not because it cannot hit.
 - **Motionless in view is still 20% and 12%**: while engaged it holds still between shots. Relocating during the cooldown (next step) addresses that.
+
+### Shoot and scoot (#90)
+
+After each shot, while its cooldown runs, the computer moves to a new firing position: one of the nearest three tiles on a ring one tile closer than the combat ring (so 4 to 5 tiles, 64 to 80px) from which it can see the opponent, at least two tiles from where it fired, chosen from the seat's own stream. It stops relocating when it arrives, when the gun is ready, or when it is hit (retaliation takes over), and it does not scoot once it is out of ammunition.
+
+| | Hits/min | Accuracy | Rounds decided / drawn | Motionless in view |
+|---|---|---|---|---|
+| Computers, closing in | 9.2 | 49% | 54 / 68 (44%) | 20% |
+| Computers, shoot and scoot | 11.8 | 59% | 71 / 56 (56%) | 2% |
+| Computer vs a still human, closing in | 3.2 | 91% | 56 / 53 (51%) | 12% |
+| Computer vs a still human, shoot and scoot | 1.4 | 40% | 0 / 96 (0%) | 2% |
+
+- **Never frozen:** motionless in view fell to 2% for both. Matches between computers finish more often (13 in 9600s).
+- **Why the closer ring.** The first version scooted to the combat ring (5 to 7 tiles) and accuracy fell to 20% at 5 tiles; measured against a motionless target, 57% of shots hit from 3 tiles, 48% from 4 and 20% from 5 to 6. Hence `RelocationCloserTiles`.
+- **The still-human numbers fall, and that is real, not a bug.** Before scooting, a computer facing a motionless human kept the alignment of its first successful shot for every later one (it only turned if a new, narrower window demanded it), which is why it hit 91% of its shots. Scooting means it re-aims from a new position for every shot, so each shot's random error counts, and it hits 40%. A kill needs nine hits, and in a 90s round it has time for about 14 shots after the approach, so it cannot kill a motionless human in a round (0 of 96). Against computers, which also scoot and move, decided rounds went up, not down.
+- **What to tune if that matters.** The skill default (0.5) sets how wide a shot's window is: at skill 0.7 the windows average 0.145 rad instead of 0.195 and accuracy at 4 to 5 tiles rises. Other dials: how close it fires from (`RelocationCloserTiles`, `EngageDistanceTiles`), damage or ammunition (nine hits from 20 shells), and the round time limit. None of these was changed here.
+- **Steering is slow.** The tank steers by turning toward each route tile and drives only when roughly facing it, so it dithers and takes about 3.5s to cover three tiles; that is why the minimum relocation is two tiles, and why a relocation is sometimes cut off by the gun being ready. Better steering is a separate piece of work.
 
 ## Deliberately kept elsewhere
 
