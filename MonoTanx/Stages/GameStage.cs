@@ -211,8 +211,8 @@ namespace MonoTanx.Stages
         }
 
         // Once a match is over its result stays up for a moment. Then a demo starts its
-        // next match by itself and a game with a human goes back to the home screen
-        // (until the end screen of #46). True when the stage has been left.
+        // next match by itself and a game with a human moves on to the end screen.
+        // True when the stage has been left.
         private bool UpdateMatchOver()
         {
             if (session.State.Phase != MatchPhase.MatchOver || session.State.PhaseTimer < Tuning.Match.MatchOverSeconds)
@@ -222,7 +222,7 @@ namespace MonoTanx.Stages
                 session.StartNewMatch();
                 return false;
             }
-            game.ChangeStage(new HomeStage(game, graphicsDevice, content));
+            game.ChangeStage(new EndStage(game, graphicsDevice, content, CurrentSetup, MatchResult.From(session.State)));
             return true;
         }
 

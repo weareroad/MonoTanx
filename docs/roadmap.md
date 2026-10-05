@@ -355,7 +355,7 @@ The playable prototype works: two `Player` entities (human and computer) drive a
 
 Since then: a home screen with `--test`, `--two-player`, `--windowed`, `--scale` and `--mute` launch options; a human-or-computer Player 2 (`F2`) and an overview camera (`F3`); frame-rate independence tests; every tuning value in `Core/Tuning.cs` (see `docs/tuning.md`); and audio hooks for all the planned sounds (#33). The sounds in `MonoTanx/Content/Audio/` are generated placeholders; replace them by dropping in WAVs of the same name (see the README in that folder).
 
-The next step is score and round reset: hits update a score, the round resets, and the HUD shows score, ammunition and reload state (see "Definition of the first complete match milestone"). Add focused tests for the new rules as they are written. The headless match simulation (#70) is done: `MatchSimulation` in `Core` runs the update and reports events, and `GameStage` only gathers input and presents. Next for the match loop: #45/#46 (rounds, score, end screen), which build on it; a reset-to-start for the simulation is added there.
+The first complete match milestone is reached: a match is rounds of play with a countdown, a score and a draw rule (`MatchState`, `MatchSession`; #45), ending on an end screen with Play again, Home screen and Quit (#46). The headless match simulation (#70) means `GameStage` only gathers input and presents. What remains of the milestone list is polish and the follow-ups on GitHub: settings (#62), the demo's idle trigger and labels (#64), the run log (#66), computer stuck detection and aim (#52), authored spawn points (#47), and gamepad support (#53, #54).
 
 ## Decision log
 
