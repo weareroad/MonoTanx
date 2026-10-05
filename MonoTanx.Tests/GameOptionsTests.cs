@@ -213,6 +213,8 @@ public class GameOptionsTests
         new object[] { "--mute", Array.Empty<string>() },
         new object[] { "--log", Array.Empty<string>() },
         new object[] { "--seed", new[] { "1" } },
+        new object[] { "--settings", new[] { "tuning.json" } },
+        new object[] { "--set", new[] { "ai.skill=0.9" } },
         new object[] { "--windowed", Array.Empty<string>() },
         new object[] { "--scale", new[] { "2", "--windowed" } },
     };
@@ -304,5 +306,28 @@ public class GameOptionsTests
     {
         Assert.Equal("--test --demo --seed 9", GameOptions.Parse(new[] { "--test", "--demo", "--seed", "9" }).Arguments);
         Assert.Equal("", GameOptions.Parse(Array.Empty<string>()).Arguments);
+    }
+
+    [Fact]
+    public void ParsesTheSettingsPathAndRepeatedOverrides()
+    {
+        var options = GameOptions.Parse(new[] { "--settings", "a.json", "--set", "ai.skill=0.9", "--set", "shell.damage=20" });
+
+        Assert.Equal("a.json", options.SettingsPath);
+        Assert.Equal(new[] { "ai.skill", "shell.damage" }, options.SettingOverrides.Select(pair => pair.Key));
+        Assert.Equal(0.9f, options.SettingOverrides[0].Value);
+        Assert.Null(GameOptions.Parse(Array.Empty<string>()).SettingsPath);
+    }
+
+    [Theory]
+    [InlineData("--set")]
+    [InlineData("--set", "ai.skill")]
+    [InlineData("--set", "nope=1")]
+    [InlineData("--set", "ai.skill=high")]
+    [InlineData("--set", "ai.skill=")]
+    [InlineData("--settings")]
+    public void RejectsABadSetOrSettings(params string[] args)
+    {
+        Assert.Throws<ArgumentException>(() => GameOptions.Parse(args));
     }
 }

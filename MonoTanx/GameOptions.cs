@@ -1,5 +1,6 @@
 using MonoTanx.Core;
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Text;
@@ -25,6 +26,12 @@ namespace MonoTanx
 
         // The command line as given, for the run log.
         public string Arguments { get; private set; } = "";
+
+        // The settings file to use instead of the per-user one (--settings), or null.
+        public string SettingsPath { get; private set; }
+
+        // Values given with --set, applied on top of the settings file, in the order given.
+        public List<KeyValuePair<string, float>> SettingOverrides { get; } = new List<KeyValuePair<string, float>>();
 
         // Run in a window instead of fullscreen.
         public bool Windowed { get; private set; }
@@ -94,6 +101,12 @@ namespace MonoTanx
                         throw new ArgumentException("--seed requires an integer value.");
                     options.Seed = seed;
                 }),
+            new OptionSpec(new[] { "--settings" }, "<path>",
+                "Read (and save) the settings from this file instead of the per-user settings file, so different sets of tuning values can be kept side by side.",
+                (options, state, flag, value) => options.SettingsPath = value),
+            new OptionSpec(new[] { "--set" }, "<key>=<value>",
+                "Override one setting for this run, on top of the settings file (it is not saved), e.g. --set ai.skill=0.9. Can be repeated. The keys are the names in the settings file; the value is kept within the setting's range.",
+                (options, state, flag, value) => options.SettingOverrides.Add(ParseOverride(value))),
             new OptionSpec(new[] { "--windowed" }, null,
                 "Run in a window instead of fullscreen.",
                 (options, state, flag, value) => options.Windowed = true),
@@ -140,7 +153,21 @@ namespace MonoTanx
 
         // The error for an option that needs a value and did not get a usable one.
         private static string MissingValueMessage(OptionSpec spec) =>
-            spec.Names[0] == "--scale" ? $"--scale requires an integer from {MinimumScale} to {MaximumScale}." : $"{spec.Names[0]} requires an integer value.";
+            spec.Names[0] == "--scale" ? $"--scale requires an integer from {MinimumScale} to {MaximumScale}." :
+            spec.Names[0] == "--settings" ? "--settings requires a file path." :
+            spec.Names[0] == "--set" ? "--set requires a setting and a value, as key=value." :
+            $"{spec.Names[0]} requires an integer value.";
+
+        // --set ai.skill=0.9: the key must be a setting in the catalogue and the value a number.
+        private static KeyValuePair<string, float> ParseOverride(string text)
+        {
+            var parts = text.Split('=', 2);
+            if (parts.Length != 2 || !SettingsCatalogue.TryFind(parts[0], out _))
+                throw new ArgumentException($"--set needs a known setting name and a value, as key=value (got '{text}'). Setting names are listed in the settings file and docs/tuning.md.");
+            if (!float.TryParse(parts[1], NumberStyles.Float, CultureInfo.InvariantCulture, out var number) || float.IsInfinity(number) || float.IsNaN(number))
+                throw new ArgumentException($"--set {parts[0]} requires a number (got '{parts[1]}').");
+            return new KeyValuePair<string, float>(parts[0], number);
+        }
 
         // --two-player and --demo each choose who controls the seats, so only one may be given.
         private static void SetSetup(GameOptions options, ParseState state, MatchSetup setup, string flag)
@@ -152,7 +179,7 @@ namespace MonoTanx
         }
 
         public static string UsageLine =>
-            "Usage: MonoTanx [--test] [--two-player | --demo] [--mute] [--log] [--seed <integer>] [--windowed [--scale <" + MinimumScale + "-" + MaximumScale + ">]] [--help]";
+            "Usage: MonoTanx [--test] [--two-player | --demo] [--mute] [--log] [--seed <integer>] [--settings <path>] [--set <key>=<value> ...] [--windowed [--scale <" + MinimumScale + "-" + MaximumScale + ">]] [--help]";
 
         // What --help prints: every option, then how conflicts and repeats are handled.
         public static string HelpText
@@ -179,7 +206,7 @@ namespace MonoTanx
                 text.AppendLine("  - Help always wins: if it is given, nothing else is run (even with an invalid option).");
                 text.AppendLine("  - Conflicting options are rejected with a message, never silently overridden:");
                 text.AppendLine("    --two-player with --demo, and --scale without --windowed.");
-                text.AppendLine("  - Giving an option twice is allowed; for --seed and --scale the last value wins.");
+                text.AppendLine("  - Giving an option twice is allowed; for --seed, --scale and --settings the last value wins, and --set can be repeated.");
                 text.AppendLine("  - Anything not listed here is an error.");
                 return text.ToString();
             }
