@@ -1,6 +1,6 @@
 # Engineering onboarding
 
-MonoTanx is a self-contained MonoGame DesktopGL game targeting .NET 10. It has no backend or external services. The repository is at a playable prototype stage: a human tank and a computer-controlled tank fight in a hand-authored arena.
+MonoTanx is a self-contained MonoGame DesktopGL game targeting .NET 10. It has no backend or external services. The repository is at a playable prototype stage: two tanks (each seat human or CPU) fight in a hand-authored arena over rounds, with a score, an end screen and a settings page.
 
 Start with [README.md](README.md) for the player-facing overview, controls, and build commands. This document records the engineering shape of the prototype and the assumptions that should survive future work. Forward-looking plans live in [`docs/roadmap.md`](docs/roadmap.md).
 
@@ -204,40 +204,19 @@ While holding `F5`, the overlay pauses the simulation and shows:
 - Loaded pickup count
 - The run's random seed
 
-### Player 2 computer behavior
+### CPU behavior
 
-Player 2 currently uses simple state-priority behavior:
+Either seat can be a CPU (`ComputerController`, one per seat: it speaks of "self" and "the opponent"). Its decisions in priority order, each update:
 
-1. Retaliation after being hit
-   - Stops moving for approximately 1.5 seconds.
-   - Turns toward Player 1.
-   - Gets a shot opportunity as soon as it is aligned and reloaded.
+1. **Evasion.** Shells in flight (from either tank, rebounds included) within the detection distance that it has noticed and that would hit it are dodged by the first of eight turn and drive commands that gets clear, tried on a scratch copy of its tank. Noticing takes a reaction time and a seeded per-shell chance that rises with skill, so it can still be hit.
+2. **Stuck recovery.** Driving without moving for a while triggers a short reverse while turning, then a different route or goal if it repeats.
+3. **Retaliation.** After being hit it stops and turns to face the opponent for about 1.5 seconds.
+4. **Pickup seeking.** With fuel below half, or shells below half the starting amount, it routes to the nearest relevant active pickup; this comes before combat.
+5. **No shells.** With none and no pickup to fetch, it drives away from the opponent.
+6. **Long-range pursuit.** More than half the arena width away, it picks a heading once and drives on it rather than re-planning every frame.
+7. **Closing in, then shoot and scoot.** In view but beyond the hold distance (the engage distance, a ring of tiles, plus tolerance) it routes in (cached tile-grid A*, rebuilt when the opponent moves or the route is used up); inside it, it stops, turns to aim and fires, only within the fire distance and with a clear line of sight. After each shot it moves to a new firing position (one of the nearest few ring tiles with a view, picked from its seeded stream) while the gun cools down.
 
-2. Pickup seeking
-   - If fuel is below 50% or ammunition is below half its starting quantity, seeks the nearest relevant active pickup.
-   - Pickup seeking takes priority over normal combat and fleeing.
-
-3. No-ammunition evasion
-   - If no suitable pickup is available and ammunition is empty, continuously drives away from Player 1.
-   - Existing collision resolution handles obstacles.
-
-4. Long-range pursuit
-   - When more than half the arena width away, chooses a heading toward Player 1 once and continues on that course without recalculating A* every frame.
-   - Returns to close-range behavior once nearer.
-
-5. Close-range combat navigation
-   - Uses cached tile-grid A* routing toward a stand-off ring around Player 1.
-   - Routes are rebuilt when Player 1 moves or the current route is exhausted.
-   - When Player 1 is nearby and visible, Player 2 holds position while aiming rather than letting navigation overwrite its heading.
-
-#### Player 2 firing
-
-Player 2:
-
-- Requires line of sight to Player 1; walls, hills, and reflective surfaces block firing.
-- Uses an aim tolerance rather than perfect accuracy.
-- Applies a reaction delay and fire cooldown.
-- Continues correcting its heading toward Player 1 even when terrain currently blocks the shot.
+Firing: each shot draws its own aim window between a minimum tolerance and a wider one that shrinks as skill rises, from the seat's own random stream, and fires once the tank points within it; it also applies a reaction delay and a fire cooldown. The details are in the `ComputerController` paragraph under "Seats and controllers" below, the numbers are in `docs/tuning.md` and `Core/Tuning.cs`, and all of them can be changed on the settings page.
 
 AI tuning properties live on `Player`:
 
@@ -368,9 +347,9 @@ Preserve these behaviours when changing movement, projectiles, rendering, or tim
 - Firing is edge-triggered and refused while the reload timer is running or no ammunition remains. Slots are consumed in order, and firing sets the reload timer from the ammunition type.
 - A shell is removed on expiry, on hitting projectile-blocking terrain, on hitting either tank (including the tank that fired it), or after more than 8 reflections.
 - A pickup is collected once and then stays inactive. Fuel is clamped to the tank's maximum; ammunition is added without a cap.
-- `F1` refills Player 1's fuel and ammunition only; it does not touch health or Player 2.
-- `F2` and `F4` toggle Player 2 and Player 1 between computer and human control; the toggled seat's computer state (route, pursuit, timers) is cleared so it starts afresh when it takes control back.
-- Reaching 0 health currently exits the game; there is no score or round state yet.
+- `F1` refills P1's fuel and shells only; it does not touch armour or P2.
+- `F2` and `F4` toggle P2 and P1 between CPU and human control; the toggled seat's computer state (route, pursuit, timers) is cleared so it starts afresh when it takes control back.
+- Reaching 0 armour ends the round for that seat; the rounds, score and end screen are in `MatchState` and `MatchSession`.
 - Randomness comes from `RandomStreams`, created in `Tanx` from the master seed (`--seed <integer>`, otherwise random, shown in the `F5` overlay). The gameplay stream drives the heading disruption on a hit; the cosmetic stream drives screen shake, so visual draws never change gameplay. Streams are passed to the code that needs them, not held globally. The seed fixes random draws but not real input or frame timing, so it does not give full replay.
 
 ## Testing strategy

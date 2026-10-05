@@ -1,6 +1,6 @@
 # MonoTanx
 
-MonoTanx is a top-down, tile-map-based tank combat game built with MonoGame DesktopGL and .NET 10, inspired by the Tanks mode in Atari 2600 Combat. Two tanks navigate a hand-authored arena, use terrain tactically, and try to destroy one another. P1 is human; P2 is currently computer controlled.
+MonoTanx is a top-down, tile-map-based tank combat game built with MonoGame DesktopGL and .NET 10, inspired by the Tanks mode in Atari 2600 Combat. Two tanks navigate a hand-authored arena, use terrain tactically, and try to destroy one another. Either seat can be a human or the CPU: a normal game is P1 human against a CPU P2, and `--two-player` and `--demo` give two humans or two CPUs.
 
 The project is at a playable prototype stage: the core loop works, with rounds, a score and an end-of-match screen. There is a settings page for tuning (below). The next steps are polish (a demo mode that starts itself, more of the run log; see [`docs/roadmap.md`](docs/roadmap.md)).
 
