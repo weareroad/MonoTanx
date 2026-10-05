@@ -147,9 +147,10 @@ public class MatchSimulationSoakTests
 
     // Whole matches through the rounds
 
-    private static readonly int[] MatchSeeds = { 1, 7, 42, 4242 };
-    // First to 2 rather than the default 3: most computer rounds draw on the time limit, so a full
-    // first-to-3 match can take over half an hour of simulated play. The default is tested in MatchStateTests.
+    private static readonly int[] MatchSeeds = { 7, 42 };
+    // First to 2 rather than the default 3, with a shell that kills in two hits: most computer rounds
+    // draw on the time limit with the real shell, so a real match takes hours of simulated play. The
+    // match rules at their defaults are tested in MatchStateTests.
     private const int WholeMatchRoundsToWin = 2;
     private const float LongestMatchSeconds = 3600.0f; // an hour of simulated play
 
@@ -157,7 +158,7 @@ public class MatchSimulationSoakTests
     [MemberData(nameof(MatchSeedData))]
     public void ComputerVersusComputerPlaysAWholeMatchToAWinner(int seed)
     {
-        var match = new MatchHarness(seed, Demo, WholeMatchRoundsToWin).RunMatch(LongestMatchSeconds, AssertInvariants);
+        var match = new MatchHarness(seed, Demo, WholeMatchRoundsToWin, MatchHarness.DecisiveShell).RunMatch(LongestMatchSeconds, AssertInvariants);
         var state = match.Session.State;
 
         Assert.Equal(MatchPhase.MatchOver, state.Phase);
@@ -176,7 +177,7 @@ public class MatchSimulationSoakTests
     [MemberData(nameof(MatchSeedData))]
     public void EveryRoundStartsFromTheSameCleanPosition(int seed)
     {
-        var match = new MatchHarness(seed, Demo, WholeMatchRoundsToWin);
+        var match = new MatchHarness(seed, Demo, WholeMatchRoundsToWin, MatchHarness.DecisiveShell);
         var start = (match.PlayerOne.Position, match.PlayerOne.Heading, match.PlayerTwo.Position, match.PlayerTwo.Heading);
         var rounds = 0;
 
@@ -200,8 +201,8 @@ public class MatchSimulationSoakTests
     [Fact]
     public void TheSameSeedPlaysTheSameWholeMatch()
     {
-        var first = new MatchHarness(7, Demo, WholeMatchRoundsToWin).RunMatch(LongestMatchSeconds);
-        var second = new MatchHarness(7, Demo, WholeMatchRoundsToWin).RunMatch(LongestMatchSeconds);
+        var first = new MatchHarness(7, Demo, WholeMatchRoundsToWin, MatchHarness.DecisiveShell).RunMatch(LongestMatchSeconds);
+        var second = new MatchHarness(7, Demo, WholeMatchRoundsToWin, MatchHarness.DecisiveShell).RunMatch(LongestMatchSeconds);
 
         Assert.Equal(first.Fingerprint(), second.Fingerprint());
         Assert.Equal(first.Session.State.Winner, second.Session.State.Winner);

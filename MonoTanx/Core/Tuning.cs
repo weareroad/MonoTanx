@@ -228,6 +228,34 @@ namespace MonoTanx.Core
             // goals within this many tiles of the ring radius are accepted.
             public const int MinimumCombatRingTiles = 2;
             public const float CombatRingToleranceTiles = 1.0f;
+
+            // How long (seconds) a tank must be commanded to drive before it is
+            // judged on whether it has moved. 1.5s is 135px at full speed, so a
+            // tank that is really going somewhere is far past the next value.
+            public const float StuckWindowSeconds = 1.5f;
+
+            // The least it must have moved in that window (pixels). Under this it
+            // is stuck: pressed against terrain or the other tank, going nowhere.
+            // Mud halves speed and a tank sliding along a wall still moves further
+            // than this, so ordinary slow going is not mistaken for being stuck.
+            public const float StuckMinimumDistance = 6.0f;
+
+            // How long (seconds) the recovery lasts: reversing while turning. At
+            // reverse speed (45px/s) that backs away about 36px, enough to clear a
+            // wall or a corner, for about 6 fuel at the reverse rate.
+            public const float StuckRecoverySeconds = 0.8f;
+
+            // Stuck again within this long (seconds) of the last recovery counts
+            // as the same problem and tries something different (another goal).
+            public const float StuckRepeatSeconds = 6.0f;
+
+            // After getting stuck driving straight at a distant opponent, how long
+            // (seconds) it follows a planned route instead of a straight line.
+            public const float RoutePursuitSeconds = 10.0f;
+
+            // After getting stuck twice on the way to a pickup, how long (seconds)
+            // it ignores that pickup before trying again.
+            public const float PickupIgnoreSeconds = 10.0f;
         }
 
         public static class Vision

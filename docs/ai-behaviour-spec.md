@@ -32,10 +32,15 @@ Tracks GitHub issues #52 (stuck detection and seeded aim error) and #85 (evading
 
 ### Stuck detection and recovery (#52)
 
-- **Progress.** While the controller has been commanding a drive (and could pay for it), it tracks the position at the start of a window. If, after `StuckWindowSeconds` of commanded driving, the tank has moved less than `StuckMinimumDistance`, it is stuck. Time spent deliberately not driving (holding position in range with a clear view, retaliation or aiming turns, no fuel) does not count, so waiting is not mistaken for being stuck.
-- **Recovery.** A short manoeuvre for `StuckRecoverySeconds`: reverse while turning to a side chosen from the seat's stream, then drop the route and plan afresh. If the same goal gets it stuck again straight away, it takes a different goal (the next-nearest combat ring tile, or the other pickup) instead of repeating itself.
-- **Fuel.** Reversing costs fuel as usual. With too little fuel to recover, it does nothing, as today.
-- The controller exposes a stuck count and a `Recovering` mode for the overlay and the tests.
+- **Progress.** While the controller is commanding a drive (reverse counts), it tracks the position at the start of a window. If, after `StuckWindowSeconds` (1.5s) of commanded driving, the tank has moved less than `StuckMinimumDistance` (6px), it is stuck. Anything not driving (holding position in range with a clear view, retaliation and aiming turns, no fuel) resets the window rather than counting, so waiting is not mistaken for being stuck. The first window after setting off is mostly spent moving, so a tank that runs into a wall is detected after one to two windows.
+- **Recovery.** For `StuckRecoverySeconds` (0.8s) it reverses while turning to a side chosen from the seat's stream (alternating sides when it has none), and nothing else is decided meanwhile; the aim phase does not turn the tank while it backs away. Then it drops its route and plans afresh from where it is.
+- **What it does differently afterwards.**
+  - Stuck driving straight at a distant opponent: for `RoutePursuitSeconds` (10s) it follows a planned combat route instead of a straight line, which is what gets it round the obstacle.
+  - Stuck again within `StuckRepeatSeconds` (6s) of the last recovery counts as the same problem: a combat route goes to the next reachable ring tile (`RoutePlanner.FindCombatRoute` takes an `alternative`), and a pickup that has defeated it twice is ignored for `PickupIgnoreSeconds` (10s).
+- **Pickup seeking drives only when roughly facing the waypoint**, as combat already did. Before, it drove forward all the time it turned, and a turning circle of about 36px does not fit a one-tile corridor, so it pressed into corners. This is a change to how pickup seeking steers, found by measuring what was still stuck once recovery was in (stuck pickup updates fell from about 18,600 to 2).
+- **Fuel.** Reversing costs fuel as usual; with too little to pay for the whole command it does nothing, as before, and that is not counted as stuck.
+- The controller exposes `StuckCount` and `Recovering`, and the overlay mode `RECOVER`.
+- *Not covered.* A computer holding position with no line of sight (a combat ring tile with no view of the opponent) is not "driving", so it is not detected; it never happens on the real arena (0 of 272,000 tank-updates in the headless runs), only in a contrived fixture.
 
 ### Evading incoming shells (#85)
 

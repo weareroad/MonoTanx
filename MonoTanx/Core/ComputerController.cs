@@ -10,7 +10,10 @@ namespace MonoTanx.Core
         Pickup,
         Flee,
         Long,
-        Combat
+        Combat,
+
+        // Backing away after getting stuck.
+        Recover
     }
 
     // The computer opponent for one seat. It speaks of "self" and "the opponent",
@@ -36,6 +39,18 @@ namespace MonoTanx.Core
         private bool aimErrorDrawn;
         private Vector2 lastOpponentPosition;
 
+        // Stuck detection: how long it has been commanded to drive, from where, and
+        // the recovery that follows.
+        private float drivingSeconds;
+        private Vector2 drivingStart;
+        private float recoveryTimer;
+        private int recoverySide = 1;
+        private float secondsSinceRecovery = float.MaxValue;
+        private int repeatedStuck;
+        private float routePursuitTimer;
+        private float ignorePickupTimer;
+        private int ignoredPickupId = -1;
+
         // The random stream is this seat's own (RandomStreams.CreateStream("ai-1") or
         // ("ai-2")). With none, the computer makes no aiming error.
         public ComputerController(WorldMap map, Player self, Player opponent, Random random = null)
@@ -53,6 +68,10 @@ namespace MonoTanx.Core
         public float RetaliationTimer => retaliationTimer;
         public bool LongRangePursuit => longRangePursuit;
 
+        // How many times it has been stuck, and whether it is backing away now.
+        public int StuckCount { get; private set; }
+        public bool Recovering => recoveryTimer > 0.0f;
+
         // The largest error, in radians, the shot being prepared may have: it fires as
         // soon as the tank points within this of the opponent. Drawn per shot.
         public float AimError => aimError;
@@ -63,6 +82,7 @@ namespace MonoTanx.Core
         // What the computer would be doing now, in the order it decides.
         public ComputerMode Mode(IReadOnlyList<PickupState> pickups)
         {
+            if (Recovering) return ComputerMode.Recover;
             if (FindPickupTarget(pickups) != null) return ComputerMode.Pickup;
             if (self.RemainingAmmunition == 0) return ComputerMode.Flee;
             return longRangePursuit ? ComputerMode.Long : ComputerMode.Combat;
@@ -93,6 +113,13 @@ namespace MonoTanx.Core
             fireTimer = 0.0f;
             retaliationTimer = 0.0f;
             aimErrorDrawn = false;
+            drivingSeconds = 0.0f;
+            recoveryTimer = 0.0f;
+            secondsSinceRecovery = float.MaxValue;
+            repeatedStuck = 0;
+            routePursuitTimer = 0.0f;
+            ignorePickupTimer = 0.0f;
+            ignoredPickupId = -1;
             lastOpponentPosition = opponent.Position;
         }
 
@@ -100,8 +127,78 @@ namespace MonoTanx.Core
         // afford both the turn and the drive.
         public TankCommand PlanMove(float elapsed, IReadOnlyList<PickupState> pickups)
         {
-            LastMove = PlanMoveCore(elapsed, pickups);
+            secondsSinceRecovery += elapsed;
+            routePursuitTimer = Math.Max(0.0f, routePursuitTimer - elapsed);
+            ignorePickupTimer = Math.Max(0.0f, ignorePickupTimer - elapsed);
+            if (recoveryTimer > 0.0f)
+            {
+                // backing away: nothing else is decided until it is over
+                recoveryTimer = Math.Max(0.0f, recoveryTimer - elapsed);
+                retaliationTimer = Math.Max(0.0f, retaliationTimer - elapsed);
+                LastMove = Affordable(new TankCommand(recoverySide, -1.0f), elapsed);
+                if (recoveryTimer <= 0.0f)
+                    EndRecovery();
+                return LastMove;
+            }
+
+            var command = PlanMoveCore(elapsed, pickups);
+            if (IsStuckAfter(command, elapsed))
+            {
+                StartRecovery();
+                command = Affordable(new TankCommand(recoverySide, -1.0f), elapsed);
+            }
+            LastMove = command;
             return LastMove;
+        }
+
+        // Judges progress: while it is being told to drive, has it moved? Time spent not
+        // driving (holding with a clear view, turning on the spot, out of fuel) does not
+        // count, so waiting is not mistaken for being stuck.
+        private bool IsStuckAfter(TankCommand command, float elapsed)
+        {
+            if (command.Drive == 0.0f)
+            {
+                drivingSeconds = 0.0f;
+                return false;
+            }
+            if (drivingSeconds == 0.0f)
+                drivingStart = self.Position;
+            drivingSeconds += elapsed;
+            if (drivingSeconds < Tuning.Ai.StuckWindowSeconds)
+                return false;
+            var moved = Vector2.Distance(drivingStart, self.Position);
+            drivingSeconds = 0.0f;
+            return moved < Tuning.Ai.StuckMinimumDistance;
+        }
+
+        private void StartRecovery()
+        {
+            StuckCount++;
+            repeatedStuck = secondsSinceRecovery <= Tuning.Ai.StuckRepeatSeconds ? repeatedStuck + 1 : 1;
+            // back away turning to a side picked from the seat's stream; without one, alternate sides
+            recoverySide = random != null ? (random.Next(2) == 0 ? -1 : 1) : -recoverySide;
+            recoveryTimer = Tuning.Ai.StuckRecoverySeconds;
+            drivingSeconds = 0.0f;
+        }
+
+        // Backed away: plan afresh from here, and do something different if this keeps happening.
+        private void EndRecovery()
+        {
+            secondsSinceRecovery = 0.0f;
+            route.Clear();
+            routeIndex = 0;
+            if (longRangePursuit)
+            {
+                // a straight line at the opponent ran into something: follow a route for a while
+                longRangePursuit = false;
+                routePursuitTimer = Tuning.Ai.RoutePursuitSeconds;
+            }
+            if (pickupTargetId >= 0 && repeatedStuck >= 2)
+            {
+                ignoredPickupId = pickupTargetId;
+                ignorePickupTimer = Tuning.Ai.PickupIgnoreSeconds;
+            }
+            pickupTargetId = -1;
         }
 
         private TankCommand PlanMoveCore(float elapsed, IReadOnlyList<PickupState> pickups)
@@ -126,7 +223,7 @@ namespace MonoTanx.Core
             var longRangeThreshold = map.Bounds.Width * self.LongRangePursuitDistanceFraction;
             if (distance <= longRangeThreshold && map.HasLineOfSight(self.Position, opponent.Position))
                 return TankCommand.None;
-            if (distance > longRangeThreshold)
+            if (distance > longRangeThreshold && routePursuitTimer <= 0.0f)
             {
                 if (!longRangePursuit)
                 {
@@ -141,7 +238,7 @@ namespace MonoTanx.Core
             longRangePursuit = false;
             if (Vector2.DistanceSquared(lastOpponentPosition, opponent.Position) > Tuning.Ai.RouteRebuildDistance * Tuning.Ai.RouteRebuildDistance || routeIndex >= route.Count)
             {
-                BuildCombatRoute();
+                BuildCombatRoute(Math.Max(0, repeatedStuck - 1));
                 lastOpponentPosition = opponent.Position;
             }
 
@@ -166,6 +263,8 @@ namespace MonoTanx.Core
             var desiredHeading = HeadingToward(self.Position, opponent.Position);
             if (Math.Abs(MathHelper.WrapAngle(desiredHeading - self.Heading)) > aimError)
             {
+                if (Recovering)
+                    return TankCommand.None; // backing away: the aim phase must not turn the tank back
                 var turn = new TankCommand(TurnToward(desiredHeading), 0.0f);
                 return TankMovement.FuelCost(map, self, turn, elapsed) <= self.Fuel ? turn : TankCommand.None;
             }
@@ -185,7 +284,7 @@ namespace MonoTanx.Core
                 routeIndex = 0;
                 SetRoute(RoutePlanner.FindRoute(map, self.CollisionRadius, map.WorldToTile(self.Position), map.WorldToTile(target.Spawn.Position)));
             }
-            return FollowRoute(elapsed, driveOnlyWhenFacing: false);
+            return FollowRoute(elapsed, driveOnlyWhenFacing: true);
         }
 
         // Steers for the current waypoint, moving on to the next when it is reached.
@@ -207,12 +306,12 @@ namespace MonoTanx.Core
             return Affordable(new TankCommand(Math.Sign(angle), drive), elapsed);
         }
 
-        private void BuildCombatRoute()
+        private void BuildCombatRoute(int alternative)
         {
             route.Clear();
             routeIndex = 0;
             SetRoute(RoutePlanner.FindCombatRoute(map, self.CollisionRadius,
-                map.WorldToTile(self.Position), map.WorldToTile(opponent.Position), self.PreferredCombatDistanceTiles));
+                map.WorldToTile(self.Position), map.WorldToTile(opponent.Position), self.PreferredCombatDistanceTiles, alternative));
         }
 
         // Adopts a new route, starting at its second tile (the first is where the tank is).
@@ -244,6 +343,7 @@ namespace MonoTanx.Core
             foreach (var pickup in pickups)
             {
                 if (!pickup.Active || (pickup.Spawn.Kind == PickupKind.Fuel ? !needsFuel : !needsAmmo)) continue;
+                if (ignorePickupTimer > 0.0f && pickup.Spawn.Id == ignoredPickupId) continue;
                 var distance = Vector2.DistanceSquared(self.Position, pickup.Spawn.Position);
                 if (distance < bestDistance) { bestDistance = distance; best = pickup; }
             }

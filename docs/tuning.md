@@ -51,14 +51,26 @@ These follow from the values above and are checked by `TuningTests`.
 
 ## Computer balance numbers
 
-How two computers play each other, measured with the headless harness (`MatchHarness.Measure`, in `ComputerBalanceTests`): computer in both seats on the real arena, matches restarting as in a demo. `ComputerBalanceTests` pins them loosely, so a change to the computer has to update this table on purpose. Eight seeds (1, 7, 42, 1234, 4242, 99999, 2026, 31337) of 1200 simulated seconds each, 9600s in all:
+How two computers play each other, measured with the headless harness (`MatchHarness.Measure`, in `ComputerBalanceTests`): computer in both seats on the real arena, matches restarting as in a demo. `ComputerBalanceTests` pins them loosely, so a change to the computer has to update this table on purpose. Eight seeds (1, 7, 42, 1234, 4242, 99999, 2026, 31337) of 1200 simulated seconds each, 9600s in all (the tests use fewer seeds and shorter runs, so their numbers differ slightly):
 
 | Step | Hits a minute | Shots fired | Accuracy | Rounds decided / drawn | Stuck (seconds in each minute) |
 |---|---|---|---|---|---|
 | Before #52 (fixed 0.2 rad aim tolerance) | 6.1 | 2915 | 34% | 22 / 87 (20% decided) | 32.5 |
-| Aim error (#52, this step) | 5.7 | 2692 | 34% | 17 / 89 (16% decided) | 31.6 |
+| Aim error (#52, previous step) | 5.7 | 2692 | 34% | 17 / 89 (16% decided) | 31.6 |
 
-"Stuck" counts a tank that was commanded to drive for 1.5s and moved less than 6px, in either seat: about 32 seconds in every minute, so between them the computers spend a large share of every round pushing against something. In one 1200s run of seed 7 about 70% of those updates were in long-range pursuit (it drives a fixed heading at the opponent and never routes around anything) and about 30% in pickup seeking. That is the next step (stuck detection and recovery), and the likeliest reason three rounds in four draw.
+| Stuck recovery (#52, this step) | 1.7 | 2746 | 10% | 5 / 92 (5% decided) | 1.8 (longest run 1.7s) |
+
+"Stuck" counts a tank that was commanded to drive for 1.5s and moved less than 6px, in either seat. Before stuck recovery that was about 32 seconds in every minute, so between them the computers spent a large share of every round pushing against something. In one 1200s run of seed 7 about 70% of those updates were in long-range pursuit (it drives a fixed heading at the opponent and never routes around anything) and about 30% in pickup seeking, where the tank drove forward all the time it turned, and a turning circle of about 36px (90px/s at 2.5 rad/s) does not fit a 16px corridor, so it pressed into corners. Recovery fixes both: it detects the lack of progress, backs away turning, and then follows a planned route for a while instead of a straight line; and pickup seeking now drives only when roughly facing the next waypoint, as combat already did (that alone took stuck pickup updates from about 18,600 to 2 in three 1200s runs).
+
+### What the numbers mean
+
+Stuck recovery lowers the computers' accuracy and leaves almost every round drawn. That is a consequence of the computers now moving, not a regression in aiming, and worth understanding before the next step:
+
+- Before, a computer commonly sat pressed against a wall at 700px or more from the opponent, its movement phase steering it onto the exact line to the opponent every update. Its shots then came out almost perfectly aimed, whatever the firing window, which is why a computer against a human standing still hit 82% of its shots (883 hits from 1081 shots). That accuracy was an accident of being stuck, not skill.
+- Now it roams, so the aim window is what decides a shot. A window averages 0.195 rad, which at 300 to 500px (the computer holds position and fires from anywhere inside half the map width with a clear view) misses by 60 to 100px against a 15px target. The same computer against a still human hits 41% (437 hits from 1077 shots), and two computers hit 10%.
+- Kills need nine hits and a tank has 20 shells, so a tank must hit 45% of its shots to kill a still opponent before its shells run out. At 10% a computer-versus-computer round is essentially always a draw (5% of rounds were decided), and a match to first-to-3 does not finish in hours of simulated play.
+
+Against a human who moves, a computer has always been far less accurate than that 82% suggests. The way to make computer rounds end is not to put the stuck behaviour back but for the computer to fire from where its error can hit (close the distance first, or hold fire at range) and to spend its ammunition accordingly; see the plan's notes. Nothing about damage, ammunition or the round time limit was changed here.
 
 ## Deliberately kept elsewhere
 

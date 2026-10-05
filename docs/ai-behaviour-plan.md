@@ -8,12 +8,19 @@ Three PRs, each leaving the game playable, each measured with the headless harne
    - Controller tests for the error (reproducible, bounded, held for a shot, redrawn after, zero at skill 1, different per seat) and the mirror test.
    - Choose the defaults so hits per match stay near the baseline; record before and after. With the error off (window 0.2 rad, no stream) the harness reproduced the baseline numbers exactly.
 2. **Stuck detection and recovery (#52).**
-   - The progress window, the stuck state and the recovery manoeuvre in the controller, with the stuck count and `RECOVER` mode for the overlay.
-   - Scripted fixture tests and the long-run headless check that no tank stays stuck; the baseline stuck count compared with after.
+   - The progress window, the stuck state and the recovery manoeuvre in the controller, with the stuck count and `RECOVER` mode for the overlay; pickup seeking steers like combat (drives only when facing the waypoint).
+   - Scripted fixture tests and the long-run headless check that no tank stays stuck: stuck time fell from about 32 to under 2 seconds in every minute, longest run 1.7s.
+   - Result: the computers now roam instead of sitting aimed at walls, so accuracy falls (34% to 10%) and almost every computer round draws (see `docs/tuning.md`, "What the numbers mean"). Whether to fix that, by having the computer fire only where its error can hit, is for the next conversation (below), not done here.
 3. **Evading incoming shells (#85).**
    - `Shell.Clone()`, the prediction, the candidate search, the priority change in `PlanMove` (now given the shells) and the aim phase's behaviour while evading; the three limits (distance, reaction time, chance of noticing) in `Tuning.Ai`.
    - Scripted tests (open fixture, rebound off a reflective tile, the computer's own rebound, undodgeable, no fuel, no threat, priority over retaliation and pickups, mirror) and the headless balance numbers: hits per match must fall by a bounded, recorded amount, and the cost per update is measured.
    - Update `onboarding.md` (the controller's priorities), `README.md` (the computer's behaviour) and the roadmap.
+
+## Follow-up candidates found along the way
+
+- **Fire from where the error can hit.** The computer holds position and fires from anywhere inside half the map width with a clear view; with a firing window of about 0.2 rad that is mostly wasted ammunition. Closing in first (or holding fire at range) and counting shells would make computer rounds end.
+- **Ammunition against kills.** Nine hits kill and a tank has 20 shells, so it needs 45% accuracy to kill a still target; a tuning question for damage, ammunition and the round time limit.
+- Both interact with evasion (#85), which will make the computer harder to hit again.
 
 ## Notes and risks
 
