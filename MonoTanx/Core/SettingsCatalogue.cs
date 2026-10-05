@@ -130,7 +130,8 @@ namespace MonoTanx.Core
 
         public static IEnumerable<SettingDefinition> InGroup(SettingGroup group) => All.Where(definition => definition.Group == group);
 
-        public static string TitleOf(SettingGroup group) => group == SettingGroup.PerSeat ? "Per seat" : group.ToString();
+        public static string TitleOf(SettingGroup group) =>
+            group == SettingGroup.PerSeat ? "Per seat" : group == SettingGroup.Computer ? "CPU" : group.ToString();
 
         private static List<SettingDefinition> Build()
         {
@@ -153,7 +154,7 @@ namespace MonoTanx.Core
             // tunnelling protection exists (#49); the radius cannot exceed what
             // fits a one-tile corridor.
             const SettingGroup tanks = SettingGroup.Tanks;
-            Whole(tanks, SettingKeys.MaximumHealth, "Health", 10, 1000, 10, Tuning.Tank.MaximumHealth);
+            Whole(tanks, SettingKeys.MaximumHealth, "Armour", 10, 1000, 10, Tuning.Tank.MaximumHealth);
             Number(tanks, SettingKeys.MaximumFuel, "Fuel", 20.0f, 1000.0f, 10.0f, Tuning.Tank.MaximumFuel);
             Whole(tanks, SettingKeys.StartingShells, "Starting shells", 1, 200, 1, Tuning.Tank.StartingShells);
             Number(tanks, SettingKeys.ForwardSpeed, "Forward speed (px/s)", 20.0f, 240.0f, 5.0f, Tuning.Tank.ForwardSpeed);
@@ -165,12 +166,12 @@ namespace MonoTanx.Core
             Number(tanks, SettingKeys.TurnFuelPerSecond, "Turn fuel use (/s)", 0.0f, 5.0f, 0.05f, Tuning.Tank.TurnFuelPerSecond);
             Number(tanks, SettingKeys.PickupCollectRadius, "Pickup radius (px)", 6.0f, 32.0f, 1.0f, Tuning.Pickups.CollectRadius);
             Whole(tanks, SettingKeys.DefaultFuelAmount, "Fuel pickup amount", 5, 200, 5, Tuning.Pickups.DefaultFuelAmount);
-            Whole(tanks, SettingKeys.DefaultAmmunitionAmount, "Ammo pickup amount", 1, 50, 1, Tuning.Pickups.DefaultAmmunitionAmount);
+            Whole(tanks, SettingKeys.DefaultAmmunitionAmount, "Shell pickup amount", 1, 50, 1, Tuning.Pickups.DefaultAmmunitionAmount);
 
             const SettingGroup shells = SettingGroup.Shells;
             Number(shells, SettingKeys.ReloadSeconds, "Reload time (s)", 0.2f, 10.0f, 0.1f, Tuning.StandardShell.ReloadSeconds);
             Number(shells, SettingKeys.MaxFlightSeconds, "Flight time (s)", 1.0f, 10.0f, 0.5f, Tuning.StandardShell.MaxFlightSeconds);
-            Whole(shells, SettingKeys.Damage, "Damage", 1, 100, 1, Tuning.StandardShell.Damage);
+            Whole(shells, SettingKeys.Damage, "Armour lost per hit", 1, 100, 1, Tuning.StandardShell.Damage);
             Number(shells, SettingKeys.ShellSpeed, "Shell speed (px/s)", 100.0f, 500.0f, 10.0f, Tuning.StandardShell.Speed);
             Number(shells, SettingKeys.KnockbackDistance, "Knockback (px)", 0.0f, 8.0f, 0.5f, Tuning.Damage.KnockbackDistance);
             Number(shells, SettingKeys.MaximumHeadingDisruptionRadians, "Heading disruption (rad)", 0.0f, 0.6f, 0.02f, Tuning.Damage.MaximumHeadingDisruptionRadians);
@@ -189,7 +190,7 @@ namespace MonoTanx.Core
             Number(computer, SettingKeys.AiRetaliationSeconds, "Retaliation (s)", 0.0f, 5.0f, 0.25f, Tuning.Ai.RetaliationSeconds);
             Number(computer, SettingKeys.AiLongRangePursuitDistanceFraction, "Long range pursuit", 0.1f, 1.0f, 0.05f, Tuning.Ai.LongRangePursuitDistanceFraction);
             Number(computer, SettingKeys.AiNeedsFuelBelowFraction, "Seeks fuel below", 0.0f, 1.0f, 0.05f, Tuning.Ai.NeedsFuelBelowFraction);
-            Number(computer, SettingKeys.AiNeedsAmmoBelowFraction, "Seeks ammo below", 0.0f, 1.0f, 0.05f, Tuning.Ai.NeedsAmmoBelowFraction);
+            Number(computer, SettingKeys.AiNeedsAmmoBelowFraction, "Seeks shells below", 0.0f, 1.0f, 0.05f, Tuning.Ai.NeedsAmmoBelowFraction);
             Whole(computer, SettingKeys.AiRelocationChoices, "Relocation choices", 1, 8, 1, Tuning.Ai.RelocationChoices);
             Whole(computer, SettingKeys.AiRelocationMinimumTiles, "Relocation min (tiles)", 1, 5, 1, Tuning.Ai.RelocationMinimumTiles);
             Whole(computer, SettingKeys.AiRelocationCloserTiles, "Relocation closer (tiles)", 0, 3, 1, Tuning.Ai.RelocationCloserTiles);
@@ -206,9 +207,9 @@ namespace MonoTanx.Core
             // 1 leaves the value as it is, so the pacing numbers hold at the defaults.
             foreach (var (prefix, name) in new[]
             {
-                (SettingKeys.SeatPrefixPlayerOne, "Player 1"),
-                (SettingKeys.SeatPrefixPlayerTwo, "Player 2"),
-                (SettingKeys.SeatPrefixComputer, "Computer"),
+                (SettingKeys.SeatPrefixPlayerOne, "P1"),
+                (SettingKeys.SeatPrefixPlayerTwo, "P2"),
+                (SettingKeys.SeatPrefixComputer, "CPU"),
             })
             {
                 Number(SettingGroup.PerSeat, prefix + SettingKeys.SpeedSuffix, name + " speed x", 0.25f, 2.0f, 0.05f, 1.0f);

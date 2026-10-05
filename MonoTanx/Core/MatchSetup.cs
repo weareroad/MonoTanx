@@ -49,14 +49,14 @@ namespace MonoTanx.Core
         public string Label => "Players: " + HumanCount;
 
         // What to call a seat on screen, from who controls it: a human seat is
-        // "Player 1" or "Player 2"; a computer seat is just "Computer" when it is
-        // the only one, and "Computer 1" or "Computer 2" when both are.
+        // "P1" or "P2"; a computer seat is just "CPU" when it is the only one, and
+        // "C1" or "C2" when both are (the same width as P1 and P2).
         public string LabelOf(Seat seat)
         {
             var number = seat == Seat.One ? "1" : "2";
             if (ControlOf(seat) == PlayerControl.Human)
-                return "Player " + number;
-            return HumanCount == 1 ? "Computer" : "Computer " + number;
+                return "P" + number;
+            return HumanCount == 1 ? "CPU" : "C" + number;
         }
 
         // The follow camera tracks the first human seat; with no human to follow
