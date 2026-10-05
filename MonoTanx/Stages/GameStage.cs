@@ -100,7 +100,7 @@ namespace MonoTanx.Stages
             DrawPlayerTwoHud(spriteBatch);
             DrawMatchStatus(spriteBatch);
             spriteBatch.DrawString(debugFont, "P1 WASD/Space  P2 Arrows/Enter  " + (game.Options.Test ? "Esc quit" : "Esc menu"), new Vector2(8.0f, Tanx.DesignedHeight - 40.0f), Color.White);
-            spriteBatch.DrawString(debugFont, "F1 refill  F2/F4 P2/P1 cpu  F3 view  F5 debug", new Vector2(8.0f, Tanx.DesignedHeight - 24.0f), Color.White);
+            spriteBatch.DrawString(debugFont, "F1 refill  F2/F4 P2/P1 CPU  F3 view  F5 debug", new Vector2(8.0f, Tanx.DesignedHeight - 24.0f), Color.White);
             if (debugOverlayVisible)
                 DrawDebugOverlay(spriteBatch);
             spriteBatch.End();
@@ -408,7 +408,7 @@ namespace MonoTanx.Stages
             DrawHealthBar(spriteBatch, new Rectangle(48, 8, panelWidth - 160, 12), playerOne);
             spriteBatch.DrawString(debugFont, $"{playerOne.Health}%", new Vector2(panelWidth - 112, 4.0f), Color.White);
             spriteBatch.DrawString(debugFont, $"Shells {playerOne.RemainingAmmunition}", new Vector2(8.0f, 25.0f), Color.White);
-            spriteBatch.DrawString(debugFont, playerOne.IsComputerControlled ? "CPU (F4)" : "HUMAN (F4)", new Vector2(130.0f, 25.0f), Color.White);
+            spriteBatch.DrawString(debugFont, CurrentSetup.LabelOf(Seat.One) + " (F4)", new Vector2(130.0f, 25.0f), Color.White);
             spriteBatch.DrawString(debugFont, playerOne.ReloadTimer > 0.0f ? "!" : "", new Vector2(panelWidth - 32, 22.0f), Color.White);
             spriteBatch.DrawString(debugFont, overviewCamera ? "VIEW: OVERVIEW (F3)" : "VIEW: FOLLOW (F3)", new Vector2(260.0f, 30.0f), Color.White);
             spriteBatch.DrawString(debugFont, "Fuel", new Vector2(8.0f, 52.0f), Color.White);
@@ -424,7 +424,7 @@ namespace MonoTanx.Stages
             var gaugeWidth = panelWidth - 72;
             DrawHealthBar(spriteBatch, new Rectangle(panelX + 38, 8, gaugeWidth, 12), playerTwo);
             spriteBatch.DrawString(debugFont, playerTwo.ReloadTimer > 0.0f ? "!" : "", new Vector2(panelX + panelWidth - 26, 22.0f), Color.White);
-            spriteBatch.DrawString(debugFont, playerTwo.IsComputerControlled ? "CPU (F2)" : "HUMAN (F2)", new Vector2(panelX + 38.0f, 32.0f), Color.White);
+            spriteBatch.DrawString(debugFont, CurrentSetup.LabelOf(Seat.Two) + " (F2)", new Vector2(panelX + 38.0f, 32.0f), Color.White);
             spriteBatch.DrawString(debugFont, "F", new Vector2(panelX + 8.0f, 52.0f), Color.White);
             DrawFuelBar(spriteBatch, new Rectangle(panelX + 38, 56, gaugeWidth, 12), playerTwo);
         }

@@ -61,11 +61,11 @@ public class MatchResultTests
     {
         var result = new MatchResult(Seat.Two, 1, 3, 5);
 
-        Assert.Equal("Computer wins!", result.WinnerText(MatchSetup.OnePlayer));
-        Assert.Equal("Player 1 1 - 3 Computer", result.ScoreText(MatchSetup.OnePlayer));
-        Assert.Equal("Player 2 wins!", result.WinnerText(MatchSetup.TwoPlayer));
-        Assert.Equal("Computer 2 wins!", result.WinnerText(MatchSetup.Demo));
-        Assert.Equal("Computer 1 1 - 3 Computer 2", result.ScoreText(MatchSetup.Demo));
+        Assert.Equal("CPU wins!", result.WinnerText(MatchSetup.OnePlayer));
+        Assert.Equal("P1 1 - 3 CPU", result.ScoreText(MatchSetup.OnePlayer));
+        Assert.Equal("P2 wins!", result.WinnerText(MatchSetup.TwoPlayer));
+        Assert.Equal("C2 wins!", result.WinnerText(MatchSetup.Demo));
+        Assert.Equal("C1 1 - 3 C2", result.ScoreText(MatchSetup.Demo));
     }
 
     [Fact]
@@ -74,8 +74,8 @@ public class MatchResultTests
         var computerFirst = new MatchSetup(PlayerControl.Computer, PlayerControl.Human);
         var result = new MatchResult(Seat.One, 3, 0, 3);
 
-        Assert.Equal("Computer wins!", result.WinnerText(computerFirst));
-        Assert.Equal("Computer 3 - 0 Player 2", result.ScoreText(computerFirst));
+        Assert.Equal("CPU wins!", result.WinnerText(computerFirst));
+        Assert.Equal("CPU 3 - 0 P2", result.ScoreText(computerFirst));
     }
 
     [Theory]

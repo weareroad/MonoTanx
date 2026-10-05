@@ -28,7 +28,7 @@ public class RunLoggerTests
 
         Assert.Contains("# seed 4242  (re-run with --seed 4242 to reproduce it)", lines);
         Assert.Contains("# options --test --seed 4242", lines);
-        Assert.Contains("# players P1(human) P2(cpu)", lines);
+        Assert.Contains("# players P1(human) P2(CPU)", lines);
         Assert.Contains("# version 1.2.3", lines);
         Assert.StartsWith("# MonoTanx run log", lines[0]);
     }
@@ -51,7 +51,7 @@ public class RunLoggerTests
         logger.Record(12.34f, Setup, state, new[] { Decision(Seat.Two, ComputerDecisionKind.Dodging, move: new TankCommand(-1.0f, 1.0f)) });
 
         var line = Assert.Single(lines);
-        Assert.Equal("[00:12.34 R1] P2(cpu) DODGE       shell from P1(human) 140px away, would hit in 0.43s: moving forward, turning left", line);
+        Assert.Equal("[00:12.34 R1] P2(CPU) DODGE       shell from P1(human) 140px away, would hit in 0.43s: moving forward, turning left", line);
     }
 
     [Fact]
@@ -115,7 +115,7 @@ public class RunLoggerTests
 
         logger.Record(1.0f, Setup, state, new[] { new MatchEvent(MatchEventKind.TankHit, Seat.One, Seat.Two) });
 
-        Assert.Equal("[00:01.00 R1] P1(human) HIT         hit by a shell from P2(cpu)", lines[0]);
+        Assert.Equal("[00:01.00 R1] P1(human) HIT         hit by a shell from P2(CPU)", lines[0]);
     }
 
     [Fact]
@@ -130,7 +130,7 @@ public class RunLoggerTests
             new MatchEvent(MatchEventKind.TankDestroyed, Seat.One)
         });
 
-        Assert.Contains("P2(cpu) FIRE", lines[0]);
+        Assert.Contains("P2(CPU) FIRE", lines[0]);
         Assert.Contains("P1(human) PICKUP", lines[1]);
         Assert.Contains("P1(human) DESTROYED", lines[2]);
     }
@@ -185,7 +185,7 @@ public class RunLoggerTests
         logger.Summary(Setup);
 
         Assert.Contains("# summary: 00:10.00 of play, 0 rounds won, 0 drawn, 0 matches finished", lines);
-        Assert.Contains("# P2(cpu): 2 shots fired, 1 hits taken, 1 dodges (1 failed), 1 shells not noticed, 1 unavoidable, 0 times stuck", lines);
+        Assert.Contains("# P2(CPU): 2 shots fired, 1 hits taken, 1 dodges (1 failed), 1 shells not noticed, 1 unavoidable, 0 times stuck", lines);
     }
 
     [Fact]
@@ -196,7 +196,7 @@ public class RunLoggerTests
         logger.Record(1.0f, MatchSetup.Demo, state, new[] { new MatchEvent(MatchEventKind.ShellFired, Seat.One) });
         logger.Record(1.0f, new MatchSetup(PlayerControl.Computer, PlayerControl.Human), state, new[] { new MatchEvent(MatchEventKind.ShellFired, Seat.Two) });
 
-        Assert.Contains("P1(cpu) FIRE", lines[0]);
+        Assert.Contains("P1(CPU) FIRE", lines[0]);
         Assert.Contains("P2(human) FIRE", lines[1]);
     }
 }
@@ -255,6 +255,6 @@ public class RunLogRunTests
         var dodges = match.LogLines.Where(line => line.Contains(" DODGE ")).ToList();
 
         Assert.NotEmpty(dodges);
-        Assert.All(dodges, line => Assert.Matches(@"shell from P[12]\((cpu|human)\) \d+px away, would hit in \d\.\d\ds: moving", line));
+        Assert.All(dodges, line => Assert.Matches(@"shell from P[12]\((CPU|human)\) \d+px away, would hit in \d\.\d\ds: moving", line));
     }
 }
