@@ -59,7 +59,7 @@ namespace MonoTanx.Core
         // Puts a newly fired shell in flight.
         public void Launch(Player shooter, ShellLaunch launch)
         {
-            shells.Add(new Shell(launch.Ammunition, launch.Position, launch.Velocity));
+            shells.Add(new Shell(launch.Ammunition, launch.Position, launch.Velocity) { Shooter = SeatOf(shooter) });
             events.Add(new MatchEvent(MatchEventKind.ShellFired, SeatOf(shooter)));
         }
 
@@ -128,6 +128,7 @@ namespace MonoTanx.Core
                 {
                     TickReload(tank, elapsed);
                     TankMovement.ApplyInput(map, tank, OpponentOf(tank), controllers[index].PlanMove(elapsed, pickups, shells), elapsed);
+                    ReportDecisions((Seat)index);
                 }
                 else
                 {
@@ -150,6 +151,13 @@ namespace MonoTanx.Core
                 motion[index] = TankMotionClassifier.Classify(before[index].Item1, before[index].Item2, tanks[index].Position, tanks[index].Heading);
             StepShells(elapsed);
             CollectPickups();
+        }
+
+        // Passes on what the computer decided this update, for the log.
+        private void ReportDecisions(Seat seat)
+        {
+            foreach (var decision in controllers[(int)seat].TakeDecisions())
+                events.Add(new MatchEvent(MatchEventKind.ComputerDecision, seat, decision: decision));
         }
 
         private void TickReload(Player tank, float elapsed)
@@ -200,7 +208,7 @@ namespace MonoTanx.Core
                 if (result.Fate == ShellFate.HitTerrain)
                     events.Add(new MatchEvent(MatchEventKind.ShellHitTerrain));
                 if (result.Hit != null)
-                    DamageTank(result.Hit, shell.Ammunition.Damage, shell.Velocity);
+                    DamageTank(result.Hit, shell.Ammunition.Damage, shell.Velocity, shell.Shooter);
                 if (result.Removed)
                     shells.RemoveAt(index);
             }
@@ -220,11 +228,11 @@ namespace MonoTanx.Core
                 }
         }
 
-        private void DamageTank(Player tank, int damage, Vector2 impactVelocity)
+        private void DamageTank(Player tank, int damage, Vector2 impactVelocity, Seat? shooter)
         {
             var seat = SeatOf(tank);
             var destroyed = TankDamage.Apply(map, tank, OpponentOf(tank), damage, impactVelocity, random);
-            events.Add(new MatchEvent(MatchEventKind.TankHit, seat));
+            events.Add(new MatchEvent(MatchEventKind.TankHit, seat, shooter));
             ControllerOf(seat).Hit();
             if (destroyed)
                 events.Add(new MatchEvent(MatchEventKind.TankDestroyed, seat));

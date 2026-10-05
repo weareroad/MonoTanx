@@ -5,6 +5,7 @@ using Microsoft.Xna.Framework.Input;
 using MonoTanx.Core;
 using System;
 using System.Collections.Generic;
+using System.IO;
 
 namespace MonoTanx.Stages
 {
@@ -29,6 +30,9 @@ namespace MonoTanx.Stages
         private readonly EngineSound engineOne;
         private readonly EngineSound engineTwo;
         private bool debugOverlayVisible;
+        private readonly RunLogger runLog;
+        private StreamWriter logFile;
+        private bool logFinished;
 
         public Player Player1 => playerOne;
         public Player Player2 => playerTwo;
@@ -72,6 +76,7 @@ namespace MonoTanx.Stages
                 game.Random.CreateStream("ai-1"), game.Random.CreateStream("ai-2"));
             simulation.PlaceAtStart();
             session = new MatchSession(simulation);
+            runLog = StartRunLog();
             UpdateCamera();
         }
 
@@ -98,6 +103,7 @@ namespace MonoTanx.Stages
 
         public override void OnLeave()
         {
+            FinishRunLog();
             engineOne.Dispose();
             engineTwo.Dispose();
         }
@@ -122,6 +128,7 @@ namespace MonoTanx.Stages
             // the tanks only act while a round is live; in the pauses they stand still and the engines idle
             var stepped = session.State.Phase == MatchPhase.Playing;
             session.Step(elapsed, CommandOf(Seat.One, keyboard), CommandOf(Seat.Two, keyboard));
+            runLog.Record(elapsed, CurrentSetup, session.State, simulation.Events);
             foreach (var seat in Seats)
             {
                 var tank = TankOf(seat);
@@ -147,6 +154,50 @@ namespace MonoTanx.Stages
                     game.ChangeStage(new HomeStage(game, graphicsDevice, content));
             }
             prevKeyboardState = keyboard;
+        }
+
+        // Starts the run log: a file in a logs folder beside the game (always) and the console (with --log).
+        // The seed and the log's path are printed at the start either way. A log that cannot be written
+        // is skipped, never allowed to stop the game.
+        private RunLogger StartRunLog()
+        {
+            var seed = game.Random.Seed;
+            string path = null;
+            try
+            {
+                var directory = Path.Combine(AppContext.BaseDirectory, "logs");
+                Directory.CreateDirectory(directory);
+                path = Path.Combine(directory, $"run-seed{seed}-{DateTime.Now:yyyyMMdd-HHmmss}.log");
+                logFile = new StreamWriter(path) { AutoFlush = true };
+            }
+            catch (Exception exception) when (exception is IOException || exception is UnauthorizedAccessException)
+            {
+                logFile = null;
+            }
+            Console.WriteLine(logFile == null ? $"MonoTanx run: seed {seed} (no log file could be written)" : $"MonoTanx run: seed {seed}, log {path}");
+            var echo = game.Options.Log;
+            var logger = new RunLogger(line =>
+            {
+                logFile?.WriteLine(line);
+                if (echo) Console.WriteLine(line);
+            });
+            logger.Header(seed, game.Options.Arguments, CurrentSetup, typeof(GameStage).Assembly.GetName().Version?.ToString() ?? "unknown");
+            game.Exiting += OnGameExiting;
+            return logger;
+        }
+
+        private void OnGameExiting(object sender, EventArgs e) => FinishRunLog();
+
+        // Writes the summary and closes the file, once, whether the stage is left or the game quits.
+        private void FinishRunLog()
+        {
+            if (logFinished)
+                return;
+            logFinished = true;
+            game.Exiting -= OnGameExiting;
+            runLog.Summary(CurrentSetup);
+            logFile?.Dispose();
+            logFile = null;
         }
 
         // The human's command for a seat, or null when the computer controls it.

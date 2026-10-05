@@ -55,6 +55,9 @@ namespace MonoTanx.Core
         public int ReflectionCount;
         public float ReflectionCooldown;
 
+        // Whose gun it came from, for the log (it can still hit its own tank).
+        public Seat? Shooter;
+
         public Shell(Ammunition ammunition, Vector2 position, Vector2 velocity)
         {
             Ammunition = ammunition;
@@ -67,7 +70,8 @@ namespace MonoTanx.Core
         {
             Age = Age,
             ReflectionCount = ReflectionCount,
-            ReflectionCooldown = ReflectionCooldown
+            ReflectionCooldown = ReflectionCooldown,
+            Shooter = Shooter
         };
 
         // Advances the shell by the elapsed time in short sub-steps so it cannot

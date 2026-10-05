@@ -46,6 +46,9 @@ namespace MonoTanx.Core
         private TankCommand lastEvasion;
         private float lastEvasionAge = float.MaxValue;
         private readonly Dictionary<Shell, bool> noticedShells = new Dictionary<Shell, bool>();
+        private readonly Dictionary<Shell, float> noticeDraws = new Dictionary<Shell, float>();
+        private readonly HashSet<(Shell, ComputerDecisionKind)> reportedShells = new HashSet<(Shell, ComputerDecisionKind)>();
+        private readonly List<ComputerDecision> decisions = new List<ComputerDecision>();
         private Player scratch;
         private bool longRangePursuit;
         private float longRangeHeading;
@@ -87,6 +90,15 @@ namespace MonoTanx.Core
         // How many times it has been stuck, and whether it is backing away now.
         public int StuckCount { get; private set; }
         public bool Recovering => recoveryTimer > 0.0f;
+
+        // What it has decided since the log last took it (the stage's log reads these; nothing in the
+        // computer depends on them).
+        public IReadOnlyList<ComputerDecision> TakeDecisions()
+        {
+            var taken = decisions.ToArray();
+            decisions.Clear();
+            return taken;
+        }
 
         // Whether it is dodging a shell this update.
         public bool Evading => evading;
@@ -145,6 +157,9 @@ namespace MonoTanx.Core
             evading = false;
             lastEvasionAge = float.MaxValue;
             noticedShells.Clear();
+            noticeDraws.Clear();
+            reportedShells.Clear();
+            decisions.Clear();
             pickupTargetId = -1;
             longRangePursuit = false;
             fireTimer = 0.0f;
@@ -223,6 +238,7 @@ namespace MonoTanx.Core
         private void StartRecovery()
         {
             StuckCount++;
+            decisions.Add(new ComputerDecision(ComputerDecisionKind.Stuck, self.Position, self.Fuel));
             repeatedStuck = secondsSinceRecovery <= Tuning.Ai.StuckRepeatSeconds ? repeatedStuck + 1 : 1;
             // back away turning to a side picked from the seat's stream; without one, alternate sides
             recoverySide = random != null ? (random.Next(2) == 0 ? -1 : 1) : -recoverySide;
@@ -374,20 +390,28 @@ namespace MonoTanx.Core
         private TankCommand? PlanEvasion(float elapsed, IReadOnlyList<Shell> shells)
         {
             ForgetGoneShells(shells);
-            if (shells.Count == 0 || self.Fuel <= 0.0f)
+            if (shells.Count == 0)
                 return null;
 
-            var threats = new List<Shell>();
+            var threats = new List<(Shell Shell, float SecondsToHit)>();
             foreach (var shell in shells)
             {
                 if (Vector2.Distance(shell.Position, self.Position) > Tuning.Ai.EvadeDetectionDistance || shell.Age < Tuning.Ai.EvadeReactionSeconds)
                     continue;
-                if (!Noticed(shell) || Survives(TankCommand.None, new[] { shell }))
+                var seen = Noticed(shell);
+                var hitTime = FirstHitTime(TankCommand.None, new[] { shell });
+                if (!hitTime.HasValue)
+                    continue; // it will not hit where the tank stands: nothing to do (or to report)
+                if (!seen)
+                {
+                    Report(ComputerDecisionKind.ShellNotNoticed, shell, hitTime.Value);
                     continue;
-                threats.Add(shell);
+                }
+                threats.Add((shell, hitTime.Value));
             }
             if (threats.Count == 0)
                 return null;
+            var threatShells = threats.Select(threat => threat.Shell).ToList();
 
             // try each way of moving, hold it for a moment, and keep one that gets clear of every threat
             TankCommand? best = null;
@@ -401,13 +425,15 @@ namespace MonoTanx.Core
                     var cost = Math.Abs(turn) * 0.1f + (drive < 0 ? 0.4f : drive == 0 ? 0.3f : 0.0f);
                     if (lastEvasionAge < 0.2f && candidate.Turn == lastEvasion.Turn && candidate.Drive == lastEvasion.Drive)
                         cost -= 0.25f; // keep to the move it was making rather than dither
-                    if (cost < bestCost && Survives(candidate, threats))
+                    if (cost < bestCost && !FirstHitTime(candidate, threatShells).HasValue)
                     {
                         best = candidate;
                         bestCost = cost;
                     }
                 }
 
+            foreach (var (shell, secondsToHit) in threats)
+                Report(best.HasValue ? ComputerDecisionKind.Dodging : ComputerDecisionKind.ShellUnavoidable, shell, secondsToHit, best ?? TankCommand.None);
             if (best.HasValue)
             {
                 lastEvasion = best.Value;
@@ -416,9 +442,10 @@ namespace MonoTanx.Core
             return best;
         }
 
-        // Whether holding the command for a moment and then standing still gets this tank clear of every
-        // one of the shells (flown forward on copies with the real shell rules, the opponent where it is).
-        private bool Survives(TankCommand command, IEnumerable<Shell> shells)
+        // How long until one of the shells would hit this tank if it held the command for a moment and then
+        // stood still (the shells flown forward on copies with the real shell rules, the opponent where it is),
+        // or null if none would. Standing still is the idle command.
+        private float? FirstHitTime(TankCommand command, IEnumerable<Shell> shells)
         {
             scratch ??= self.CopyForPrediction();
             scratch.Position = self.Position;
@@ -437,12 +464,23 @@ namespace MonoTanx.Core
                 {
                     var result = flying[shell].Step(map, tanks, step);
                     if (ReferenceEquals(result.Hit, scratch))
-                        return false;
+                        return (index + 1) * step;
                     if (result.Removed)
                         flying.RemoveAt(shell);
                 }
             }
-            return true;
+            return null;
+        }
+
+        // Records a decision about a shell, once for each shell and kind.
+        private void Report(ComputerDecisionKind kind, Shell shell, float secondsToHit, TankCommand move = default)
+        {
+            if (!reportedShells.Add((shell, kind)))
+                return;
+            var skill = MathHelper.Clamp(self.ComputerSkill, 0.0f, 1.0f);
+            var chance = Tuning.Ai.EvadeNoticeChanceAtSkillZero + (1.0f - Tuning.Ai.EvadeNoticeChanceAtSkillZero) * skill;
+            noticeDraws.TryGetValue(shell, out var draw);
+            decisions.Add(new ComputerDecision(kind, self.Position, self.Fuel, shell.Shooter, Vector2.Distance(shell.Position, self.Position), secondsToHit, move, draw, chance));
         }
 
         // Whether it has seen this shell: decided once, when it first comes within range, from its own
@@ -453,8 +491,10 @@ namespace MonoTanx.Core
             {
                 var skill = MathHelper.Clamp(self.ComputerSkill, 0.0f, 1.0f);
                 var chance = Tuning.Ai.EvadeNoticeChanceAtSkillZero + (1.0f - Tuning.Ai.EvadeNoticeChanceAtSkillZero) * skill;
-                seen = random == null || random.NextDouble() < chance;
+                var draw = random == null ? 0.0f : (float)random.NextDouble();
+                seen = random == null || draw < chance;
                 noticedShells[shell] = seen;
+                noticeDraws[shell] = draw;
             }
             return seen;
         }
@@ -465,7 +505,11 @@ namespace MonoTanx.Core
                 return;
             var gone = noticedShells.Keys.Where(shell => !shells.Contains(shell)).ToList();
             foreach (var shell in gone)
+            {
                 noticedShells.Remove(shell);
+                noticeDraws.Remove(shell);
+                reportedShells.RemoveWhere(entry => ReferenceEquals(entry.Item1, shell));
+            }
         }
 
         // After a shot, while the gun cools down, move to a new firing position instead of standing

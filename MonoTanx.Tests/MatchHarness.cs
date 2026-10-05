@@ -23,9 +23,20 @@ internal sealed class MatchHarness
     public List<(int Frame, MatchEventKind Kind, Seat? Seat)> Log { get; } = new();
     public int Frame { get; private set; }
 
-    public MatchHarness(int seed, MatchSetup setup, int roundsToWin = Tuning.Match.RoundsToWin)
+    // The run log of what the harness plays, when asked for (it only watches: the match is the same with or without it).
+    public List<string> LogLines { get; } = new();
+    private readonly RunLogger logger;
+    private readonly MatchSetup setup;
+
+    public MatchHarness(int seed, MatchSetup setup, int roundsToWin = Tuning.Match.RoundsToWin, bool recordLog = false)
     {
         Seed = seed;
+        this.setup = setup;
+        if (recordLog)
+        {
+            logger = new RunLogger(LogLines.Add);
+            logger.Header(seed, "(test harness)", setup, "test");
+        }
         Map = new WorldMap(TestSupport.FixturePath("arena", "arena_01.tmx"));
         PlayerOne = new Player("Player 1", "Sprites/tank", Color.White, Player.DefaultAmmunition, Tuning.Tank.StartingShells,
             isComputerControlled: setup.PlayerOne == PlayerControl.Computer);
@@ -47,6 +58,7 @@ internal sealed class MatchHarness
         {
             Frame++;
             Simulation.Step(Step, humanCommand?.Invoke(this, Seat.One), humanCommand?.Invoke(this, Seat.Two));
+            logger?.Record(Step, setup, Session.State, Simulation.Events);
             foreach (var matchEvent in Simulation.Events)
                 Log.Add((Frame, matchEvent.Kind, matchEvent.Seat));
             Simulation.ClearEvents();
@@ -65,6 +77,7 @@ internal sealed class MatchHarness
         {
             Frame++;
             Session.Step(Step, null, null);
+            logger?.Record(Step, setup, Session.State, Simulation.Events);
             foreach (var matchEvent in Simulation.Events)
                 Log.Add((Frame, matchEvent.Kind, matchEvent.Seat));
             Simulation.ClearEvents();
@@ -154,6 +167,8 @@ internal sealed class MatchHarness
         }
         return report;
     }
+
+    public void FinishLog() => logger?.Summary(setup);
 
     public int Count(MatchEventKind kind, Seat? seat = null) =>
         Log.Count(e => e.Kind == kind && (seat == null || e.Seat == seat));

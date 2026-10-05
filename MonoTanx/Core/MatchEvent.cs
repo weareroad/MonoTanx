@@ -10,7 +10,10 @@ namespace MonoTanx.Core
         ShellHitTerrain,
         TankHit,
         PickupCollected,
-        TankDestroyed
+        TankDestroyed,
+
+        // The computer decided something worth recording (see ComputerDecision).
+        ComputerDecision
     }
 
     public readonly struct MatchEvent
@@ -21,10 +24,18 @@ namespace MonoTanx.Core
         // collected the pickup. Null for a shell reflecting or hitting terrain.
         public Seat? Seat { get; }
 
-        public MatchEvent(MatchEventKind kind, Seat? seat = null)
+        // For a hit: the seat whose shell it was, when known.
+        public Seat? Source { get; }
+
+        // For a computer decision: what it decided.
+        public ComputerDecision? Decision { get; }
+
+        public MatchEvent(MatchEventKind kind, Seat? seat = null, Seat? source = null, ComputerDecision? decision = null)
         {
             Kind = kind;
             Seat = seat;
+            Source = source;
+            Decision = decision;
         }
     }
 }

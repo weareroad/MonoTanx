@@ -20,6 +20,12 @@ namespace MonoTanx
         // Start with all sound off.
         public bool Mute { get; private set; }
 
+        // Echo the run log to the console as the game is played (it is always written to a file).
+        public bool Log { get; private set; }
+
+        // The command line as given, for the run log.
+        public string Arguments { get; private set; } = "";
+
         // Run in a window instead of fullscreen.
         public bool Windowed { get; private set; }
 
@@ -77,6 +83,9 @@ namespace MonoTanx
             new OptionSpec(new[] { "--mute" }, null,
                 "Start with all sound off.",
                 (options, state, flag, value) => options.Mute = true),
+            new OptionSpec(new[] { "--log" }, null,
+                "Echo the run log to the console as the game is played: what the computer decides (dodges, shells it did not notice, getting stuck), shots, hits, pickups and rounds. The log is always written to a file too; its path is printed at the start.",
+                (options, state, flag, value) => options.Log = true),
             new OptionSpec(new[] { "--seed" }, "<integer>",
                 "Fix the run's random draws so it can be reproduced. Without it a seed is chosen at random and shown in the debug overlay (F5).",
                 (options, state, flag, value) =>
@@ -101,7 +110,7 @@ namespace MonoTanx
 
         public static GameOptions Parse(string[] args)
         {
-            var options = new GameOptions();
+            var options = new GameOptions { Arguments = string.Join(" ", args) };
             if (args.Any(argument => HelpFlags.Contains(argument)))
             {
                 options.ShowHelp = true;
@@ -143,7 +152,7 @@ namespace MonoTanx
         }
 
         public static string UsageLine =>
-            "Usage: MonoTanx [--test] [--two-player | --demo] [--mute] [--seed <integer>] [--windowed [--scale <" + MinimumScale + "-" + MaximumScale + ">]] [--help]";
+            "Usage: MonoTanx [--test] [--two-player | --demo] [--mute] [--log] [--seed <integer>] [--windowed [--scale <" + MinimumScale + "-" + MaximumScale + ">]] [--help]";
 
         // What --help prints: every option, then how conflicts and repeats are handled.
         public static string HelpText
