@@ -195,6 +195,7 @@ Fuel bars show remaining fuel in yellow and depleted fuel in red.
 
 While holding `F5`, the overlay pauses the simulation and shows:
 
+- Each tank's collision circle, a line along its heading, and the tiles around it that block movement, drawn over the world (`DrawCollisionShapes`)
 - The update and frame rates per second (`RateMeter`; the fixed step should read 60 updates a second)
 - Both player positions and tile coordinates
 - Both headings in radians and degrees
@@ -362,7 +363,7 @@ Preserve these behaviours when changing movement, projectiles, rendering, or tim
 - Screen shake (`ScreenShake`) runs entirely on elapsed time: its jitter is resampled at a fixed 60 Hz inside `Update`, so how often it is drawn does not change it or the random draws it consumes. It uses the cosmetic random stream.
 - Debug rendering (the `F5` overlay) must not change simulation behavior. Holding `F5` pauses the whole update, including the `Esc` check.
 - Fuel never goes below zero. Turning and driving each cost fuel scaled by the terrain fuel multiplier; a tank without enough fuel cannot turn or drive, but can still fire.
-- Movement is resolved one axis at a time, so tanks slide along obstacles. A tank cannot enter movement-blocking terrain, leave the map, or overlap the other tank.
+- Movement is resolved one axis at a time, so tanks slide along obstacles, and a move is cut into sub-steps of at most `Tuning.Tank.MovementSubStepLength` (4px) so no speed or step length can skip a thin wall or the other tank (#49; `CollisionHardeningTests`). A tank cannot enter movement-blocking terrain, leave the map, or overlap the other tank.
 - Out-of-bounds counts as blocking for movement, projectiles, and vision. Missing terrain data defaults to ground.
 - Firing is edge-triggered and refused while the reload timer is running or no ammunition remains. Slots are consumed in order, and firing sets the reload timer from the ammunition type.
 - A shell is removed on expiry, on hitting projectile-blocking terrain, on hitting either tank (including the tank that fired it), or after more than 8 reflections.
@@ -420,7 +421,6 @@ Each has a GitHub issue; the roadmap's resume point says what is next.
 - Pickups are collected once and stay gone, aircraft drops and dynamic spawning are not implemented, and a tank with no fuel gets no feedback (#56, #57).
 - Shell selection is automatic only; no manual selection mechanic or second shell type exists yet (#61).
 - Projectile reflection is intentionally approximate and should later use exact tile-edge normals or authored surface metadata (#60). There is no projectile-vs-projectile collision.
-- Tank movement is not sub-stepped, so speeds are capped in the settings until tunnelling protection exists (#49).
 - Human input is read from the keyboard inside `GameStage`; an input adapter and gamepad support are not built (#53, #54). Tanks start at corner searches, not authored spawn points (#47), and map files are not validated (#48).
 - Destructible terrain, fog of war and a two-player camera decision are open design questions (#58, #59, #55).
 - CPU difficulty is one skill value plus the tuning values; there are no difficulty presets.

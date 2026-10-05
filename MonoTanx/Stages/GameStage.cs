@@ -393,12 +393,61 @@ namespace MonoTanx.Stages
                 var origin = new Vector2(frameWidth / 2.0f, frameHeight / 2.0f);
                 spriteBatch.Draw(visual.Texture, pickup.Spawn.Position, source, Color.White, 0.0f, origin, 1.0f, SpriteEffects.None, 0.45f);
             }
+            if (debugOverlayVisible)
+                DrawCollisionShapes(spriteBatch);
             foreach (var shell in simulation.Shells)
             {
                 var offset = Tuning.Presentation.PlaceholderShellSize / 2;
                 var bounds = new Rectangle((int)shell.Position.X - offset, (int)shell.Position.Y - offset, Tuning.Presentation.PlaceholderShellSize, Tuning.Presentation.PlaceholderShellSize);
                 spriteBatch.Draw(placeholderShellTexture, bounds, null, Color.Yellow, 0.0f, Vector2.Zero, SpriteEffects.None, 0.6f);
             }
+        }
+
+        // The debug view of collisions (F5): each tank's collision circle and a line along its
+        // heading, and the tiles near it that block movement. Only drawn; it reads the simulation
+        // and changes nothing.
+        private void DrawCollisionShapes(SpriteBatch spriteBatch)
+        {
+            const float depth = 0.1f;
+            foreach (var tank in new[] { playerOne, playerTwo })
+            {
+                if (tank.Health <= 0)
+                    continue;
+                var centreTile = worldMap.WorldToTile(tank.Position);
+                for (var y = centreTile.Y - 2; y <= centreTile.Y + 2; y++)
+                    for (var x = centreTile.X - 2; x <= centreTile.X + 2; x++)
+                    {
+                        var tile = new Point(x, y);
+                        if (!worldMap.IsInside(tile))
+                            continue;
+                        var bounds = worldMap.GetTileBounds(tile);
+                        if (worldMap.BlocksMovement(new Vector2(bounds.Center.X, bounds.Center.Y)))
+                            spriteBatch.Draw(placeholderShellTexture, bounds, null, Color.Red * 0.35f, 0.0f, Vector2.Zero, SpriteEffects.None, depth);
+                    }
+
+                const int segments = 24;
+                for (var segment = 0; segment < segments; segment++)
+                {
+                    var from = CirclePoint(tank, segment, segments);
+                    var to = CirclePoint(tank, segment + 1, segments);
+                    DrawLine(spriteBatch, from, to, Color.Lime, depth);
+                }
+                var direction = new Vector2((float)Math.Cos(tank.Heading), (float)Math.Sin(tank.Heading));
+                DrawLine(spriteBatch, tank.Position, tank.Position + direction * (tank.CollisionRadius + 12.0f), Color.Cyan, depth);
+            }
+        }
+
+        private static Vector2 CirclePoint(Player tank, int segment, int segments)
+        {
+            var angle = MathHelper.TwoPi * segment / segments;
+            return tank.Position + new Vector2((float)Math.Cos(angle), (float)Math.Sin(angle)) * tank.CollisionRadius;
+        }
+
+        // A one pixel line, drawn as a stretched, rotated pixel.
+        private void DrawLine(SpriteBatch spriteBatch, Vector2 from, Vector2 to, Color colour, float depth)
+        {
+            var edge = to - from;
+            spriteBatch.Draw(placeholderShellTexture, from, null, colour, (float)Math.Atan2(edge.Y, edge.X), Vector2.Zero, new Vector2(edge.Length(), 1.0f), SpriteEffects.None, depth);
         }
 
         private void DrawPlayerOneHud(SpriteBatch spriteBatch)

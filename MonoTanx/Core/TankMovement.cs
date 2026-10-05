@@ -50,13 +50,25 @@ namespace MonoTanx.Core
             return drove;
         }
 
-        // Moves one axis at a time so a tank slides along obstacles.
+        // Moves one axis at a time so a tank slides along obstacles. A long move (a fast
+        // tank, or a long step) is cut into sub-steps no longer than
+        // Tuning.Tank.MovementSubStepLength, each resolved the same way, so it cannot
+        // skip over a thin wall or the other tank (#49). A move already that short is
+        // one sub-step, exactly as before.
         public static void Move(WorldMap map, Player tank, Player other, Vector2 movement)
         {
-            var horizontal = tank.Position + new Vector2(movement.X, 0.0f);
-            if (CanOccupy(map, tank, other, horizontal)) tank.Position = horizontal;
-            var vertical = tank.Position + new Vector2(0.0f, movement.Y);
-            if (CanOccupy(map, tank, other, vertical)) tank.Position = vertical;
+            var steps = Math.Max(1, (int)Math.Ceiling(movement.Length() / Tuning.Tank.MovementSubStepLength));
+            var part = movement / steps;
+            for (var step = 0; step < steps; step++)
+            {
+                var before = tank.Position;
+                var horizontal = tank.Position + new Vector2(part.X, 0.0f);
+                if (CanOccupy(map, tank, other, horizontal)) tank.Position = horizontal;
+                var vertical = tank.Position + new Vector2(0.0f, part.Y);
+                if (CanOccupy(map, tank, other, vertical)) tank.Position = vertical;
+                if (tank.Position == before)
+                    break; // blocked on both axes: the rest of a move in the same direction is blocked too
+            }
         }
 
         public static bool CanOccupy(WorldMap map, Player tank, Player other, Vector2 position)

@@ -38,7 +38,7 @@ public class SettingsTests
     {
         var settings = new GameSettings();
 
-        Assert.Equal(240.0f, settings.Set(SettingKeys.ForwardSpeed, 5000.0f));
+        Assert.Equal(480.0f, settings.Set(SettingKeys.ForwardSpeed, 5000.0f));
         Assert.Equal(20.0f, settings.Set(SettingKeys.ForwardSpeed, -1.0f));
         Assert.Equal(13, settings.Set(SettingKeys.Damage, 12.6f));
     }
@@ -110,8 +110,8 @@ public class SettingsTests
     {
         var load = SettingsFile.Parse("{ \"version\": 1, \"tank.forwardSpeed\": 9999 }");
 
-        Assert.Equal(240.0f, load.Settings.Get(SettingKeys.ForwardSpeed));
-        Assert.Contains(load.Problems, problem => problem.Contains("tank.forwardSpeed") && problem.Contains("240"));
+        Assert.Equal(480.0f, load.Settings.Get(SettingKeys.ForwardSpeed));
+        Assert.Contains(load.Problems, problem => problem.Contains("tank.forwardSpeed") && problem.Contains("480"));
     }
 
     [Theory]

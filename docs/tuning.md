@@ -144,7 +144,7 @@ It is deliberately imperfect, so a human can still hit it: only shells within `E
 
 ## Settings reference
 
-Every setting in the catalogue, by page. Whole-number settings are rounded. Fire distance is never below engage distance: setting one moves the other with it. Ranges keep the game playable and the rules safe: speeds are capped (240 px/s forward, a little under three times the default) until tunnelling protection exists (#49), the collision radius cannot exceed what fits a one-tile corridor, and the aim tolerance cannot go below 0.07 (the computer turns up to 0.04 rad a step, so a tighter window is missed over and over).
+Every setting in the catalogue, by page. Whole-number settings are rounded. Fire distance is never below engage distance: setting one moves the other with it. Ranges keep the game playable and the rules safe: speeds are capped for playability (480 px/s forward, over five times the default; a per-seat multiplier of 2 doubles it again), not for safety, because tank movement is sub-stepped and cannot tunnel at any speed or step length (#49); the collision radius cannot exceed what fits a one-tile corridor, and the aim tolerance cannot go below 0.07 (the computer turns up to 0.04 rad a step, so a tighter window is missed over and over).
 
 ### Match
 
@@ -163,8 +163,8 @@ Every setting in the catalogue, by page. Whole-number settings are rounded. Fire
 | `tank.maximumHealth` | Armour | 100 | 10 to 1000 | 10 |
 | `tank.maximumFuel` | Fuel | 200 | 20 to 1000 | 10 |
 | `tank.startingShells` | Starting shells | 20 | 1 to 200 | 1 |
-| `tank.forwardSpeed` | Forward speed (px/s) | 90 | 20 to 240 | 5 |
-| `tank.reverseSpeed` | Reverse speed (px/s) | 45 | 10 to 120 | 5 |
+| `tank.forwardSpeed` | Forward speed (px/s) | 90 | 20 to 480 | 5 |
+| `tank.reverseSpeed` | Reverse speed (px/s) | 45 | 10 to 240 | 5 |
 | `tank.turnSpeed` | Turn speed (rad/s) | 2.5 | 0.5 to 6.0 | 0.1 |
 | `tank.collisionRadius` | Collision radius (px) | 6.0 | 3.0 to 7.0 | 0.5 |
 | `tank.forwardFuelPerSecond` | Forward fuel use (/s) | 4.0 | 0.0 to 20.0 | 0.5 |
@@ -227,7 +227,7 @@ Every setting in the catalogue, by page. Whole-number settings are rounded. Fire
 | `computer.fuelUseMultiplier` | CPU fuel use x | 1.00 | 0.00 to 4.00 | 0.05 |
 | `computer.reloadMultiplier` | CPU reload x | 1.00 | 0.25 to 4.00 | 0.05 |
 
-Not surfaced (they stay in `Tuning.cs`): the "60s remaining" mark, how long it stays up and the length of the final countdown (`Match.TimeWarningSeconds`, `TimeWarningShownSeconds`, `FinalCountdownSeconds`), the fixed update rate, the projectile sub-step, reflection cooldown and nudge, the hit radius of a shell, the computer's route tolerances (waypoint distance, drive angle, route rebuild distance), combat ring size and tolerance, evade step, stuck repeat, route pursuit and pickup ignore times, line-of-sight spacing, screen shake, all audio, and all presentation values. These are either not gameplay, or so tightly tied to other values that changing them alone would break something; any can be added to the catalogue when tuning needs it.
+Not surfaced (they stay in `Tuning.cs`): the tank movement sub-step length (`Tank.MovementSubStepLength`, 4px, which is what stops any speed or step skipping a wall or the other tank), the "60s remaining" mark, how long it stays up and the length of the final countdown (`Match.TimeWarningSeconds`, `TimeWarningShownSeconds`, `FinalCountdownSeconds`), the fixed update rate, the projectile sub-step, reflection cooldown and nudge, the hit radius of a shell, the computer's route tolerances (waypoint distance, drive angle, route rebuild distance), combat ring size and tolerance, evade step, stuck repeat, route pursuit and pickup ignore times, line-of-sight spacing, screen shake, all audio, and all presentation values. These are either not gameplay, or so tightly tied to other values that changing them alone would break something; any can be added to the catalogue when tuning needs it.
 
 ## Deliberately kept elsewhere
 
