@@ -94,7 +94,7 @@ Either player can be a human or the CPU. A normal game has P1 human and P2 the C
 
 ## Developer diagnostics
 
-Holding `F5` pauses the simulation and shows both players' positions, tile coordinates and headings, P2's AI mode, route progress and timers, the number of loaded pickups, and the run's random seed.
+Holding `F5` pauses the simulation and shows the update and frame rates, both players' positions, tile coordinates and headings, P2's AI mode, route progress and timers, the number of loaded pickups, and the run's random seed.
 
 ## Project layout
 
@@ -110,4 +110,4 @@ Holding `F5` pauses the simulation and shows both players' positions, tile coord
 
 ## Current boundary and next phase
 
-Not yet implemented: scoring and round reset, a game-over screen, a menu or match-setup choice for a second human player, pickup respawn and dynamic drops, manual shell selection, destructible terrain, and fog of war. The immediate next step is a hardening pass with focused tests, followed by the first complete match loop; see [`docs/roadmap.md`](docs/roadmap.md).
+Not yet implemented: pickup respawn and dynamic drops, manual shell selection, destructible terrain, fog of war, gamepad support and authored spawn points. Each has a GitHub issue; see [`docs/roadmap.md`](docs/roadmap.md) for the resume point and what is next.

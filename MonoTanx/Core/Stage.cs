@@ -20,8 +20,7 @@ namespace MonoTanx.Core
 
         protected List<Component> components;
         protected KeyboardState prevKeyboardState;
-        protected Rectangle fullScreenBounds = new Rectangle(0, 0, (int)Tanx.DesignedWidth, (int)Tanx.DesignedHeight);
-        protected SpriteFont baseFont;// = content.Load<SpriteFont>("SpriteFonts/pixel-emulator");
+        protected SpriteFont baseFont;
 
         public abstract void Draw(GameTime gameTime, SpriteBatch spriteBatch);
 
@@ -34,7 +33,6 @@ namespace MonoTanx.Core
             this.content = content;
             // a key still held from the previous stage must not count as a fresh press
             prevKeyboardState = Keyboard.GetState();
-            //this.baseFont = baseFont;
         }
 
         public abstract void Update(GameTime gameTime);
