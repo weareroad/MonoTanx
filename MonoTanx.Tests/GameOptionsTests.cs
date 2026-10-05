@@ -211,6 +211,7 @@ public class GameOptionsTests
         new object[] { "--two-player", Array.Empty<string>() },
         new object[] { "--demo", Array.Empty<string>() },
         new object[] { "--mute", Array.Empty<string>() },
+        new object[] { "--log", Array.Empty<string>() },
         new object[] { "--seed", new[] { "1" } },
         new object[] { "--windowed", Array.Empty<string>() },
         new object[] { "--scale", new[] { "2", "--windowed" } },
@@ -289,5 +290,19 @@ public class GameOptionsTests
         Assert.Contains("--demo", exception.Message);
         Assert.Contains("--two-player", exception.Message);
         Assert.Contains("cannot be combined", exception.Message);
+    }
+
+    [Fact]
+    public void LogEchoesTheRunLogAndIsOffByDefault()
+    {
+        Assert.False(GameOptions.Parse(Array.Empty<string>()).Log);
+        Assert.True(GameOptions.Parse(new[] { "--test", "--log", "--seed", "3" }).Log);
+    }
+
+    [Fact]
+    public void TheCommandLineIsKeptForTheRunLog()
+    {
+        Assert.Equal("--test --demo --seed 9", GameOptions.Parse(new[] { "--test", "--demo", "--seed", "9" }).Arguments);
+        Assert.Equal("", GameOptions.Parse(Array.Empty<string>()).Arguments);
     }
 }

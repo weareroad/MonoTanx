@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 20x9 test map for shells and dodging. Gids: 1 ground, 7 reflective (see terrain.tsx).
+     Open ground with a column of reflective tiles down the right-hand edge (x = 19), so a shell
+     fired to the right comes back. -->
+<map version="1.10" tiledversion="1.12.2" orientation="orthogonal" renderorder="right-down" width="20" height="9" tilewidth="16" tileheight="16" infinite="0" nextlayerid="2" nextobjectid="1">
+ <tileset firstgid="1" source="terrain.tsx"/>
+ <layer id="1" name="Terrain" width="20" height="9">
+  <data encoding="csv">
+1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,7,
+1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,7,
+1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,7,
+1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,7,
+1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,7,
+1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,7,
+1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,7,
+1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,7,
+1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,7
+</data>
+ </layer>
+</map>

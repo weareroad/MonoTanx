@@ -469,4 +469,41 @@ public class MatchSimulationTests
         Assert.NotEqual(simulation.ControllerOf(Seat.One).AimError, simulation.ControllerOf(Seat.Two).AimError);
         Assert.True(simulation.ControllerOf(Seat.One).AimError > Tuning.Ai.AimToleranceRadians - 0.0001f);
     }
+
+    [Fact]
+    public void ALaunchedShellKnowsWhoseGunItCameFromAndAHitReportsIt()
+    {
+        var one = NewPlayer(Centre(0, 0));
+        var two = NewPlayer(Centre(5, 0));
+        var simulation = NewSimulation(one, two);
+        simulation.Launch(one, Launch(Centre(1, 0), new Vector2(200, 0)));
+        Assert.Equal(Seat.One, simulation.Shells.Single().Shooter);
+        simulation.ClearEvents();
+
+        RunShells(simulation);
+
+        var hit = Assert.Single(simulation.Events);
+        Assert.Equal((MatchEventKind.TankHit, (Seat?)Seat.Two, (Seat?)Seat.One), (hit.Kind, hit.Seat, hit.Source));
+    }
+
+    [Fact]
+    public void WhatTheComputerDecidesIsReportedAsEventsForTheLog()
+    {
+        // a computer in the open with a shell flying at it that it can see and get clear of
+        var map = new WorldMap(FixturePath("field.tmx"));
+        var computer = NewPlayer(Centre(6, 4), 0.0f, "Computer");
+        var human = NewPlayer(Centre(1, 8), 0.0f, "Human");
+        computer.IsComputerControlled = true;
+        var simulation = new MatchSimulation(map, human, computer, new PickupSpawn[0], new Random(1), new SimulationSettings(20.0f, 20.0f));
+        simulation.Launch(human, new ShellLaunch(Player.DefaultAmmunition, computer.Position + new Vector2(150.0f, 0.0f), new Vector2(-Player.DefaultAmmunition.Speed, 0.0f)));
+        simulation.Shells.Single().Age = 0.2f;
+        simulation.ClearEvents();
+
+        simulation.Step(Step, null, null);
+
+        var decision = simulation.Events.Single(e => e.Kind == MatchEventKind.ComputerDecision);
+        Assert.Equal(Seat.Two, decision.Seat);
+        Assert.Equal(ComputerDecisionKind.Dodging, decision.Decision.Value.Kind);
+        Assert.Equal(Seat.One, decision.Decision.Value.ShellShooter);
+    }
 }

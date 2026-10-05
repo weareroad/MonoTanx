@@ -40,8 +40,9 @@ public class ComputerBalanceTests
         var report = Report(Computers, "computers");
 
         // after stuck recovery they hit 1.7 times a minute at 10% accuracy (firing from 300 to 500px, mostly
-        // missing); closing in: about 9 a minute at about 50%; scooting to closer positions: about 12 at about 60%
-        Assert.InRange(report.HitsPerMinute, 6.0f, 16.0f);
+        // missing); closing in: about 9 a minute at about 50%; scooting to closer positions: about 12 at about 60%;
+        // dodging shells it can see: about 8.5 a minute at about 45%
+        Assert.InRange(report.HitsPerMinute, 5.0f, 15.0f);
         Assert.InRange(report.Accuracy, 0.3f, 0.8f);
         Assert.True(report.ShellsFired > 0);
     }
@@ -62,9 +63,10 @@ public class ComputerBalanceTests
     {
         var report = Report(Computers, "computers");
 
-        // 5% decided before they closed in (nearly every round ran out the clock), about 55% now
+        // 5% decided before they closed in (nearly every round ran out the clock), 56% after scooting, about
+        // 35% once they dodge (27% in this shorter run)
         Assert.True(report.RoundsDecided + report.RoundsDrawn > 0);
-        Assert.InRange(report.DecidedShare, 0.25f, 0.85f);
+        Assert.InRange(report.DecidedShare, 0.12f, 0.85f);
     }
 
     [Fact]

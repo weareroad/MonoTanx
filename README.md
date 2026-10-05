@@ -27,7 +27,7 @@ Drive around the arena, manage your fuel and shells, collect fuel and ammunition
 
 ### Computer opponent
 
-Player 2 pursues, evades and routes around terrain, seeks pickups when low on fuel or ammunition, retaliates when hit, backs away when it gets stuck, closes in to about six tiles before it shoots, moves to a new firing position after each shot, and only fires with a clear line of sight and some aiming error.
+Player 2 pursues, dodges shells it sees coming (including rebounds), routes around terrain, seeks pickups when low on fuel or ammunition, retaliates when hit, backs away when it gets stuck, closes in to about six tiles before it shoots, moves to a new firing position after each shot, and only fires with a clear line of sight and some aiming error.
 
 ## Build and run
 
@@ -53,6 +53,7 @@ Run `MonoTanx --help` (or `-h`, `-?`) to list these in the terminal, with how th
 | `--seed <integer>` | Fix the run's random draws; the seed is shown in the debug overlay |
 | `--windowed` | Run in a window instead of fullscreen |
 | `--scale <1-4>` | With `--windowed`, set the window to that integer multiple of 800×600 (default 2) |
+| `--log` | Echo the run log to the console as the game is played (it is always written to a file; the path and the seed are printed at the start). It records shots, hits, pickups, rounds and what the computer decides: dodges, shells it did not notice, getting stuck |
 | `--help`, `-h`, `-?`, `/?` | Print the options and exit. Always wins over everything else on the line |
 
 Options can be given in any order. Conflicting options (`--two-player` with `--demo`, `--scale` without `--windowed`) are rejected with a message rather than one quietly overriding the other; repeating `--seed` or `--scale` is allowed and the last value wins.

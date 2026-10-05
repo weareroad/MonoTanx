@@ -15,6 +15,7 @@ Three PRs, each leaving the game playable, each measured with the headless harne
    - `Shell.Clone()`, the prediction, the candidate search, the priority change in `PlanMove` (now given the shells) and the aim phase's behaviour while evading; the three limits (distance, reaction time, chance of noticing) in `Tuning.Ai`.
    - Scripted tests (open fixture, rebound off a reflective tile, the computer's own rebound, undodgeable, no fuel, no threat, priority over retaliation and pickups, mirror) and the headless balance numbers: hits per match must fall by a bounded, recorded amount, and the cost per update is measured.
    - Update `onboarding.md` (the controller's priorities), `README.md` (the computer's behaviour) and the roadmap.
+   - Result: hits a minute between two computers fell from 11.8 to 8.9 and the share of rounds decided from 56% to 36%; they dodge about 2.3 times a minute and are evading 0.1% of the time (see `docs/tuning.md`).
 
 ## Follow-up candidates found along the way
 

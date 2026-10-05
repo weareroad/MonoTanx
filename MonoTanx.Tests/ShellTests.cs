@@ -258,4 +258,38 @@ public class ShellTests
         Assert.Equal(ShellFate.TooManyReflections, result.Fate);
         Assert.Equal(1, result.Reflections); // so a ping can still be played
     }
+
+    [Fact]
+    public void ACloneFliesTheSamePathWithoutDisturbingTheOriginal()
+    {
+        var original = NewShell(40, 24, 100, 5);
+        original.Step(LoadTerrainMap(), NoTanks(), 0.1f);
+        var copy = original.Clone();
+        var position = original.Position;
+
+        copy.Step(LoadTerrainMap(), NoTanks(), 0.1f);
+        copy.Step(LoadTerrainMap(), NoTanks(), 0.1f);
+
+        Assert.Equal(position, original.Position);
+        Assert.NotEqual(position, copy.Position);
+        var twin = NewShell(40, 24, 100, 5);
+        twin.Step(LoadTerrainMap(), NoTanks(), 0.1f);
+        twin.Step(LoadTerrainMap(), NoTanks(), 0.1f);
+        twin.Step(LoadTerrainMap(), NoTanks(), 0.1f);
+        Assert.Equal(twin.Position, copy.Position);
+    }
+
+    [Fact]
+    public void ACloneKeepsItsAgeAndReflectionState()
+    {
+        var original = NewShell(8, 8, 10, 0);
+        original.Age = 1.5f;
+        original.ReflectionCount = 2;
+        original.ReflectionCooldown = 0.05f;
+
+        var copy = original.Clone();
+
+        Assert.Equal((1.5f, 2, 0.05f), (copy.Age, copy.ReflectionCount, copy.ReflectionCooldown));
+        Assert.NotSame(original, copy);
+    }
 }
