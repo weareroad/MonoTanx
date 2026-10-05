@@ -161,6 +161,19 @@ namespace MonoTanx.Core
             // the next step: a demo starting its next match by itself, or a game
             // with a human leaving the match. Long enough to read who won.
             public const float MatchOverSeconds = 5.0f;
+
+            // A round with more time than this on its limit says "60s remaining" when
+            // that much is left (seconds), a prompt that the round is ageing. A limit of
+            // this or less has no such moment, since it would flash at the very start.
+            public const float TimeWarningSeconds = 60.0f;
+
+            // How long that message stays up (seconds): long enough to read, short enough
+            // to be out of the way of the fight, like the 3-2-1 before a round.
+            public const float TimeWarningShownSeconds = 3.0f;
+
+            // In the last this many seconds of a round the whole seconds left are shown as
+            // a countdown (10, 9, ... 1) while play carries on.
+            public const int FinalCountdownSeconds = 10;
         }
 
         // Computer opponent. The first group are per-Player defaults; the

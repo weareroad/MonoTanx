@@ -227,7 +227,7 @@ Every setting in the catalogue, by page. Whole-number settings are rounded. Fire
 | `computer.fuelUseMultiplier` | CPU fuel use x | 1.00 | 0.00 to 4.00 | 0.05 |
 | `computer.reloadMultiplier` | CPU reload x | 1.00 | 0.25 to 4.00 | 0.05 |
 
-Not surfaced (they stay in `Tuning.cs`): the fixed update rate, the projectile sub-step, reflection cooldown and nudge, the hit radius of a shell, the computer's route tolerances (waypoint distance, drive angle, route rebuild distance), combat ring size and tolerance, evade step, stuck repeat, route pursuit and pickup ignore times, line-of-sight spacing, screen shake, all audio, and all presentation values. These are either not gameplay, or so tightly tied to other values that changing them alone would break something; any can be added to the catalogue when tuning needs it.
+Not surfaced (they stay in `Tuning.cs`): the "60s remaining" mark, how long it stays up and the length of the final countdown (`Match.TimeWarningSeconds`, `TimeWarningShownSeconds`, `FinalCountdownSeconds`), the fixed update rate, the projectile sub-step, reflection cooldown and nudge, the hit radius of a shell, the computer's route tolerances (waypoint distance, drive angle, route rebuild distance), combat ring size and tolerance, evade step, stuck repeat, route pursuit and pickup ignore times, line-of-sight spacing, screen shake, all audio, and all presentation values. These are either not gameplay, or so tightly tied to other values that changing them alone would break something; any can be added to the catalogue when tuning needs it.
 
 ## Deliberately kept elsewhere
 

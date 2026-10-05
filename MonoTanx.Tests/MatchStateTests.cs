@@ -270,4 +270,111 @@ public class MatchStateTests
         state.Update(Tuning.Match.RoundTimeLimitSeconds, Nothing);
         Assert.Equal(MatchPhase.RoundOver, state.Phase);
     }
+
+    private static MatchState InPlayWithLimit(float limitSeconds)
+    {
+        var state = new MatchState(3, countdownSeconds: 3.0f, roundOverSeconds: 2.0f, roundTimeLimitSeconds: limitSeconds);
+        state.Update(3.0f, Nothing);
+        return state;
+    }
+
+    // Plays the live round forward to this many seconds into it.
+    private static void PlayTo(MatchState state, float seconds, float step = 0.05f)
+    {
+        while (state.Phase == MatchPhase.Playing && state.PhaseTimer < seconds - 1e-4f)
+            state.Update(step, Nothing);
+    }
+
+    [Fact]
+    public void NoTimerMessageOutsideALiveRound()
+    {
+        var state = new MatchState(3, 3.0f, 2.0f, 90.0f);
+
+        Assert.Null(state.TimerMessage);          // countdown
+        Assert.Equal(0.0f, state.RoundTimeRemaining);
+        state.Update(3.0f, Nothing);
+        PlayTo(state, 85.0f);
+        state.Update(0.1f, new[] { Destroyed(Seat.Two) });
+        Assert.Equal(MatchPhase.RoundOver, state.Phase);
+        Assert.Null(state.TimerMessage);          // round over
+    }
+
+    [Fact]
+    public void SixtySecondsRemainingShowsForThreeSecondsThenGoes()
+    {
+        var state = InPlayWithLimit(90.0f);
+
+        PlayTo(state, 29.0f);
+        Assert.Null(state.TimerMessage);
+        PlayTo(state, 30.5f);                     // 59.5s left
+        Assert.Equal("60s remaining", state.TimerMessage?.Text);
+        Assert.False(state.TimerMessage?.IsCountdown);
+        PlayTo(state, 32.5f);
+        Assert.Equal("60s remaining", state.TimerMessage?.Text);
+        PlayTo(state, 33.5f);
+        Assert.Null(state.TimerMessage);
+    }
+
+    [Theory]
+    [InlineData(60.0f)]
+    [InlineData(45.0f)]
+    [InlineData(20.0f)]
+    public void ALimitOfSixtySecondsOrLessHasNoSixtySecondMessage(float limit)
+    {
+        var state = InPlayWithLimit(limit);
+
+        for (var seconds = 0.5f; seconds < limit - 10.5f; seconds += 0.5f)
+        {
+            PlayTo(state, seconds);
+            Assert.Null(state.TimerMessage);
+        }
+    }
+
+    [Fact]
+    public void TheLastTenSecondsCountDownInWholeSecondsWhilePlayContinues()
+    {
+        var state = InPlayWithLimit(90.0f);
+
+        PlayTo(state, 79.5f);
+        Assert.Null(state.TimerMessage);
+        PlayTo(state, 80.5f);                     // 9.5s left
+        Assert.Equal("10", state.TimerMessage?.Text);
+        Assert.True(state.TimerMessage?.IsCountdown);
+        PlayTo(state, 81.5f);
+        Assert.Equal("9", state.TimerMessage?.Text);
+        PlayTo(state, 88.5f);
+        Assert.Equal("2", state.TimerMessage?.Text);
+        PlayTo(state, 89.5f);
+        Assert.Equal("1", state.TimerMessage?.Text);
+        Assert.Equal(MatchPhase.Playing, state.Phase);
+    }
+
+    [Fact]
+    public void AShortRoundCountsDownFromItsStart()
+    {
+        var state = InPlayWithLimit(8.0f);
+
+        Assert.Equal("8", state.TimerMessage?.Text);
+        PlayTo(state, 2.5f);
+        Assert.Equal("6", state.TimerMessage?.Text);
+    }
+
+    [Fact]
+    public void TheCountdownEndsWithTheRoundAsADraw()
+    {
+        var state = InPlayWithLimit(30.0f);
+
+        PlayTo(state, 30.0f);
+
+        Assert.Equal(MatchPhase.RoundOver, state.Phase);
+        Assert.Null(state.TimerMessage);
+    }
+
+    [Fact]
+    public void TheMessagesFitInsideTheDefaultRound()
+    {
+        Assert.True(Tuning.Match.RoundTimeLimitSeconds > Tuning.Match.TimeWarningSeconds);
+        Assert.True(Tuning.Match.TimeWarningSeconds - Tuning.Match.TimeWarningShownSeconds > Tuning.Match.FinalCountdownSeconds,
+            "the 60s message must be over before the final countdown starts");
+    }
 }
