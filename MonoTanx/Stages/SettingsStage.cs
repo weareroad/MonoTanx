@@ -12,8 +12,8 @@ namespace MonoTanx.Stages
     // The settings page: tabs for the groups of settings, a row for each setting, Reset
     // all to defaults and Back. Up/Down select, Left/Right change a value (Shift for ten
     // steps, and holding repeats), Delete puts a value back to its default, PageUp/PageDown
-    // or Tab change tab, Esc goes back. The mouse hovers, clicks a tab or button, or clicks the
-    // left or right half of a row to decrease or increase it. The settings are saved when the
+    // or Tab change tab, Esc goes back. The mouse hovers, clicks a tab or button, or left-clicks
+    // a row to increase it and right-clicks it to decrease it. The settings are saved when the
     // page is left, and when the game is closed with it open. What it edits is
     // Tanx.StoredSettings; a match picks the changes up when it starts.
     public class SettingsStage : Stage
@@ -250,7 +250,7 @@ namespace MonoTanx.Stages
             spriteBatch.DrawString(smallFont, "Left/Right change  Shift x10  Del default  PgUp/PgDn tab  Esc back", new Vector2(40, 530), Color.Yellow);
             var note = saveProblem != null ? "Could not save: " + saveProblem
                 : game.OverriddenKeys.Count > 0 ? "* given with --set for this run; changing it here has no effect until it is dropped"
-                : "Changes apply when a game starts and are saved when you leave";
+                : "Click: more  Right-click: less  Applies at game start, saved on leaving";
             spriteBatch.DrawString(smallFont, note, new Vector2(40, 552), saveProblem != null ? Color.Red : Color.Gray);
 
             spriteBatch.End();

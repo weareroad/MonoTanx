@@ -8,7 +8,7 @@ namespace MonoTanx.Controls
     // One line of the settings page: the label on the left, the setting's default in
     // the middle and its current value on the right. The value is drawn in a different
     // colour when it is not the default. Highlighted by keyboard navigation or the
-    // mouse; a click on its left half asks for a decrease and on its right half an increase.
+    // mouse; a left click asks for an increase and a right click for a decrease.
     public class ValueRow : Component
     {
         private readonly SpriteFont font;
@@ -36,7 +36,7 @@ namespace MonoTanx.Controls
 
         public bool IsHovering { get; private set; }
 
-        // -1 if the left half was clicked this update, +1 for the right half, otherwise 0.
+        // +1 if it was left-clicked this update (increase), -1 if right-clicked (decrease), otherwise 0.
         public int ClickedSide { get; private set; }
 
         public override void Draw(GameTime gameTime, SpriteBatch spriteBatch)
@@ -65,7 +65,9 @@ namespace MonoTanx.Controls
             IsHovering = scaled.Contains(mouse.X, mouse.Y);
             ClickedSide = 0;
             if (IsHovering && mouse.LeftButton == ButtonState.Released && previousMouse.LeftButton == ButtonState.Pressed)
-                ClickedSide = mouse.X < scaled.X + scaled.Width / 2 ? -1 : 1;
+                ClickedSide = 1;
+            else if (IsHovering && mouse.RightButton == ButtonState.Released && previousMouse.RightButton == ButtonState.Pressed)
+                ClickedSide = -1;
             previousMouse = mouse;
         }
     }
