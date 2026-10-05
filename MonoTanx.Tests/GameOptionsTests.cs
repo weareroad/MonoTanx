@@ -171,4 +171,123 @@ public class GameOptionsTests
     {
         Assert.Equal(MatchSetup.Demo, GameOptions.Parse(new[] { "--demo", "--demo" }).Setup);
     }
+
+    // --help
+
+    [Theory]
+    [InlineData("--help")]
+    [InlineData("-h")]
+    [InlineData("-?")]
+    [InlineData("/?")]
+    public void AnyHelpFlagAsksForHelp(string flag)
+    {
+        Assert.True(GameOptions.Parse(new[] { flag }).ShowHelp);
+    }
+
+    [Fact]
+    public void HelpIsOffUnlessAskedFor()
+    {
+        Assert.False(GameOptions.Parse(Array.Empty<string>()).ShowHelp);
+        Assert.False(GameOptions.Parse(new[] { "--test", "--seed", "3" }).ShowHelp);
+    }
+
+    [Theory]
+    [InlineData("--bogus", "--help")]
+    [InlineData("--help", "--bogus")]
+    [InlineData("--scale", "2", "--help")]
+    [InlineData("--two-player", "--demo", "-h")]
+    [InlineData("--seed", "--help")]
+    public void HelpAlwaysWinsEvenOverInvalidOptions(params string[] args)
+    {
+        Assert.True(GameOptions.Parse(args).ShowHelp);
+    }
+
+    // Every option the parser accepts, with a valid way to give it. If you add an
+    // option, add it here; the tests below then check the help mentions it.
+    public static IEnumerable<object[]> EveryOption() => new[]
+    {
+        new object[] { "--test", Array.Empty<string>() },
+        new object[] { "-test", Array.Empty<string>() },
+        new object[] { "--two-player", Array.Empty<string>() },
+        new object[] { "--demo", Array.Empty<string>() },
+        new object[] { "--mute", Array.Empty<string>() },
+        new object[] { "--seed", new[] { "1" } },
+        new object[] { "--windowed", Array.Empty<string>() },
+        new object[] { "--scale", new[] { "2", "--windowed" } },
+    };
+
+    [Theory]
+    [MemberData(nameof(EveryOption))]
+    public void EveryAcceptedOptionIsDescribedInTheHelp(string option, string[] rest)
+    {
+        // it really is accepted...
+        var args = new[] { option }.Concat(rest).ToArray();
+        Assert.False(GameOptions.Parse(args).ShowHelp);
+
+        // ...and the help names it
+        Assert.Contains(option, GameOptions.HelpText);
+    }
+
+    [Fact]
+    public void TheHelpListsNothingTheParserRejects()
+    {
+        // every word in the help that starts with two dashes is an option the parser accepts (or help itself)
+        var words = GameOptions.HelpText.Split(new[] { ' ', '\n', '\r', ',', '.', '(', ')', ']', '[', '|' }, StringSplitOptions.RemoveEmptyEntries)
+            .Where(word => word.StartsWith("--") && word.Length > 2)
+            .Distinct();
+        var accepted = EveryOption().Select(option => (string)option[0]).Concat(GameOptions.HelpFlags).ToHashSet();
+
+        foreach (var word in words)
+            Assert.True(accepted.Contains(word), $"the help mentions {word}, which the parser does not accept");
+    }
+
+    [Fact]
+    public void TheHelpExplainsHowOptionsCombine()
+    {
+        var text = GameOptions.HelpText;
+
+        Assert.Contains("order of options does not matter", text);
+        Assert.Contains("Help always wins", text);
+        Assert.Contains("--two-player with --demo", text);
+        Assert.Contains("--scale without --windowed", text);
+        Assert.Contains("last value wins", text);
+    }
+
+    [Fact]
+    public void TheHelpShowsTheUsageAndTheHelpFlags()
+    {
+        Assert.Contains(GameOptions.UsageLine, GameOptions.HelpText);
+        foreach (var flag in GameOptions.HelpFlags)
+            Assert.Contains(flag, GameOptions.HelpText);
+    }
+
+    [Fact]
+    public void WhenAnOptionIsRepeatedTheLastValueWins()
+    {
+        var options = GameOptions.Parse(new[] { "--seed", "1", "--seed", "2", "--windowed", "--scale", "1", "--scale", "3" });
+
+        Assert.Equal(2, options.Seed);
+        Assert.Equal(3, options.Scale);
+    }
+
+    [Theory]
+    [InlineData("--seed")]
+    [InlineData("--scale")]
+    public void AValueOptionAtTheEndOfTheLineSaysItNeedsAValue(string option)
+    {
+        var exception = Assert.Throws<ArgumentException>(() => GameOptions.Parse(new[] { "--windowed", option }));
+
+        Assert.Contains(option, exception.Message);
+        Assert.Contains("requires", exception.Message);
+    }
+
+    [Fact]
+    public void ConflictsAreRejectedWithAMessageNamingBothOptions()
+    {
+        var exception = Assert.Throws<ArgumentException>(() => GameOptions.Parse(new[] { "--demo", "--two-player" }));
+
+        Assert.Contains("--demo", exception.Message);
+        Assert.Contains("--two-player", exception.Message);
+        Assert.Contains("cannot be combined", exception.Message);
+    }
 }

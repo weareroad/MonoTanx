@@ -42,6 +42,8 @@ dotnet run --project MonoTanx/MonoTanx.csproj -- --test  # straight into a game
 
 ### Launch options
 
+Run `MonoTanx --help` (or `-h`, `-?`) to list these in the terminal, with how they combine.
+
 | Option | Effect |
 |---|---|
 | `--test` | Skip the home screen and start a game straight away (for development and quick testing) |
@@ -51,6 +53,9 @@ dotnet run --project MonoTanx/MonoTanx.csproj -- --test  # straight into a game
 | `--seed <integer>` | Fix the run's random draws; the seed is shown in the debug overlay |
 | `--windowed` | Run in a window instead of fullscreen |
 | `--scale <1-4>` | With `--windowed`, set the window to that integer multiple of 800×600 (default 2) |
+| `--help`, `-h`, `-?`, `/?` | Print the options and exit. Always wins over everything else on the line |
+
+Options can be given in any order. Conflicting options (`--two-player` with `--demo`, `--scale` without `--windowed`) are rejected with a message rather than one quietly overriding the other; repeating `--seed` or `--scale` is allowed and the last value wins.
 
 Options go after `--` when using `dotnet run`, and can be combined:
 

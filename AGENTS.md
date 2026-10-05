@@ -38,6 +38,7 @@ MonoTanx is a small C#/.NET 10 desktop game built with MonoGame. The solution co
 - Do not edit generated `bin/`, `obj/`, or content build output.
 - Do not upgrade .NET, MonoGame, or other packages unless the task explicitly calls for it.
 - Preserve deterministic seeds in gameplay/demo code unless changed behavior is part of the request.
+- A new command-line option goes in the `Specs` table in `GameOptions` (it drives both parsing and `--help`), in `EveryOption` in `GameOptionsTests` (a test fails if the help and the parser disagree), and in the README's launch options table.
 - Put gameplay and feel values in `MonoTanx/Core/Tuning.cs` with a comment saying what each controls and why it has that value; do not add new magic numbers to rules or the stage. `docs/tuning.md` indexes them and records the derived pacing numbers (pinned by `TuningTests`) and what is deliberately kept elsewhere.
 
 ## Architectural boundaries
