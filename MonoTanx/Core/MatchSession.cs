@@ -9,14 +9,30 @@ namespace MonoTanx.Core
     // happened, and resets the world when the next round's countdown begins.
     public sealed class MatchSession
     {
+        private readonly GameSettings settings;
         private readonly int roundsToWin;
 
         public MatchSession(MatchSimulation simulation, int roundsToWin = Tuning.Match.RoundsToWin)
+            : this(simulation, roundsToWin, new GameSettings())
+        {
+        }
+
+        // The rounds, pauses and time limit come from the settings.
+        public MatchSession(MatchSimulation simulation, GameSettings settings)
+            : this(simulation, settings.GetWhole(SettingKeys.RoundsToWin), settings)
+        {
+        }
+
+        private MatchSession(MatchSimulation simulation, int roundsToWin, GameSettings settings)
         {
             Simulation = simulation;
+            this.settings = settings;
             this.roundsToWin = roundsToWin;
-            State = new MatchState(roundsToWin);
+            State = NewState();
         }
+
+        private MatchState NewState() => new MatchState(roundsToWin,
+            settings.Get(SettingKeys.CountdownSeconds), settings.Get(SettingKeys.RoundOverSeconds), settings.Get(SettingKeys.RoundTimeLimitSeconds));
 
         public MatchSimulation Simulation { get; }
         public MatchState State { get; private set; }
@@ -49,7 +65,7 @@ namespace MonoTanx.Core
         public void StartNewMatch()
         {
             Simulation.ResetRound();
-            State = new MatchState(roundsToWin);
+            State = NewState();
         }
     }
 }

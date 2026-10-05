@@ -16,6 +16,7 @@ namespace MonoTanx.Core
         private readonly ComputerController[] controllers;
         private readonly Random random;
         private readonly SimulationSettings settings;
+        private readonly GameSettings rules;
         private readonly bool[] moved = new bool[2];
         private readonly TankMotion[] motion = new TankMotion[2];
         private readonly List<Shell> shells = new List<Shell>();
@@ -25,16 +26,17 @@ namespace MonoTanx.Core
         // The gameplay random stream (RandomStreams.Gameplay): the only randomness
         // the simulation uses, so a run is reproducible from its seed.
         public MatchSimulation(WorldMap map, Player playerOne, Player playerTwo, IEnumerable<PickupSpawn> pickupSpawns, Random random, SimulationSettings settings = default,
-            Random aiRandomOne = null, Random aiRandomTwo = null)
+            Random aiRandomOne = null, Random aiRandomTwo = null, GameSettings rules = null)
         {
+            this.rules = rules ?? new GameSettings();
             this.map = map;
             this.random = random;
             this.settings = settings;
             tanks = new[] { playerOne, playerTwo };
             controllers = new[]
             {
-                new ComputerController(map, playerOne, playerTwo, aiRandomOne),
-                new ComputerController(map, playerTwo, playerOne, aiRandomTwo)
+                new ComputerController(map, playerOne, playerTwo, aiRandomOne, this.rules),
+                new ComputerController(map, playerTwo, playerOne, aiRandomTwo, this.rules)
             };
             foreach (var spawn in pickupSpawns)
                 pickups.Add(new PickupState(spawn));
@@ -59,7 +61,7 @@ namespace MonoTanx.Core
         // Puts a newly fired shell in flight.
         public void Launch(Player shooter, ShellLaunch launch)
         {
-            shells.Add(new Shell(launch.Ammunition, launch.Position, launch.Velocity) { Shooter = SeatOf(shooter) });
+            shells.Add(new Shell(launch.Ammunition, launch.Position, launch.Velocity) { Shooter = SeatOf(shooter), MaxReflections = rules.GetWhole(SettingKeys.MaxReflections) });
             events.Add(new MatchEvent(MatchEventKind.ShellFired, SeatOf(shooter)));
         }
 
@@ -220,7 +222,7 @@ namespace MonoTanx.Core
             foreach (var tank in tanks)
                 foreach (var pickup in pickups)
                 {
-                    if (!pickup.Active || !PickupRules.InRange(tank, pickup.Spawn))
+                    if (!pickup.Active || !PickupRules.InRange(tank, pickup.Spawn, rules.Get(SettingKeys.PickupCollectRadius)))
                         continue;
                     PickupRules.Apply(tank, pickup.Spawn);
                     pickup.Active = false;
@@ -231,7 +233,8 @@ namespace MonoTanx.Core
         private void DamageTank(Player tank, int damage, Vector2 impactVelocity, Seat? shooter)
         {
             var seat = SeatOf(tank);
-            var destroyed = TankDamage.Apply(map, tank, OpponentOf(tank), damage, impactVelocity, random);
+            var destroyed = TankDamage.Apply(map, tank, OpponentOf(tank), damage, impactVelocity, random,
+                rules.Get(SettingKeys.KnockbackDistance), rules.Get(SettingKeys.MaximumHeadingDisruptionRadians));
             events.Add(new MatchEvent(MatchEventKind.TankHit, seat, shooter));
             ControllerOf(seat).Hit();
             if (destroyed)

@@ -28,25 +28,26 @@ internal sealed class MatchHarness
     private readonly RunLogger logger;
     private readonly MatchSetup setup;
 
-    public MatchHarness(int seed, MatchSetup setup, int roundsToWin = Tuning.Match.RoundsToWin, bool recordLog = false)
+    public MatchHarness(int seed, MatchSetup setup, int roundsToWin = Tuning.Match.RoundsToWin, bool recordLog = false, GameSettings settings = null)
     {
         Seed = seed;
         this.setup = setup;
+        var rules = settings ?? new GameSettings();
         if (recordLog)
         {
             logger = new RunLogger(LogLines.Add);
-            logger.Header(seed, "(test harness)", setup, "test");
+            logger.Header(seed, "(test harness)", setup, "test", rules);
         }
-        Map = new WorldMap(TestSupport.FixturePath("arena", "arena_01.tmx"));
-        PlayerOne = new Player("Player 1", "Sprites/tank", Color.White, Player.DefaultAmmunition, Tuning.Tank.StartingShells,
-            isComputerControlled: setup.PlayerOne == PlayerControl.Computer);
-        PlayerTwo = new Player("Player 2", "Sprites/tank2", Color.LightGray, Player.DefaultAmmunition, Tuning.Tank.StartingShells,
-            isComputerControlled: setup.PlayerTwo == PlayerControl.Computer);
+        Map = new WorldMap(TestSupport.FixturePath("arena", "arena_01.tmx"), rules);
+        PlayerOne = new Player("Player 1", "Sprites/tank", Color.White, Player.StandardAmmunition(rules), rules.GetWhole(SettingKeys.StartingShells),
+            isComputerControlled: setup.PlayerOne == PlayerControl.Computer, settings: rules, seat: Seat.One);
+        PlayerTwo = new Player("Player 2", "Sprites/tank2", Color.LightGray, Player.StandardAmmunition(rules), rules.GetWhole(SettingKeys.StartingShells),
+            isComputerControlled: setup.PlayerTwo == PlayerControl.Computer, settings: rules, seat: Seat.Two);
         var streams = new RandomStreams(seed);
         Simulation = new MatchSimulation(Map, PlayerOne, PlayerTwo, Map.PickupSpawns, streams.Gameplay,
-            new SimulationSettings(MuzzleOffset, MuzzleOffset), streams.CreateStream("ai-1"), streams.CreateStream("ai-2"));
+            new SimulationSettings(MuzzleOffset, MuzzleOffset), streams.CreateStream("ai-1"), streams.CreateStream("ai-2"), rules);
         Simulation.PlaceAtStart();
-        Session = new MatchSession(Simulation, roundsToWin);
+        Session = settings == null ? new MatchSession(Simulation, roundsToWin) : new MatchSession(Simulation, rules);
     }
 
     // Runs for the simulated seconds, calling check(harness) after each update.

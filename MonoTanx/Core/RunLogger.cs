@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 
 namespace MonoTanx.Core
 {
@@ -35,13 +36,16 @@ namespace MonoTanx.Core
         // Simulated seconds since the run began (time the game is paused does not count).
         public float Time { get; private set; }
 
-        public void Header(int seed, string arguments, MatchSetup setup, string version)
+        public void Header(int seed, string arguments, MatchSetup setup, string version, GameSettings settings = null)
         {
             write("# MonoTanx run log");
             write("# version " + version);
             write("# seed " + seed.ToString(CultureInfo.InvariantCulture) + "  (re-run with --seed " + seed.ToString(CultureInfo.InvariantCulture) + " to reproduce it)");
             write("# options " + (string.IsNullOrWhiteSpace(arguments) ? "(none)" : arguments));
             write("# players " + Tag(setup, Seat.One) + " " + Tag(setup, Seat.Two));
+            var differences = settings?.Differences().ToList() ?? new List<KeyValuePair<string, float>>();
+            write("# settings " + (differences.Count == 0 ? "(all defaults)"
+                : string.Join(" ", differences.Select(pair => pair.Key + "=" + pair.Value.ToString("0.#####", CultureInfo.InvariantCulture)))));
             write("# times are simulated seconds; P1 and P2 are the seats, (human) or (cpu) who controls them");
         }
 

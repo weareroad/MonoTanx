@@ -26,7 +26,7 @@ namespace MonoTanx.Core
         private static (float TurnCost, float DriveCost) Costs(WorldMap map, Player tank, float turn, float drive, float elapsed)
         {
             var terrainFuel = map.GetFuelCostMultiplier(tank.Position);
-            var turnCost = Math.Abs(turn) * Tuning.Tank.TurnFuelPerSecond * elapsed * terrainFuel;
+            var turnCost = Math.Abs(turn) * tank.TurnFuelPerSecond * elapsed * terrainFuel;
             var driveRate = drive < 0.0f ? tank.ReverseFuelPerSecond : tank.ForwardFuelPerSecond;
             var driveCost = Math.Abs(drive) * driveRate * elapsed * terrainFuel;
             return (turnCost, driveCost);

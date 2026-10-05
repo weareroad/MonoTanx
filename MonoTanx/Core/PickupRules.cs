@@ -4,9 +4,9 @@ namespace MonoTanx.Core
 {
     public static class PickupRules
     {
-        public static bool InRange(Player player, PickupSpawn spawn)
+        public static bool InRange(Player player, PickupSpawn spawn, float collectRadius = Tuning.Pickups.CollectRadius)
         {
-            return Vector2.DistanceSquared(player.Position, spawn.Position) <= Tuning.Pickups.CollectRadius * Tuning.Pickups.CollectRadius;
+            return Vector2.DistanceSquared(player.Position, spawn.Position) <= collectRadius * collectRadius;
         }
 
         // Fuel is clamped to the tank's maximum. Ammunition goes to the matching

@@ -35,6 +35,7 @@ namespace MonoTanx.Core
         private readonly Player self;
         private readonly Player opponent;
         private readonly Random random;
+        private readonly GameSettings settings;
         private readonly List<Point> route = new List<Point>();
         private int routeIndex;
         private int pickupTargetId = -1;
@@ -72,8 +73,9 @@ namespace MonoTanx.Core
 
         // The random stream is this seat's own (RandomStreams.CreateStream("ai-1") or
         // ("ai-2")). With none, the computer makes no aiming error.
-        public ComputerController(WorldMap map, Player self, Player opponent, Random random = null)
+        public ComputerController(WorldMap map, Player self, Player opponent, Random random = null, GameSettings settings = null)
         {
+            this.settings = settings ?? new GameSettings();
             this.random = random;
             this.map = map;
             this.self = self;
@@ -131,7 +133,7 @@ namespace MonoTanx.Core
         // forget the fire cooldown.
         public void Hit()
         {
-            retaliationTimer = Tuning.Ai.RetaliationSeconds;
+            retaliationTimer = settings.Get(SettingKeys.AiRetaliationSeconds);
             fireTimer = 0.0f;
             relocationPending = false;
             relocating = false; // the cooldown is cancelled, so there is nothing left to move for
@@ -228,11 +230,11 @@ namespace MonoTanx.Core
             if (drivingSeconds == 0.0f)
                 drivingStart = self.Position;
             drivingSeconds += elapsed;
-            if (drivingSeconds < Tuning.Ai.StuckWindowSeconds)
+            if (drivingSeconds < settings.Get(SettingKeys.AiStuckWindowSeconds))
                 return false;
             var moved = Vector2.Distance(drivingStart, self.Position);
             drivingSeconds = 0.0f;
-            return moved < Tuning.Ai.StuckMinimumDistance;
+            return moved < settings.Get(SettingKeys.AiStuckMinimumDistance);
         }
 
         private void StartRecovery()
@@ -242,7 +244,7 @@ namespace MonoTanx.Core
             repeatedStuck = secondsSinceRecovery <= Tuning.Ai.StuckRepeatSeconds ? repeatedStuck + 1 : 1;
             // back away turning to a side picked from the seat's stream; without one, alternate sides
             recoverySide = random != null ? (random.Next(2) == 0 ? -1 : 1) : -recoverySide;
-            recoveryTimer = Tuning.Ai.StuckRecoverySeconds;
+            recoveryTimer = settings.Get(SettingKeys.AiStuckRecoverySeconds);
             drivingSeconds = 0.0f;
         }
 
@@ -396,7 +398,7 @@ namespace MonoTanx.Core
             var threats = new List<(Shell Shell, float SecondsToHit)>();
             foreach (var shell in shells)
             {
-                if (Vector2.Distance(shell.Position, self.Position) > Tuning.Ai.EvadeDetectionDistance || shell.Age < Tuning.Ai.EvadeReactionSeconds)
+                if (Vector2.Distance(shell.Position, self.Position) > settings.Get(SettingKeys.AiEvadeDetectionDistance) || shell.Age < settings.Get(SettingKeys.AiEvadeReactionSeconds))
                     continue;
                 var seen = Noticed(shell);
                 var hitTime = FirstHitTime(TankCommand.None, new[] { shell });
@@ -454,8 +456,8 @@ namespace MonoTanx.Core
             var tanks = new[] { scratch, opponent };
             var flying = shells.Select(shell => shell.Clone()).ToList();
             var step = Tuning.Ai.EvadeStepSeconds;
-            var holdSteps = (int)Math.Round(Tuning.Ai.EvadeHoldSeconds / step);
-            var steps = (int)Math.Round(Tuning.Ai.EvadeLookaheadSeconds / step);
+            var holdSteps = (int)Math.Round(settings.Get(SettingKeys.AiEvadeHoldSeconds) / step);
+            var steps = (int)Math.Round(settings.Get(SettingKeys.AiEvadeLookaheadSeconds) / step);
             for (var index = 0; index < steps && flying.Count > 0; index++)
             {
                 if (index < holdSteps && !command.IsIdle)
@@ -478,7 +480,7 @@ namespace MonoTanx.Core
             if (!reportedShells.Add((shell, kind)))
                 return;
             var skill = MathHelper.Clamp(self.ComputerSkill, 0.0f, 1.0f);
-            var chance = Tuning.Ai.EvadeNoticeChanceAtSkillZero + (1.0f - Tuning.Ai.EvadeNoticeChanceAtSkillZero) * skill;
+            var chance = settings.Get(SettingKeys.AiEvadeNoticeChanceAtSkillZero) + (1.0f - settings.Get(SettingKeys.AiEvadeNoticeChanceAtSkillZero)) * skill;
             noticeDraws.TryGetValue(shell, out var draw);
             decisions.Add(new ComputerDecision(kind, self.Position, self.Fuel, shell.Shooter, Vector2.Distance(shell.Position, self.Position), secondsToHit, move, draw, chance));
         }
@@ -490,7 +492,7 @@ namespace MonoTanx.Core
             if (!noticedShells.TryGetValue(shell, out var seen))
             {
                 var skill = MathHelper.Clamp(self.ComputerSkill, 0.0f, 1.0f);
-                var chance = Tuning.Ai.EvadeNoticeChanceAtSkillZero + (1.0f - Tuning.Ai.EvadeNoticeChanceAtSkillZero) * skill;
+                var chance = settings.Get(SettingKeys.AiEvadeNoticeChanceAtSkillZero) + (1.0f - settings.Get(SettingKeys.AiEvadeNoticeChanceAtSkillZero)) * skill;
                 var draw = random == null ? 0.0f : (float)random.NextDouble();
                 seen = random == null || draw < chance;
                 noticedShells[shell] = seen;
@@ -537,10 +539,10 @@ namespace MonoTanx.Core
         private bool ChooseFiringPosition()
         {
             var here = map.WorldToTile(self.Position);
-            var candidates = RoutePlanner.FindFiringPositions(map, self.CollisionRadius, map.WorldToTile(opponent.Position), self.PreferredCombatDistanceTiles - Tuning.Ai.RelocationCloserTiles)
-                .Where(tile => Math.Max(Math.Abs(tile.X - here.X), Math.Abs(tile.Y - here.Y)) >= Tuning.Ai.RelocationMinimumTiles)
+            var candidates = RoutePlanner.FindFiringPositions(map, self.CollisionRadius, map.WorldToTile(opponent.Position), self.PreferredCombatDistanceTiles - settings.GetWhole(SettingKeys.AiRelocationCloserTiles))
+                .Where(tile => Math.Max(Math.Abs(tile.X - here.X), Math.Abs(tile.Y - here.Y)) >= settings.GetWhole(SettingKeys.AiRelocationMinimumTiles))
                 .OrderBy(tile => Vector2.DistanceSquared(tile.ToVector2(), here.ToVector2()))
-                .Take(Tuning.Ai.RelocationChoices)
+                .Take(settings.GetWhole(SettingKeys.AiRelocationChoices))
                 .ToList();
             if (candidates.Count == 0)
                 return false;
@@ -579,7 +581,7 @@ namespace MonoTanx.Core
         private float HoldDistance => (self.PreferredCombatDistanceTiles + Tuning.Ai.CombatRingToleranceTiles + 0.5f) * map.TileWidth;
 
         // The farthest it will fire from.
-        private float FireDistance => Tuning.Ai.FireDistanceTiles * map.TileWidth;
+        private float FireDistance => settings.Get(SettingKeys.AiFireDistanceTiles) * map.TileWidth;
 
         // The largest error the next shot may have: the narrowest window plus a random
         // extra, up to the maximum scaled by (1 - skill). Without a stream the window
@@ -588,14 +590,14 @@ namespace MonoTanx.Core
         {
             var window = self.ComputerAimToleranceRadians;
             if (random == null) return window;
-            var extra = Tuning.Ai.MaximumAimErrorRadians * (1.0f - MathHelper.Clamp(self.ComputerSkill, 0.0f, 1.0f));
+            var extra = settings.Get(SettingKeys.AiMaximumAimErrorRadians) * (1.0f - MathHelper.Clamp(self.ComputerSkill, 0.0f, 1.0f));
             return window + (float)random.NextDouble() * extra;
         }
 
         private PickupState FindPickupTarget(IReadOnlyList<PickupState> pickups)
         {
-            var needsFuel = self.Fuel < self.MaximumFuel * Tuning.Ai.NeedsFuelBelowFraction;
-            var needsAmmo = self.RemainingAmmunition < self.StartingAmmunition * Tuning.Ai.NeedsAmmoBelowFraction;
+            var needsFuel = self.Fuel < self.MaximumFuel * settings.Get(SettingKeys.AiNeedsFuelBelowFraction);
+            var needsAmmo = self.RemainingAmmunition < self.StartingAmmunition * settings.Get(SettingKeys.AiNeedsAmmoBelowFraction);
             if (!needsFuel && !needsAmmo) return null;
             PickupState best = null;
             var bestDistance = float.MaxValue;
