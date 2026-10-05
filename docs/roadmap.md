@@ -115,7 +115,7 @@ Acceptance checks:
 
 #### 2.2 Isolate input when needed
 
-Status: functional, not yet extracted. `GameStage` maps WASD/Space and cursor keys/Enter directly and uses edge-triggered firing.
+Status: functional, not yet extracted (#53, #54). `GameStage` maps WASD/Space and cursor keys/Enter directly and uses edge-triggered firing; a seat's commands are already a `TankCommand`, the same for a human or the CPU.
 
 - Preserve the current mappings and behavior.
 - Extract a small human-input adapter only when a second human mode, input remapping, or testability requires it.
@@ -145,7 +145,7 @@ Acceptance checks:
 
 Goal: tanks move smoothly but cannot enter blocked terrain or leave the map.
 
-Status: prototype functional. `WorldMap.CanOccupyCircle` and `GameStage.MoveTank` provide circle-vs-tile collision, separate horizontal/vertical movement, sliding, and boundary blocking. Remaining work is focused on edge cases, tunnelling limits, and tests.
+Status: complete for the prototype (#49). `WorldMap.CanOccupyCircle` and `TankMovement.Move` provide circle-vs-tile collision, separate horizontal/vertical movement, sliding and boundary blocking; movement is sub-stepped (4px) so no speed or step length tunnels through terrain or the other tank, and `CollisionHardeningTests` cover it. F5 draws the collision circles, headings and blocking tiles.
 
 #### 3.1 Define tank collision shape
 
@@ -212,11 +212,11 @@ Acceptance checks:
 
 Goal: produce a small but complete playable match.
 
-Status: playable prototype. The game launches directly into a two-player-versus-computer arena, but it is not yet a complete scored round loop.
+Status: complete (#45, #46). A match is rounds with a countdown, a score, a draw rule and a round time limit with on-screen warnings, ending on an end screen; see the first complete match milestone below.
 
 #### 5.1 Match state
 
-Status: partial. Active play, health reduction, HUD resource feedback, and a terminal hit response exist. Score, explicit round states, respawn/reset, and a game-over screen remain.
+Status: complete. Armour loss, HUD resource feedback, round states with reset, the score and the end screen exist (`MatchState`, `MatchSession`, `EndStage`).
 
 - Add round start, active play, hit response, score update, and respawn states.
 - Load spawn positions and headings from the map.
@@ -224,7 +224,7 @@ Status: partial. Active play, health reduction, HUD resource feedback, and a ter
 
 #### 5.2 Basic computer behavior
 
-Status: functional prototype. The computer opponent can pursue, evade, route around terrain, seek pickups, check line of sight, aim, and fire. It lives in `Core/ComputerController.cs` (extracted in #51) and is unit tested.
+Status: functional (#51, #52, #85, #90). The CPU can pursue, close in to a firing distance, shoot and scoot, dodge shells (rebounds included), route around terrain, seek pickups, recover when stuck, aim with a seeded error that depends on skill, and fire. It lives in `Core/ComputerController.cs`, is unit tested, and its balance is measured headlessly (`docs/tuning.md`).
 
 Start with readable, deterministic behavior rather than sophisticated pathfinding:
 
@@ -247,7 +247,7 @@ Acceptance checks:
 
 Goal: allow either AI or human control of either tank (see the decision log: either seat can be human or computer).
 
-Status: partially present. The same `GameStage` path already supports cursor-key/Enter control when `Player 2` is not computer controlled; there is not yet a menu or match-creation choice for selecting that mode.
+Status: present. Either seat can be human or CPU: `--two-player`, the Players setting on the home screen, and `F2`/`F4` in play; the follow camera tracks the first human, and two humans (or none) get the overview. A shared or split two-player camera is still open (#55).
 
 - Add a second keyboard layout or gamepad support.
 - Select the controller type when creating the match.
@@ -291,7 +291,7 @@ Performance should be measured before choosing ray casting, shadow casting, or a
 
 ### Phase 9: Fuel, ammunition drops, and aircraft
 
-Status: fuel and static pickup prototype complete (2026-08-29). `GameStage` starts tanks with fuel, consumes separate tunable rates for turning, forward movement, and reverse movement, delegates terrain cost scaling to `WorldMap.GetFuelCostMultiplier(...)`, and collects authored Fuel/Ammunition objects. Reverse travel is currently half forward speed and costs twice the forward fuel rate. Dynamic drops, pickup respawn, and zero-fuel feedback remain future work.
+Status: fuel and static pickup prototype complete (2026-08-29). `GameStage` starts tanks with fuel, consumes separate tunable rates for turning, forward movement, and reverse movement, delegates terrain cost scaling to `WorldMap.GetFuelCostMultiplier(...)`, and collects authored Fuel/Ammunition objects. Reverse travel is currently half forward speed and costs twice the forward fuel rate. Dynamic drops, pickup respawn, and zero-fuel feedback remain future work (#56, #57).
 
 Goal: add resource pressure and dynamic objectives.
 
@@ -306,8 +306,8 @@ Goal: add resource pressure and dynamic objectives.
 
 Add these incrementally behind a single debug toggle:
 
-- Current FPS and fixed-update timing.
-- Tank collision bounds and heading vectors.
+- Current FPS and fixed-update timing (done: the F5 overlay shows the update and frame rates).
+- Tank collision bounds and heading vectors (done: drawn while F5 is held).
 - Camera bounds and visible world rectangle.
 - Tile coordinates and terrain properties under the cursor.
 - Projectile traces, impact normals, and reflection count.
@@ -351,11 +351,11 @@ Fuel, fog of war, aircraft, supply drops, destructible terrain, and advanced AI 
 
 ## Resume point
 
-The playable prototype works: two `Player` entities (human and computer) drive around the hand-authored arena, spend fuel, collect pickups, and exchange shells. The solution targets .NET 10. The hardening pass (issue #16) is complete: `WorldMap` is separated from rendering (`MapRenderer`), the movement, fuel, firing, shell, damage and pickup rules live in testable `Core` classes, randomness comes from seeded `RandomStreams` (`--seed`), and `MonoTanx.Tests` covers them without a graphics device. The camera, shake and HUD are still in `GameStage`; the computer opponent is now `ComputerController` in `Core` (#51).
+The first complete match milestone is reached and the game is playable end to end. Two tanks (each seat a human or the CPU, from the home screen, launch options or `F2`/`F4`) fight over rounds in a hand-authored arena; a match has a countdown, a score, a round time limit (with a 60-second warning and a final 10-second countdown on screen) and a draw rule, and ends on an end screen with Play again, Home screen and Quit. The rules are testable `Core` classes with no graphics dependency (`Player`, `TankMovement`, `Shell`, `TankDamage`, `PickupRules`, `WorldMap`, `ComputerController`, `MatchSimulation`, `MatchState`, `MatchSession`); randomness comes from seeded `RandomStreams` (`--seed`); `GameStage` gathers input and presents. The solution targets .NET 10 and the test project covers the rules headlessly, including how two CPUs play each other (`ComputerBalanceTests`).
 
-Since then: a home screen with `--test`, `--two-player`, `--windowed`, `--scale` and `--mute` launch options; a human-or-computer Player 2 (`F2`) and an overview camera (`F3`); frame-rate independence tests; every tuning value in `Core/Tuning.cs` (see `docs/tuning.md`); and audio hooks for all the planned sounds (#33). The sounds in `MonoTanx/Content/Audio/` are generated placeholders; replace them by dropping in WAVs of the same name (see the README in that folder).
+The CPU closes in, shoots and scoots, dodges shells, recovers when stuck and aims with a seeded error that scales with skill. Every gameplay value is in `Core/Tuning.cs` (see `docs/tuning.md`), and about 60 of them can be changed without a rebuild from the **Settings** page, saved as JSON (`GameSettings`, `SettingsCatalogue`, `SettingsFile`, `SettingsStage`; `docs/settings-spec.md`; #62); `--settings` and `--set` keep named sets and one-off overrides. Tank movement cannot tunnel at any speed (#49). Every run writes a log with the seed and the settings that differ (`RunLogger`, `--log`; #66). The `F5` overlay shows the update and frame rates, positions, the CPU's working state and the collision shapes. The words used on screen and in the docs are P1/P2, CPU (C1/C2 with two), Armour, Fuel and Shells (`AGENTS.md`, #100). The sounds in `MonoTanx/Content/Audio/` are generated placeholders; replace them by dropping in WAVs of the same name (see the README in that folder).
 
-The first complete match milestone is reached: a match is rounds of play with a countdown, a score and a draw rule (`MatchState`, `MatchSession`; #45), ending on an end screen with Play again, Home screen and Quit (#46). The headless match simulation (#70) means `GameStage` only gathers input and presents. A settings page with a JSON config file (#62: `GameSettings`, `SettingsCatalogue`, `SettingsFile`, `SettingsStage`; see `docs/settings-spec.md`) lets the tuning values be changed without rebuilding and saved between runs. What remains of the milestone list is polish and the follow-ups on GitHub: the demo's idle trigger and labels (#64), the run log (#66), computer stuck detection and aim (#52), authored spawn points (#47), and gamepad support (#53, #54).
+Next, roughly in the order Rob is likely to pick them (each has a GitHub issue): a long parameter-tuning session with the settings page (then move settled values into `Tuning.cs` and update the numbers in `docs/tuning.md`); authored spawn points and map validation (#47, #48); pickup respawn and out-of-fuel feedback (#56); the input adapter and gamepad support (#53, #54); the demo's idle trigger and labels (#64) and the rest of the run log (#66); more of the debug overlay (#50); and the open design questions (a second shell type #61, two-player camera #55, fog of war #59, destructible terrain #58). UI polish waits until a second developer joins.
 
 ## Decision log
 
@@ -370,3 +370,5 @@ Record meaningful decisions here as implementation proceeds.
 | 2026-08-29 | Read tile `TerrainKind` metadata directly from TSX XML for now. | Released TiledCS does not expose per-tile properties; this preserves stable package usage while keeping Tiled as the authoring source. |
 | 2026-10-04 | Either seat (Player 1 or Player 2) can be human or computer, as a firm design tenet for all work. | Enables a computer versus computer demo (attract mode) and a deterministic headless AI soak test, and stops new code assuming Player 1 is human. Rules take "self" and "the opponent"; labels, settings and camera focus come from the seat and its controller. See #63, #64 and #51. |
 | 2026-10-05 | Settings are a flat JSON file of overrides on the `Tuning` defaults, in per-user app data, edited from a home-screen page, applied when a match starts; `--settings` and `--set` for named sets and one-off overrides. About 60 values are surfaced for now. | Rob is about to run a long tuning session, so values must change without a rebuild and be reproducible from the log. `Tuning` stays the single source of defaults and reasons; per-seat multipliers follow the controller, not the seat. See `docs/settings-spec.md` (#62). |
+| 2026-10-05 | Words used on screen and in new docs: P1/P2, CPU (C1/C2 when both seats are CPUs), Armour, Fuel, Shells. Code identifiers and config keys keep their names. | One consistent vocabulary for players (#100); rule recorded in `AGENTS.md`. |
+| 2026-10-05 | Tank movement is sub-stepped (4px), so speed ranges in the settings are capped for playability, not safety (480 px/s forward). | Removes the tunnelling risk before tuning with faster tanks (#49). |
