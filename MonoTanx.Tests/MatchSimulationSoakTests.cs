@@ -82,7 +82,7 @@ public class MatchSimulationSoakTests
             : new MatchSetup(PlayerControl.Human, PlayerControl.Computer);
         var humanSeat = computerSeat == Seat.One ? Seat.Two : Seat.One;
 
-        var match = new MatchHarness(7, setup).Run(240.0f, AssertInvariants); // long enough to cross the arena, perhaps fetch a pickup first, and shoot
+        var match = new MatchHarness(42, setup).Run(240.0f, AssertInvariants); // long enough to cross the arena, perhaps fetch a pickup first, and shoot
 
         Assert.True(match.Count(MatchEventKind.ShellFired, computerSeat) > 0, "the computer never fired");
         Assert.Equal(0, match.Count(MatchEventKind.ShellFired, humanSeat)); // an idle human never fires

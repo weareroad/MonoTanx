@@ -183,6 +183,28 @@ namespace MonoTanx.Core
             // has a fair chance and the widest (0.32 rad) has little.
             public const int FireDistanceTiles = 8;
 
+            // After each shot, while its cooldown runs, it moves to a new firing
+            // position instead of standing still: one of the nearest this many
+            // places on the combat ring from which it can see the opponent, picked
+            // from its own random stream so it is not predictable. 3 is a modest
+            // spread; more makes it wander further and be harder to pin down.
+            public const int RelocationChoices = 3;
+
+            // A new firing position is at least this many tiles from where it fired
+            // (32px), so it is a real move and not a shuffle to the next tile. It
+            // cannot be much more: the tank steers by turning toward each route
+            // tile, which takes it about 3.5s to cover three tiles, so a longer
+            // trip would not finish inside the 3.25s cooldown.
+            public const int RelocationMinimumTiles = 2;
+
+            // New firing positions are on a ring this many tiles closer to the
+            // opponent than the combat ring (so 4 to 5 tiles, 64 to 80px, where the
+            // combat ring is 5 to 7). A shot's error grows with distance: measured
+            // against a motionless target, 57% of shots hit from 3 tiles, 48% from
+            // 4 and 20% from 5 to 6, and shooting from further out left the
+            // computer unable to land the nine hits a kill needs.
+            public const int RelocationCloserTiles = 1;
+
             // Beyond this fraction of the map width it stops routing and just
             // drives straight at Player 1.
             public const float LongRangePursuitDistanceFraction = 0.5f;
