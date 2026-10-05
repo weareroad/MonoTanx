@@ -4,6 +4,7 @@ using Microsoft.Xna.Framework.Input;
 using MonoTanx.Core;
 using MonoTanx.Stages;
 using System;
+using System.Collections.Generic;
 
 namespace MonoTanx
 {
@@ -46,7 +47,27 @@ namespace MonoTanx
         public GameSettings StoredSettings { get; }
 
         // What a match plays with: the stored settings with any --set values on top.
-        public GameSettings Settings { get; }
+        public GameSettings Settings { get; private set; }
+
+        // The settings given with --set: they win over the file for this run, and are never saved.
+        public HashSet<string> OverriddenKeys { get; } = new HashSet<string>();
+
+        private GameSettings BuildSettings()
+        {
+            var settings = StoredSettings.Clone();
+            foreach (var pair in options.SettingOverrides)
+                settings.Set(pair.Key, pair.Value);
+            return settings;
+        }
+
+        // Called after the settings page has edited StoredSettings: saves them (what --set
+        // overrode is not part of the file) and rebuilds what a match plays with. Returns
+        // a message if the file could not be written; the settings still apply for this run.
+        public string SaveSettings()
+        {
+            Settings = BuildSettings();
+            return SettingsFile.TrySave(StoredSettings, SettingsPath, out var problem) ? null : problem;
+        }
 
         public Tanx(GameOptions options)
         {
@@ -58,9 +79,9 @@ namespace MonoTanx
             foreach (var problem in load.Problems)
                 Console.Error.WriteLine(problem);
             StoredSettings = load.Settings;
-            Settings = StoredSettings.Clone();
             foreach (var pair in options.SettingOverrides)
-                Settings.Set(pair.Key, pair.Value);
+                OverriddenKeys.Add(pair.Key);
+            Settings = BuildSettings();
             graphics = new GraphicsDeviceManager(this);
             Content.RootDirectory = "Content";
             IsMouseVisible = true;
