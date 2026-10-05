@@ -12,12 +12,12 @@ Every gameplay and feel value lives in [`MonoTanx/Core/Tuning.cs`](../MonoTanx/C
 
 About 60 of these values can be changed while the game runs, from the **Settings** page on the home screen or in a JSON file (design: [`settings-spec.md`](settings-spec.md)). `Tuning.cs` is still where the defaults, their units and the reasons for them live; the settings only override them, and they apply when a match starts. The catalogue of what can be changed (key, label, default, range and step) is `SettingsCatalogue`, and the reference below is generated from it; a test fails if this document misses a key.
 
-- **The page.** Tabs for Match, Tanks, Shells, Computer and Per seat. Left/Right (or left-click / right-click) change a value a step, Shift makes it ten steps, Delete puts one back to its default, Reset all resets everything, Esc leaves and saves.
+- **The page.** Tabs for Match, Tanks, Shells, CPU and Per seat. Left/Right (or left-click / right-click) change a value a step, Shift makes it ten steps, Delete puts one back to its default, Reset all resets everything, Esc leaves and saves.
 - **The file.** `settings.json` in the per-user application data folder (`%AppData%\MonoTanx` on Windows, `~/.config/MonoTanx` on Linux and macOS), holding only the values that differ from the defaults, keyed by the names below. It can be edited by hand. A bad value is clamped to its range, an unknown key or a non-number is skipped, and the game says so on the console rather than failing.
 - **Named sets.** `--settings <path>` reads and saves a different file, so a tuning experiment can be kept beside the usual settings. `--set <key>=<value>` (repeatable) overrides single values for one run without saving them; those rows show `*` on the page.
 - **Reproducing a run.** The run log header has a `# settings` line listing every value that differs from the defaults, next to the seed, so a run is reproducible from the seed plus those values.
 - **Headless.** `MatchHarness` takes a `GameSettings` (default: the defaults) and never reads the user's file, so tests and `MatchHarness.Measure` are not affected by what is saved. Build the settings in code, or `SettingsFile.Load(path)` a named set, to measure how a change plays.
-- **Multipliers per seat.** The Per seat tab has speed, fuel use and reload multipliers for Player 1 (human), Player 2 (human) and the computer. Which group a tank uses follows **who controls it now**, so a computer in either seat uses the Computer group, and toggling control in play switches group.
+- **Multipliers per seat.** The Per seat tab has speed, fuel use and reload multipliers for P1 (human), P2 (human) and the CPU. Which group a tank uses follows **who controls it now**, so a CPU in either seat uses the CPU group, and toggling control in play switches group.
 - **Pacing numbers hold at the defaults only.** `TuningTests` checks the defaults from `Tuning`, never a user's file. The page shows each default beside the value.
 
 A short tuning session: find the value in the reference below; try it on the page; check the effect by playing and, for the computer, with `MatchHarness.Measure` on the same seeds before and after; once a value is settled, change its constant in `Tuning.cs` (with the reason in its comment) and update the pacing numbers if one moved. A settings file is a personal experiment; `Tuning.cs` is what everyone gets.
@@ -160,7 +160,7 @@ Every setting in the catalogue, by page. Whole-number settings are rounded. Fire
 
 | Key | Setting | Default | Range | Step |
 |---|---|---|---|---|
-| `tank.maximumHealth` | Health | 100 | 10 to 1000 | 10 |
+| `tank.maximumHealth` | Armour | 100 | 10 to 1000 | 10 |
 | `tank.maximumFuel` | Fuel | 200 | 20 to 1000 | 10 |
 | `tank.startingShells` | Starting shells | 20 | 1 to 200 | 1 |
 | `tank.forwardSpeed` | Forward speed (px/s) | 90 | 20 to 240 | 5 |
@@ -172,7 +172,7 @@ Every setting in the catalogue, by page. Whole-number settings are rounded. Fire
 | `tank.turnFuelPerSecond` | Turn fuel use (/s) | 0.25 | 0.00 to 5.00 | 0.05 |
 | `tank.pickupCollectRadius` | Pickup radius (px) | 12 | 6 to 32 | 1 |
 | `tank.defaultFuelAmount` | Fuel pickup amount | 50 | 5 to 200 | 5 |
-| `tank.defaultAmmunitionAmount` | Ammo pickup amount | 5 | 1 to 50 | 1 |
+| `tank.defaultAmmunitionAmount` | Shell pickup amount | 5 | 1 to 50 | 1 |
 
 ### Shells
 
@@ -180,13 +180,13 @@ Every setting in the catalogue, by page. Whole-number settings are rounded. Fire
 |---|---|---|---|---|
 | `shell.reloadSeconds` | Reload time (s) | 3.0 | 0.2 to 10.0 | 0.1 |
 | `shell.maxFlightSeconds` | Flight time (s) | 5.0 | 1.0 to 10.0 | 0.5 |
-| `shell.damage` | Damage | 12 | 1 to 100 | 1 |
+| `shell.damage` | Armour lost per hit | 12 | 1 to 100 | 1 |
 | `shell.speed` | Shell speed (px/s) | 260 | 100 to 500 | 10 |
 | `shell.knockbackDistance` | Knockback (px) | 1.5 | 0.0 to 8.0 | 0.5 |
 | `shell.headingDisruptionRadians` | Heading disruption (rad) | 0.16 | 0.00 to 0.60 | 0.02 |
 | `shell.maxReflections` | Max reflections | 8 | 0 to 20 | 1 |
 
-### Computer
+### CPU
 
 | Key | Setting | Default | Range | Step |
 |---|---|---|---|---|
@@ -200,7 +200,7 @@ Every setting in the catalogue, by page. Whole-number settings are rounded. Fire
 | `ai.retaliationSeconds` | Retaliation (s) | 1.50 | 0.00 to 5.00 | 0.25 |
 | `ai.longRangePursuitDistanceFraction` | Long range pursuit | 0.50 | 0.10 to 1.00 | 0.05 |
 | `ai.needsFuelBelowFraction` | Seeks fuel below | 0.50 | 0.00 to 1.00 | 0.05 |
-| `ai.needsAmmoBelowFraction` | Seeks ammo below | 0.50 | 0.00 to 1.00 | 0.05 |
+| `ai.needsAmmoBelowFraction` | Seeks shells below | 0.50 | 0.00 to 1.00 | 0.05 |
 | `ai.relocationChoices` | Relocation choices | 3 | 1 to 8 | 1 |
 | `ai.relocationMinimumTiles` | Relocation min (tiles) | 2 | 1 to 5 | 1 |
 | `ai.relocationCloserTiles` | Relocation closer (tiles) | 1 | 0 to 3 | 1 |
@@ -217,15 +217,15 @@ Every setting in the catalogue, by page. Whole-number settings are rounded. Fire
 
 | Key | Setting | Default | Range | Step |
 |---|---|---|---|---|
-| `playerOne.speedMultiplier` | Player 1 speed x | 1.00 | 0.25 to 2.00 | 0.05 |
-| `playerOne.fuelUseMultiplier` | Player 1 fuel use x | 1.00 | 0.00 to 4.00 | 0.05 |
-| `playerOne.reloadMultiplier` | Player 1 reload x | 1.00 | 0.25 to 4.00 | 0.05 |
-| `playerTwo.speedMultiplier` | Player 2 speed x | 1.00 | 0.25 to 2.00 | 0.05 |
-| `playerTwo.fuelUseMultiplier` | Player 2 fuel use x | 1.00 | 0.00 to 4.00 | 0.05 |
-| `playerTwo.reloadMultiplier` | Player 2 reload x | 1.00 | 0.25 to 4.00 | 0.05 |
-| `computer.speedMultiplier` | Computer speed x | 1.00 | 0.25 to 2.00 | 0.05 |
-| `computer.fuelUseMultiplier` | Computer fuel use x | 1.00 | 0.00 to 4.00 | 0.05 |
-| `computer.reloadMultiplier` | Computer reload x | 1.00 | 0.25 to 4.00 | 0.05 |
+| `playerOne.speedMultiplier` | P1 speed x | 1.00 | 0.25 to 2.00 | 0.05 |
+| `playerOne.fuelUseMultiplier` | P1 fuel use x | 1.00 | 0.00 to 4.00 | 0.05 |
+| `playerOne.reloadMultiplier` | P1 reload x | 1.00 | 0.25 to 4.00 | 0.05 |
+| `playerTwo.speedMultiplier` | P2 speed x | 1.00 | 0.25 to 2.00 | 0.05 |
+| `playerTwo.fuelUseMultiplier` | P2 fuel use x | 1.00 | 0.00 to 4.00 | 0.05 |
+| `playerTwo.reloadMultiplier` | P2 reload x | 1.00 | 0.25 to 4.00 | 0.05 |
+| `computer.speedMultiplier` | CPU speed x | 1.00 | 0.25 to 2.00 | 0.05 |
+| `computer.fuelUseMultiplier` | CPU fuel use x | 1.00 | 0.00 to 4.00 | 0.05 |
+| `computer.reloadMultiplier` | CPU reload x | 1.00 | 0.25 to 4.00 | 0.05 |
 
 Not surfaced (they stay in `Tuning.cs`): the fixed update rate, the projectile sub-step, reflection cooldown and nudge, the hit radius of a shell, the computer's route tolerances (waypoint distance, drive angle, route rebuild distance), combat ring size and tolerance, evade step, stuck repeat, route pursuit and pickup ignore times, line-of-sight spacing, screen shake, all audio, and all presentation values. These are either not gameplay, or so tightly tied to other values that changing them alone would break something; any can be added to the catalogue when tuning needs it.
 

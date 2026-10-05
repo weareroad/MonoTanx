@@ -184,6 +184,21 @@ public class SettingsTests
         var text = File.ReadAllText(Path.Combine(folder.FullName, "docs", "tuning.md"));
 
         foreach (var definition in SettingsCatalogue.All)
+        {
             Assert.True(text.Contains("`" + definition.Key + "`"), $"docs/tuning.md does not list {definition.Key}");
+            Assert.True(text.Contains("| " + definition.Label + " |"), $"docs/tuning.md does not use the label '{definition.Label}' for {definition.Key}");
+        }
+    }
+
+    [Fact]
+    public void TheSettingsPageUsesTheAgreedTerms()
+    {
+        // #100: P1, P2, CPU, Armour, Fuel, Shells
+        var words = new[] { "Player", "Computer", "Human", "Health", "Damage", "Ammo", "Bullet", "Shot", "Power" };
+        foreach (var definition in SettingsCatalogue.All)
+            foreach (var word in words)
+                Assert.False(definition.Label.Contains(word, System.StringComparison.OrdinalIgnoreCase), $"{definition.Key}: '{definition.Label}' uses '{word}'");
+        foreach (var group in SettingsPage.Groups)
+            Assert.DoesNotContain("Computer", SettingsCatalogue.TitleOf(group));
     }
 }

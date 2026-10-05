@@ -133,12 +133,12 @@ public class MatchSetupTests
     }
 
     [Fact]
-    public void AHumanSeatIsCalledPlayerAndALoneComputerJustComputer()
+    public void AHumanSeatIsCalledPAndALoneComputerJustCPU()
     {
-        Assert.Equal("Player 1", MatchSetup.OnePlayer.LabelOf(Seat.One));
-        Assert.Equal("Computer", MatchSetup.OnePlayer.LabelOf(Seat.Two));
-        Assert.Equal("Player 1", MatchSetup.TwoPlayer.LabelOf(Seat.One));
-        Assert.Equal("Player 2", MatchSetup.TwoPlayer.LabelOf(Seat.Two));
+        Assert.Equal("P1", MatchSetup.OnePlayer.LabelOf(Seat.One));
+        Assert.Equal("CPU", MatchSetup.OnePlayer.LabelOf(Seat.Two));
+        Assert.Equal("P1", MatchSetup.TwoPlayer.LabelOf(Seat.One));
+        Assert.Equal("P2", MatchSetup.TwoPlayer.LabelOf(Seat.Two));
     }
 
     [Fact]
@@ -146,14 +146,14 @@ public class MatchSetupTests
     {
         var computerFirst = new MatchSetup(PlayerControl.Computer, PlayerControl.Human);
 
-        Assert.Equal("Computer", computerFirst.LabelOf(Seat.One));
-        Assert.Equal("Player 2", computerFirst.LabelOf(Seat.Two));
+        Assert.Equal("CPU", computerFirst.LabelOf(Seat.One));
+        Assert.Equal("P2", computerFirst.LabelOf(Seat.Two));
     }
 
     [Fact]
     public void TwoComputersAreNumbered()
     {
-        Assert.Equal("Computer 1", MatchSetup.Demo.LabelOf(Seat.One));
-        Assert.Equal("Computer 2", MatchSetup.Demo.LabelOf(Seat.Two));
+        Assert.Equal("C1", MatchSetup.Demo.LabelOf(Seat.One));
+        Assert.Equal("C2", MatchSetup.Demo.LabelOf(Seat.Two));
     }
 }
