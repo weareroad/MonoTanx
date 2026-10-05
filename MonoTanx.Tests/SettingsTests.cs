@@ -173,4 +173,17 @@ public class SettingsTests
     {
         Assert.EndsWith(Path.Combine("MonoTanx", "settings.json"), SettingsFile.DefaultPath);
     }
+
+    [Fact]
+    public void TheTuningDocumentListsEveryKey()
+    {
+        var folder = new DirectoryInfo(System.AppContext.BaseDirectory);
+        while (folder != null && !File.Exists(Path.Combine(folder.FullName, "MonoTanx.slnx")))
+            folder = folder.Parent;
+        Assert.NotNull(folder);
+        var text = File.ReadAllText(Path.Combine(folder.FullName, "docs", "tuning.md"));
+
+        foreach (var definition in SettingsCatalogue.All)
+            Assert.True(text.Contains("`" + definition.Key + "`"), $"docs/tuning.md does not list {definition.Key}");
+    }
 }
