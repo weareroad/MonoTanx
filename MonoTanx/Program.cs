@@ -1,4 +1,3 @@
-
 MonoTanx.GameOptions options;
 try
 {
@@ -7,8 +6,15 @@ try
 catch (System.ArgumentException exception)
 {
     System.Console.Error.WriteLine(exception.Message);
-    System.Console.Error.WriteLine("Usage: MonoTanx [--test] [--two-player | --demo] [--mute] [--seed <integer>] [--windowed [--scale <1-4>]]");
+    System.Console.Error.WriteLine(MonoTanx.GameOptions.UsageLine);
+    System.Console.Error.WriteLine("Run MonoTanx --help for what each option does.");
     return 1;
+}
+
+if (options.ShowHelp)
+{
+    System.Console.WriteLine(MonoTanx.GameOptions.HelpText);
+    return 0;
 }
 
 using var game = new MonoTanx.Tanx(options);
