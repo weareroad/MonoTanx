@@ -50,7 +50,7 @@ namespace MonoTanx.Core
             ReverseMovementSpeed = Tuning.Tank.ReverseSpeed;
             TurnSpeed = Tuning.Tank.TurnSpeed;
             CollisionRadius = Tuning.Tank.CollisionRadius;
-            PreferredCombatDistanceTiles = Tuning.Ai.PreferredCombatDistanceTiles;
+            PreferredCombatDistanceTiles = Tuning.Ai.EngageDistanceTiles;
             LongRangePursuitDistanceFraction = Tuning.Ai.LongRangePursuitDistanceFraction;
             ComputerAimToleranceRadians = Tuning.Ai.AimToleranceRadians;
             ComputerSkill = Tuning.Ai.Skill;

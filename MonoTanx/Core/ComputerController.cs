@@ -221,8 +221,8 @@ namespace MonoTanx.Core
 
             var distance = Vector2.Distance(self.Position, opponent.Position);
             var longRangeThreshold = map.Bounds.Width * self.LongRangePursuitDistanceFraction;
-            if (distance <= longRangeThreshold && map.HasLineOfSight(self.Position, opponent.Position))
-                return TankCommand.None;
+            if (distance <= HoldDistance && map.HasLineOfSight(self.Position, opponent.Position))
+                return TankCommand.None; // engaged: close enough to hit, so stop and shoot
             if (distance > longRangeThreshold && routePursuitTimer <= 0.0f)
             {
                 if (!longRangePursuit)
@@ -254,6 +254,11 @@ namespace MonoTanx.Core
             if (fireTimer > 0.0f || self.ReloadTimer > 0.0f)
                 return TankCommand.None;
 
+            // no shot without a view, and none from too far for its aim to hit: keep closing in instead
+            var distance = Vector2.Distance(self.Position, opponent.Position);
+            if (distance > FireDistance || !map.HasLineOfSight(self.Position, opponent.Position))
+                return TankCommand.None;
+
             // this shot's window (its largest error), drawn once and kept until it is fired
             if (!aimErrorDrawn)
             {
@@ -263,14 +268,13 @@ namespace MonoTanx.Core
             var desiredHeading = HeadingToward(self.Position, opponent.Position);
             if (Math.Abs(MathHelper.WrapAngle(desiredHeading - self.Heading)) > aimError)
             {
-                if (Recovering)
-                    return TankCommand.None; // backing away: the aim phase must not turn the tank back
+                // Only turn to aim once it has stopped to shoot. While it is still closing in, or backing
+                // away, the movement phase is steering it and the two would undo each other.
+                if (Recovering || distance > HoldDistance)
+                    return TankCommand.None;
                 var turn = new TankCommand(TurnToward(desiredHeading), 0.0f);
                 return TankMovement.FuelCost(map, self, turn, elapsed) <= self.Fuel ? turn : TankCommand.None;
             }
-
-            if (!map.HasLineOfSight(self.Position, opponent.Position))
-                return TankCommand.None;
 
             return new TankCommand(0.0f, 0.0f, fire: true);
         }
@@ -321,6 +325,13 @@ namespace MonoTanx.Core
             route.AddRange(newRoute);
             routeIndex = Math.Min(1, route.Count);
         }
+
+        // Once inside this it stops and shoots: the combat ring (the engage distance, give or take the
+        // ring tolerance) plus half a tile for where in the tile it stands.
+        private float HoldDistance => (self.PreferredCombatDistanceTiles + Tuning.Ai.CombatRingToleranceTiles + 0.5f) * map.TileWidth;
+
+        // The farthest it will fire from.
+        private float FireDistance => Tuning.Ai.FireDistanceTiles * map.TileWidth;
 
         // The largest error the next shot may have: the narrowest window plus a random
         // extra, up to the maximum scaled by (1 - skill). Without a stream the window

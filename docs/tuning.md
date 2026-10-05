@@ -47,7 +47,7 @@ These follow from the values above and are checked by `TuningTests`.
 - **Hit shake is probably too weak.** Camera offsets are rounded to whole pixels, so the 1.0px hit shake rounds to no offset about half the time. 2 to 3px would show. The 1.8px fire shake is more visible. Tune by eye.
 - **Turning is nearly free.** Intentional or not, it makes fuel almost irrelevant for steering. Raise `Tank.TurnFuelPerSecond` if turning should matter.
 - **Reversing is expensive** by design (4 times the fuel per pixel).
-- **Computer aim:** each shot has its own firing window (its largest error), drawn from the seat's random stream between 0.07 rad and 0.07 plus 0.5 times (1 minus skill); at the default skill the windows average 0.195 rad, matching the fixed 0.2 rad they replaced. A window of 0.2 rad gives a lateral miss of up to about 19px at 6 tiles but about 60px at 300px, so it hits close up and often misses at range. The window cannot go below about 0.07 rad: movement and aiming each turn the tank up to 0.04 rad a step, and a tighter window is missed over and over (with 0.03 the computer fired a quarter as often).
+- **Computer aim:** it only fires within 8 tiles (128px). Each shot has its own firing window (its largest error), drawn from the seat's random stream between 0.07 rad and 0.07 plus 0.5 times (1 minus skill); at the default skill the windows average 0.195 rad, matching the fixed 0.2 rad they replaced. A window of 0.2 rad gives a lateral miss of up to about 19px at 6 tiles but about 60px at 300px, so it hits close up and often misses at range. The window cannot go below about 0.07 rad: movement and aiming each turn the tank up to 0.04 rad a step, and a tighter window is missed over and over (with 0.03 the computer fired a quarter as often).
 
 ## Computer balance numbers
 
@@ -58,19 +58,37 @@ How two computers play each other, measured with the headless harness (`MatchHar
 | Before #52 (fixed 0.2 rad aim tolerance) | 6.1 | 2915 | 34% | 22 / 87 (20% decided) | 32.5 |
 | Aim error (#52, previous step) | 5.7 | 2692 | 34% | 17 / 89 (16% decided) | 31.6 |
 
-| Stuck recovery (#52, this step) | 1.7 | 2746 | 10% | 5 / 92 (5% decided) | 1.8 (longest run 1.7s) |
+| Stuck recovery (#52) | 1.7 | 2746 | 10% | 5 / 92 (5% decided) | 1.8 (longest run 1.7s) |
+| Closing in (#90, this step) | 9.2 | 2981 | 49% | 54 / 68 (44% decided) | 2.8 (longest run 1.7s) |
 
 "Stuck" counts a tank that was commanded to drive for 1.5s and moved less than 6px, in either seat. Before stuck recovery that was about 32 seconds in every minute, so between them the computers spent a large share of every round pushing against something. In one 1200s run of seed 7 about 70% of those updates were in long-range pursuit (it drives a fixed heading at the opponent and never routes around anything) and about 30% in pickup seeking, where the tank drove forward all the time it turned, and a turning circle of about 36px (90px/s at 2.5 rad/s) does not fit a 16px corridor, so it pressed into corners. Recovery fixes both: it detects the lack of progress, backs away turning, and then follows a planned route for a while instead of a straight line; and pickup seeking now drives only when roughly facing the next waypoint, as combat already did (that alone took stuck pickup updates from about 18,600 to 2 in three 1200s runs).
 
-### What the numbers mean
+### What the numbers mean (after stuck recovery)
 
-Stuck recovery lowers the computers' accuracy and leaves almost every round drawn. That is a consequence of the computers now moving, not a regression in aiming, and worth understanding before the next step:
+Stuck recovery lowered the computers' accuracy and leaves almost every round drawn. That is a consequence of the computers now moving, not a regression in aiming, and worth understanding before the next step:
 
 - Before, a computer commonly sat pressed against a wall at 700px or more from the opponent, its movement phase steering it onto the exact line to the opponent every update. Its shots then came out almost perfectly aimed, whatever the firing window, which is why a computer against a human standing still hit 82% of its shots (883 hits from 1081 shots). That accuracy was an accident of being stuck, not skill.
 - Now it roams, so the aim window is what decides a shot. A window averages 0.195 rad, which at 300 to 500px (the computer holds position and fires from anywhere inside half the map width with a clear view) misses by 60 to 100px against a 15px target. The same computer against a still human hits 41% (437 hits from 1077 shots), and two computers hit 10%.
 - Kills need nine hits and a tank has 20 shells, so a tank must hit 45% of its shots to kill a still opponent before its shells run out. At 10% a computer-versus-computer round is essentially always a draw (5% of rounds were decided), and a match to first-to-3 does not finish in hours of simulated play.
 
-Against a human who moves, a computer has always been far less accurate than that 82% suggests. The way to make computer rounds end is not to put the stuck behaviour back but for the computer to fire from where its error can hit (close the distance first, or hold fire at range) and to spend its ammunition accordingly; see the plan's notes. Nothing about damage, ammunition or the round time limit was changed here.
+Against a human who moves, a computer has always been far less accurate than that 82% suggests. The way to make computer rounds end is not to put the stuck behaviour back but for the computer to fire from where its error can hit (close the distance first, or hold fire at range) and to spend its ammunition accordingly; see the plan's notes. Nothing about damage, ammunition or the round time limit was changed there. The next step (closing in, below) is what fixed it.
+
+### Closing in (#90)
+
+The computer now routes in to a combat ring `EngageDistanceTiles` (6, about 96px) from the opponent when it has a view but is further than that (it used to hold anywhere within half the map width), holds once it is inside the ring plus half a tile (120px), and fires only within `FireDistanceTiles` (8, 128px) with a clear view. Between holding and firing it only turns to aim once it has stopped; while closing in it leaves the steering to the movement phase. The measures, over the same eight seeds of 1200s, with the motionless measure added (the share of a computer tank's time in play that it stood quite still looking at the opponent with nothing to wait for: not just hit, not backing away, next shot more than a second off):
+
+| | Hits/min | Shots | Accuracy | Rounds decided / drawn | Motionless in view |
+|---|---|---|---|---|---|
+| Computers, stuck recovery | 1.7 | 2746 | 10% | 5 / 92 (5%) | 24% |
+| Computers, closing in | 9.2 | 2981 | 49% | 54 / 68 (44%) | 20% |
+| Computer vs a still human, stuck recovery | 2.7 | 1077 | 41% | 3 / 95 (3%) | 14% |
+| Computer vs a still human, closing in | 3.2 | 561 | 91% | 56 / 53 (51%) | 12% |
+
+- **Why 6 and 8 tiles.** The distances were found by trying them (before the aim-turn fix below, so the figures are only relative). Engaging at 5 tiles and firing from 7 gave 66% accuracy and 74% of rounds decided (30 matches in 9600s), too lethal for a computer that holds still and shoots; 7 and 9 gave 42% and 44% (8 matches), 8 and 10 gave 41% and 39%. 6 and 8 keeps the ring the computer already used, and gives about 50% accuracy, about half of rounds decided, and matches that finish.
+- **A deadlock found on the way.** The first version froze two computers 122px apart for the whole round: the movement phase turned each toward its route while the aim phase turned it back toward the opponent, every update, so neither drove. Fixed by letting the aim phase turn only once it has stopped to shoot (and not at all without a view), as the controller's tests now check.
+- **Against a human who stands still it hits 91%** of its shots (it closes to within a few tiles), so the computer is lethal to a motionless target. Against a human who moves it will hit far less; hand-testing is the judge of whether it is too hard.
+- **Still draws against a motionless human about half the time**, mostly because it goes for a pickup first when its fuel is below half (a long trip: it arrives with fuel at 80 of 200 after 60 seconds), not because it cannot hit.
+- **Motionless in view is still 20% and 12%**: while engaged it holds still between shots. Relocating during the cooldown (next step) addresses that.
 
 ## Deliberately kept elsewhere
 

@@ -23,12 +23,12 @@ Found by hand-testing stuck recovery: with a human standing still in range, the 
 ### The distances, derived rather than guessed
 
 - **Effective range.** A shot with an error of θ radians misses by `distance × tan θ`, so it can hit while that is under the 15px hit width: at the average window of 0.195 rad that is about 77px; at the widest (0.32 rad) about 47px; at the narrowest (0.07 rad) about 214px. So the computer should fight at about five tiles (80px), not at 480px.
-- `Tuning.Ai.EngageDistanceTiles` (default 5, about 80px): where it stops closing in and shoots. It replaces `PreferredCombatDistanceTiles` (6) as the combat ring, so the no-view route and the approach agree. `Tuning.Ai.FireDistanceTiles` (default 7, about 112px): the farthest it will fire from; between the two it may shoot if it is already lined up (a shot at 112px with the average window still has a fair chance) but it will not stop and aim from further out. Both are tuned by measurement against the targets under Testing.
+- `Tuning.Ai.EngageDistanceTiles` (**6**, about 96px; the draft said 5): where it stops closing in and shoots. It replaces `PreferredCombatDistanceTiles` as the combat ring, so the no-view route and the approach agree; it holds once inside the ring plus half a tile (120px). `Tuning.Ai.FireDistanceTiles` (**8**, 128px; the draft said 7): the farthest it will fire from; between the hold distance and this it may shoot if it is already lined up, but it will not stop and aim from further out. *Measured:* 5 and 7 gave 66% accuracy and three rounds in four decided, too lethal; 6 and 8 gives about 50% and about half decided (see docs/tuning.md).
 
 ### Approach (PR 1)
 
 - **Closing in.** With the opponent in view and farther than the engage distance, the computer follows a route to a tile at the engage distance from the opponent (the existing combat route, which already goes round obstacles; a straight line would run into water or ravines, which block tanks but not sight). It no longer holds still at any distance short of the engage distance, which replaces the old "within half the map width with a clear view: hold" rule. Beyond half the map width it still chases in a straight line first (and by a route after getting stuck), as now.
-- **Holding.** Within the engage distance with a clear view it stops and lines up its shot. Holding is only while it waits to fire, which the next step makes short and varied.
+- **Holding.** Within the engage distance with a clear view it stops and lines up its shot. The aim phase turns the tank only once it has stopped (and not at all without a view): while it is closing in, the movement phase is steering and the two would undo each other (found as a deadlock in the first version). Holding is only while it waits to fire, which the next step makes short and varied.
 - **Fire discipline.** The aim phase fires only when the opponent is within `FireDistanceTiles` as well as lined up with a clear view. Out of range it does not spend a shell; it keeps closing. Its ammunition then goes at targets it can hit.
 
 ### Keeping moving (PR 2)
@@ -44,7 +44,7 @@ Found by hand-testing stuck recovery: with a human standing still in range, the 
 
 ## Testing
 
-- **Approach:** in range with a clear view but beyond the engage distance it moves (no longer holds); at the engage distance it holds; with no view it routes as now; a route goes round a lake that sight crosses.
+- **Approach:** in range with a clear view but beyond the engage distance it moves (no longer holds) and closes in; inside the ring it holds; with no view it routes as now. (A lake between them needs no test of its own: the ring tile is on its side, so it shoots across the water.)
 - **Fire discipline:** it does not fire beyond `FireDistanceTiles` even when lined up; it does inside it; it still closes in when out of range.
 - **Relocation (PR 2):** after a shot it moves during the cooldown to a tile at the engage distance with a clear view, different from where it was; the choice comes from the seat's stream (reproducible, different per seat); it is settled before the cooldown ends; retaliation still takes over when hit.
 - **Mirror tests:** each scenario with the seats swapped gives the same command.

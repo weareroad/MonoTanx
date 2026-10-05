@@ -35,14 +35,14 @@ public class ComputerBalanceTests
     }
 
     [Fact]
-    public void TwoComputersShootEachOtherAtAboutTheRateItWasMeasuredAt()
+    public void TwoComputersCloseInAndHitEachOtherOftenEnoughToFinishRounds()
     {
         var report = Report(Computers, "computers");
 
-        // aim error alone: 5.7 hits a minute at 34% accuracy. With stuck recovery they roam instead of
-        // sitting aimed at a wall, so they hit less often (see docs/tuning.md for why): about 1.7 at about 10%.
-        Assert.InRange(report.HitsPerMinute, 0.7f, 4.5f);
-        Assert.InRange(report.Accuracy, 0.04f, 0.3f);
+        // after stuck recovery they hit 1.7 times a minute at 10% accuracy (firing from 300 to 500px, mostly
+        // missing); closing in to fire from about 100px: about 9 to 10 a minute at about 50%
+        Assert.InRange(report.HitsPerMinute, 6.0f, 15.0f);
+        Assert.InRange(report.Accuracy, 0.3f, 0.75f);
         Assert.True(report.ShellsFired > 0);
     }
 
@@ -58,20 +58,30 @@ public class ComputerBalanceTests
     }
 
     [Fact]
-    public void MostRoundsStillDrawOnTheTimeLimit()
+    public void ARoundBetweenTwoComputersIsDecidedAboutAsOftenAsItIsDrawn()
     {
         var report = Report(Computers, "computers");
 
+        // 5% decided before they closed in (nearly every round ran out the clock), about half now
         Assert.True(report.RoundsDecided + report.RoundsDrawn > 0);
-        Assert.InRange(report.DecidedShare, 0.0f, 0.5f);
+        Assert.InRange(report.DecidedShare, 0.25f, 0.85f);
     }
 
     [Fact]
-    public void AComputerStillShootsAtAHumanWhoStandsStill()
+    public void AComputerShootsAndKillsAHumanWhoStandsStill()
     {
         var report = Report(AgainstAnIdleHuman, "idle human");
 
         Assert.True(report.Hits > 0);
         Assert.True(report.ShellsFired > 0);
+        Assert.True(report.RoundsDecided > 0, "it never won a round against a motionless human");
+    }
+
+    [Fact]
+    public void TheComputerIsNotMotionlessInViewForMostOfTheTime()
+    {
+        // 24% and 14% before closing in; relocating between shots (the next step) brings it down
+        Assert.True(Report(Computers, "computers").MotionlessInViewShare < 0.4f);
+        Assert.True(Report(AgainstAnIdleHuman, "idle human").MotionlessInViewShare < 0.4f);
     }
 }
