@@ -21,6 +21,7 @@ namespace MonoTanx.Stages
 
         private readonly List<Button> buttons = new List<Button>();
         private readonly MenuSelection selection;
+        private readonly MouseMovement pointer = new MouseMovement();
         private readonly MatchSetup setup;
 
         public EndStage(Tanx game, GraphicsDevice graphicsDevice, ContentManager content, MatchSetup setup, MatchResult result)
@@ -85,10 +86,12 @@ namespace MonoTanx.Stages
             foreach (var component in components)
                 component.Update(gameTime);
 
-            // the mouse moves the highlight too, so both inputs agree
-            for (var index = 0; index < buttons.Count; index++)
-                if (buttons[index].IsHovering)
-                    selection.Select(index);
+            // the mouse moves the highlight too, when it moves (a pointer resting on a button must not hold the keyboard's highlight there)
+            var mouseState = Mouse.GetState();
+            if (pointer.Moved(mouseState.X, mouseState.Y))
+                for (var index = 0; index < buttons.Count; index++)
+                    if (buttons[index].IsHovering)
+                        selection.Select(index);
 
             var keyboard = Keyboard.GetState();
             bool Pressed(params Keys[] keys)
