@@ -51,6 +51,20 @@ MonoTanx is a small C#/.NET 10 desktop game built with MonoGame. The solution co
 - The logical canvas stays 800x600. Window scaling must not change world coordinates or gameplay.
 - Debug overlays (`F5`) must not change simulation behavior.
 
+## Terminology
+
+Use the same words wherever a player can see them (game screens, the HUD, `--help` and messages, the run log, the settings page) and in `README.md`, `onboarding.md`, this file and any new docs, plans and specs (#100). Older specs and plans may keep their old wording.
+
+| Say | Not |
+|---|---|
+| P1, P2 (a human player in that seat) | Player 1, Player 2, Human |
+| CPU (a computer seat on its own); C1 and C2 when both seats are computers | Computer, Computer 1, Computer 2 |
+| Armour (a tank's protection; what a shell takes off is "armour lost") | Health, HP, Damage, Shield |
+| Fuel | Power |
+| Shells | Ammo, Ammunition, Shots, Bullets |
+
+Code identifiers (`Player`, `Health`, `Ammunition`, `ComputerController`, setting keys in the config file) keep their names: this is about what people read, not renaming code. `MatchSetup.LabelOf` gives a seat's label from who controls it.
+
 ## Design tenets
 
 - **Either player (seat) can be controlled by a human or by the computer.** Player 1 and Player 2 are *seats*; human and computer are *controllers*; any combination is valid (human vs computer, human vs human, computer vs computer). In new or changed code, do not assume Player 1 is human or that Player 2 is the computer: write rules in terms of "self" and "the opponent" passed as parameters, take labels, settings and camera focus from the seat and its controller, and test with the seats swapped. This is a firm decision (see the roadmap decision log and issues #63 and #64). `GameStage` is seat-agnostic (each seat has its own computer state and control, see `MatchSetup`); the computer's logic is still inside `GameStage` and moves into `Core` as a controller in #51.

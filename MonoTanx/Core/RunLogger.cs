@@ -46,7 +46,7 @@ namespace MonoTanx.Core
             var differences = settings?.Differences().ToList() ?? new List<KeyValuePair<string, float>>();
             write("# settings " + (differences.Count == 0 ? "(all defaults)"
                 : string.Join(" ", differences.Select(pair => pair.Key + "=" + pair.Value.ToString("0.#####", CultureInfo.InvariantCulture)))));
-            write("# times are simulated seconds; P1 and P2 are the seats, (human) or (cpu) who controls them");
+            write("# times are simulated seconds; P1 and P2 are the seats, (human) or (CPU) who controls them");
         }
 
         // Records one update: the time that passed, and what the simulation and the match reported.
@@ -187,7 +187,7 @@ namespace MonoTanx.Core
         }
 
         private static string Tag(MatchSetup setup, Seat seat) =>
-            (seat == Seat.One ? "P1" : "P2") + (setup.ControlOf(seat) == PlayerControl.Human ? "(human)" : "(cpu)");
+            (seat == Seat.One ? "P1" : "P2") + (setup.ControlOf(seat) == PlayerControl.Human ? "(human)" : "(CPU)");
 
         private static string SeatName(MatchSetup setup, Seat? seat) => seat.HasValue ? Tag(setup, seat.Value) : "an unknown gun";
 
