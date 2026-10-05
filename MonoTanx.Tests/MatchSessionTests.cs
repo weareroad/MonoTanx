@@ -150,4 +150,23 @@ public class MatchSessionTests
         Assert.Contains(session.Simulation.Events, e => e.Kind == MatchEventKind.TankDestroyed && e.Seat == Seat.Two);
         Assert.Contains(session.State.Events, e => e.Kind == MatchStateEventKind.RoundWon && e.Seat == Seat.One);
     }
+
+    [Fact]
+    public void ShellsStillFlyAfterTheMatchIsOverButNobodyCanAct()
+    {
+        var (session, one, two) = Humans();
+        var oneRound = new MatchSession(session.Simulation, roundsToWin: 1); // the first kill ends the match
+        EndCountdown(oneRound);
+        KillSeatTwo(oneRound, one, two);
+        RunFor(oneRound, 0.5f + Tuning.Match.RoundOverSeconds);
+        Assert.Equal(MatchPhase.MatchOver, oneRound.State.Phase);
+        oneRound.Simulation.Launch(one, new ShellLaunch(Player.DefaultAmmunition, one.Position + new Vector2(0.0f, 20.0f), new Vector2(0.0f, 50.0f)));
+        var before = oneRound.Simulation.Shells.Single().Position;
+        var held = (one.Position, one.Fuel);
+
+        RunFor(oneRound, 0.2f, new TankCommand(1.0f, 1.0f, fire: true));
+
+        Assert.True(oneRound.Simulation.Shells.Single().Position.Y > before.Y);
+        Assert.Equal(held, (one.Position, one.Fuel));
+    }
 }

@@ -23,7 +23,7 @@ Per-tank values are defaults: `Player` copies them into instance properties, so 
 | `Ai` | Computer opponent behaviour: combat distance, aim, cadence, retaliation, pickup thresholds, route tolerances | `Player` defaults, `GameStage` |
 | `Vision` | Line-of-sight sample spacing | `WorldMap` |
 | `Audio` | Master and per-cue volumes, Player 2's pitch offset, engine volumes and pitches, fade and glide times, motion thresholds | `SoundMix`, `EngineMix`, `TankMotionClassifier` |
-| `Match` | Rounds to win, countdown and round-over pauses, round time limit, demo restart pause | `MatchState`, `MatchSession` |
+| `Match` | Rounds to win, countdown and round-over pauses, round time limit, match-over pause | `MatchState`, `MatchSession` |
 | `Shake` | Screen shake size, length and jitter rate | `GameStage`, `ScreenShake` |
 | `Presentation` | Sprite-sheet frame counts and timing, placeholder shell size, muzzle clearance, overview smoothing, HUD height | `GameStage` |
 

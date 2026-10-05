@@ -18,6 +18,6 @@ Delivered as three PRs against #45 and #46, each leaving the game playable.
 
 ## Notes
 
-- The simulation is not stepped during `Countdown`, and only its shells are stepped during `RoundOver`. `MatchSession` owns that decision through `MatchState`'s phase, so the simulation stays unaware of rounds.
+- The simulation is not stepped during `Countdown`, and only its shells are stepped during `RoundOver` and `MatchOver`. `MatchSession` owns that decision through `MatchState`'s phase, so the simulation stays unaware of rounds.
 - `ResetRound()` must leave nothing behind, so the headless tests compare a reset simulation against a fresh one on the same seed's position and resource state, and run several rounds back to back.
 - A draw that replays forever is possible in principle (two computers that always stall). Rounds always end by the time limit and a draw is replayed, so a match could in theory not finish. If soak tests show it happens, add a cap on draws in review rather than speculatively here.

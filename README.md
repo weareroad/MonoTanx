@@ -2,11 +2,11 @@
 
 MonoTanx is a top-down, tile-map-based tank combat game built with MonoGame DesktopGL and .NET 10, inspired by the Tanks mode in Atari 2600 Combat. Two tanks navigate a hand-authored arena, use terrain tactically, and try to destroy one another. Player 1 is human; Player 2 is currently computer controlled.
 
-The project is at a playable prototype stage: the core loop works, but there is no score, round reset, or game-over screen yet. The next phase is hardening and tests, then a complete match loop (see [`docs/roadmap.md`](docs/roadmap.md)).
+The project is at a playable prototype stage: the core loop works, but there is no game-over screen yet (a finished match returns to the home screen). The next step is the end-of-match screen (see [`docs/roadmap.md`](docs/roadmap.md)).
 
 ## The playable loop
 
-Drive around the arena, manage your fuel and shells, collect fuel and ammunition pickups, and shoot the opposing tank. A tank reaching 0 health ends the game.
+Drive around the arena, manage your fuel and shells, collect fuel and ammunition pickups, and shoot the opposing tank. A tank reaching 0 health loses the round: the other seat scores, the arena resets after a short pause and a 3-2-1 count, and the first to win 3 rounds wins the match, after which the game returns to the home screen. A round that runs 90 seconds without a winner is a draw and is replayed. The score and round number are shown at the top of the playfield.
 
 ## Current systems
 
@@ -46,7 +46,7 @@ dotnet run --project MonoTanx/MonoTanx.csproj -- --test  # straight into a game
 |---|---|
 | `--test` | Skip the home screen and start a game straight away (for development and quick testing) |
 | `--two-player` | Two human players: Player 2 under human control and the whole arena in view. Preselects two players on the home screen |
-| `--demo` | Two computers play each other (no humans), with the whole arena in view. Cannot be combined with `--two-player`. The match still ends when a tank is destroyed until rounds exist |
+| `--demo` | Two computers play each other (no humans), with the whole arena in view. Cannot be combined with `--two-player`. Matches restart by themselves a few seconds after one is won |
 | `--mute` | Start with all sound off |
 | `--seed <integer>` | Fix the run's random draws; the seed is shown in the debug overlay |
 | `--windowed` | Run in a window instead of fullscreen |
