@@ -30,6 +30,8 @@ namespace MonoTanx.Stages
         private readonly EngineSound engineOne;
         private readonly EngineSound engineTwo;
         private bool debugOverlayVisible;
+        private readonly RateMeter updateRate = new RateMeter();
+        private readonly RateMeter drawRate = new RateMeter();
         private readonly RunLogger runLog;
         private StreamWriter logFile;
         private bool logFinished;
@@ -86,6 +88,7 @@ namespace MonoTanx.Stages
 
         public override void Draw(GameTime gameTime, SpriteBatch spriteBatch)
         {
+            drawRate.Tick(System.Diagnostics.Stopwatch.GetTimestamp() / (double)System.Diagnostics.Stopwatch.Frequency);
             var shakeOffset = shake.Offset;
             if (overviewCamera)
                 DrawOverview(spriteBatch, shakeOffset);
@@ -114,6 +117,7 @@ namespace MonoTanx.Stages
 
         public override void Update(GameTime gameTime)
         {
+            updateRate.Tick(System.Diagnostics.Stopwatch.GetTimestamp() / (double)System.Diagnostics.Stopwatch.Frequency);
             var keyboard = Keyboard.GetState();
             var elapsed = (float)gameTime.ElapsedGameTime.TotalSeconds;
             debugOverlayVisible = keyboard.IsKeyDown(Keys.F5);
@@ -485,6 +489,7 @@ namespace MonoTanx.Stages
             var lines = new List<string>
             {
                 "DEBUG (hold F5)",
+                $"Rate: updates {updateRate.PerSecond:0.0}/s (target {Tuning.Timing.UpdatesPerSecond}), frames {drawRate.PerSecond:0.0}/s",
                 $"P1 pos {playerOne.Position.X:0.00},{playerOne.Position.Y:0.00} tile {p1Tile.X},{p1Tile.Y}",
                 $"P1 dir {playerOne.Heading:0.000} rad / {MathHelper.ToDegrees(playerOne.Heading):0.0} deg",
                 $"P2 pos {playerTwo.Position.X:0.00},{playerTwo.Position.Y:0.00} tile {p2Tile.X},{p2Tile.Y}",

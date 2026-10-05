@@ -195,6 +195,7 @@ Fuel bars show remaining fuel in yellow and depleted fuel in red.
 
 While holding `F5`, the overlay pauses the simulation and shows:
 
+- The update and frame rates per second (`RateMeter`; the fixed step should read 60 updates a second)
 - Both player positions and tile coordinates
 - Both headings in radians and degrees
 - Player 2 AI mode and route progress
@@ -414,13 +415,16 @@ Small observations intentionally deferred from active work are recorded in [`doc
 
 ## Known debt and deliberately deferred work
 
-- Player 2 does not yet deliberately plan routes to pickups beyond nearest-target routing.
-- Pickup respawn, aircraft drops, and dynamic spawning are not implemented.
-- Ammunition switching is automatic only; no manual selection mechanic exists yet.
-- Projectile reflection is intentionally approximate and should later use exact tile-edge normals or authored surface metadata.
-- There is no projectile-vs-projectile, tank armor, score, round reset, or explicit game-over screen yet.
-- Destructible terrain, fog of war, advanced AI difficulty, second-human-player mode, and fuel/ammo balancing remain future work.
+Each has a GitHub issue; the roadmap's resume point says what is next.
+
+- Pickups are collected once and stay gone, aircraft drops and dynamic spawning are not implemented, and a tank with no fuel gets no feedback (#56, #57).
+- Shell selection is automatic only; no manual selection mechanic or second shell type exists yet (#61).
+- Projectile reflection is intentionally approximate and should later use exact tile-edge normals or authored surface metadata (#60). There is no projectile-vs-projectile collision.
+- Tank movement is not sub-stepped, so speeds are capped in the settings until tunnelling protection exists (#49).
+- Human input is read from the keyboard inside `GameStage`; an input adapter and gamepad support are not built (#53, #54). Tanks start at corner searches, not authored spawn points (#47), and map files are not validated (#48).
+- Destructible terrain, fog of war and a two-player camera decision are open design questions (#58, #59, #55).
+- CPU difficulty is one skill value plus the tuning values; there are no difficulty presets.
 
 ## Recommended next step
 
-See the resume point in [`docs/roadmap.md`](docs/roadmap.md): a hardening pass with focused tests, then score and round reset.
+See the resume point in [`docs/roadmap.md`](docs/roadmap.md).
