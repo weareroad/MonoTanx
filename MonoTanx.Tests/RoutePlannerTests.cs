@@ -205,4 +205,44 @@ public class RoutePlannerTests
 
         Assert.Equal(forward.Count, back.Count); // the shortest route is as long in either direction
     }
+
+    [Fact]
+    public void AnAlternativeCombatRouteGoesToADifferentGoal()
+    {
+        var map = Arena();
+        var start = new Point(4, 4);
+        var opponent = new Point(30, 20);
+
+        var first = RoutePlanner.FindCombatRoute(map, Radius, start, opponent, 6);
+        var second = RoutePlanner.FindCombatRoute(map, Radius, start, opponent, 6, alternative: 1);
+        var third = RoutePlanner.FindCombatRoute(map, Radius, start, opponent, 6, alternative: 2);
+
+        Assert.NotNull(first);
+        Assert.NotNull(second);
+        Assert.NotEqual(first[^1], second[^1]);
+        Assert.NotEqual(second[^1], third[^1]);
+        AssertValidRoute(map, Radius, start, second[^1], second);
+    }
+
+    [Fact]
+    public void AnAlternativeBeyondTheReachableGoalsTakesTheLastOne()
+    {
+        var map = Arena();
+        var start = new Point(4, 4);
+        var opponent = new Point(30, 20);
+
+        var huge = RoutePlanner.FindCombatRoute(map, Radius, start, opponent, 6, alternative: 10000);
+        var alsoHuge = RoutePlanner.FindCombatRoute(map, Radius, start, opponent, 6, alternative: 20000);
+
+        Assert.NotNull(huge);
+        Assert.Equal(huge[^1], alsoHuge[^1]);
+    }
+
+    [Fact]
+    public void WithNoReachableGoalAnAlternativeStillFindsNothing()
+    {
+        var map = Walled();
+
+        Assert.Null(RoutePlanner.FindCombatRoute(map, Radius, new Point(0, 0), new Point(2, 2), 6, alternative: 1));
+    }
 }

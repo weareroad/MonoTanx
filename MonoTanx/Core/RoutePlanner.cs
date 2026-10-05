@@ -43,7 +43,10 @@ namespace MonoTanx.Core
         // A route to a combat position: the nearest reachable tile to the opponent
         // on a ring around it (the preferred distance in tiles, never under the
         // minimum, give or take the tolerance). Null when no ring tile is reachable.
-        public static List<Point> FindCombatRoute(WorldMap map, float radius, Point start, Point opponentTile, int preferredDistanceTiles)
+        // With an alternative of 1 or more it skips that many reachable ring tiles first
+        // (taking the last one reachable if there are fewer), so a computer that keeps
+        // getting stuck on the way to one goal can try another.
+        public static List<Point> FindCombatRoute(WorldMap map, float radius, Point start, Point opponentTile, int preferredDistanceTiles, int alternative = 0)
         {
             var ring = Math.Max(Tuning.Ai.MinimumCombatRingTiles, preferredDistanceTiles);
             var candidates = new List<Point>();
@@ -56,12 +59,17 @@ namespace MonoTanx.Core
                     if (distance >= ring - Tuning.Ai.CombatRingToleranceTiles && distance <= ring + Tuning.Ai.CombatRingToleranceTiles) candidates.Add(candidate);
                 }
             candidates.Sort((a, b) => Vector2.DistanceSquared(a.ToVector2(), opponentTile.ToVector2()).CompareTo(Vector2.DistanceSquared(b.ToVector2(), opponentTile.ToVector2())));
+            List<Point> found = null;
+            var skipped = 0;
             foreach (var goal in candidates)
             {
                 var route = FindRoute(map, radius, start, goal);
-                if (route != null) return route;
+                if (route == null) continue;
+                found = route;
+                if (skipped >= alternative) break;
+                skipped++;
             }
-            return null;
+            return found;
         }
     }
 }

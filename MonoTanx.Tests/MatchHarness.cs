@@ -23,13 +23,19 @@ internal sealed class MatchHarness
     public List<(int Frame, MatchEventKind Kind, Seat? Seat)> Log { get; } = new();
     public int Frame { get; private set; }
 
-    public MatchHarness(int seed, MatchSetup setup, int roundsToWin = Tuning.Match.RoundsToWin)
+    // A shell that kills in two hits, so whole matches finish: with the default shell most computer
+    // rounds draw on the time limit and a match can take hours of simulated play.
+    public static readonly Ammunition DecisiveShell = new Ammunition("standard-shell", "A shell that kills in two hits.", "placeholder-shell", "placeholder-shell-fire",
+        Tuning.StandardShell.ReloadSeconds, Tuning.StandardShell.MaxFlightSeconds, Tuning.StandardShell.Speed, Tuning.Tank.MaximumHealth / 2);
+
+    public MatchHarness(int seed, MatchSetup setup, int roundsToWin = Tuning.Match.RoundsToWin, Ammunition ammunition = null)
     {
+        ammunition ??= Player.DefaultAmmunition;
         Seed = seed;
         Map = new WorldMap(TestSupport.FixturePath("arena", "arena_01.tmx"));
-        PlayerOne = new Player("Player 1", "Sprites/tank", Color.White, Player.DefaultAmmunition, Tuning.Tank.StartingShells,
+        PlayerOne = new Player("Player 1", "Sprites/tank", Color.White, ammunition, Tuning.Tank.StartingShells,
             isComputerControlled: setup.PlayerOne == PlayerControl.Computer);
-        PlayerTwo = new Player("Player 2", "Sprites/tank2", Color.LightGray, Player.DefaultAmmunition, Tuning.Tank.StartingShells,
+        PlayerTwo = new Player("Player 2", "Sprites/tank2", Color.LightGray, ammunition, Tuning.Tank.StartingShells,
             isComputerControlled: setup.PlayerTwo == PlayerControl.Computer);
         var streams = new RandomStreams(seed);
         Simulation = new MatchSimulation(Map, PlayerOne, PlayerTwo, Map.PickupSpawns, streams.Gameplay,
@@ -86,6 +92,7 @@ internal sealed class MatchHarness
         var report = new BalanceReport { Seconds = seconds };
         var updates = (int)Math.Round(seconds * Tuning.Timing.UpdatesPerSecond);
         var streak = new int[2];
+        var stuckRun = new int[2];
         var streakStart = new Vector2[2];
         for (var i = 0; i < updates; i++)
         {
@@ -111,13 +118,18 @@ internal sealed class MatchHarness
             {
                 var tank = Simulation.TankOf((Seat)index);
                 var driving = playing && Simulation.ControllerOf((Seat)index).LastMove.Drive != 0.0f;
-                if (!driving) { streak[index] = 0; continue; }
+                if (!driving) { streak[index] = 0; stuckRun[index] = 0; continue; }
                 if (streak[index] == 0) streakStart[index] = tank.Position;
                 streak[index]++;
                 if (streak[index] >= BalanceReport.StuckWindowUpdates)
                 {
                     if (Vector2.Distance(streakStart[index], tank.Position) < BalanceReport.StuckMinimumDistance)
+                    {
                         report.StuckUpdates++;
+                        report.LongestStuckRunUpdates = Math.Max(report.LongestStuckRunUpdates, ++stuckRun[index]);
+                    }
+                    else
+                        stuckRun[index] = 0;
                     if (streak[index] % BalanceReport.StuckWindowUpdates == 0) { streakStart[index] = tank.Position; }
                 }
             }
@@ -155,14 +167,16 @@ internal sealed class BalanceReport
     public int RoundsDrawn;
     public int MatchesFinished;
     public int StuckUpdates;
+    public int LongestStuckRunUpdates;
 
     public float HitsPerMinute => Hits / (Seconds / 60.0f);
     public float Accuracy => ShellsFired == 0 ? 0.0f : Hits / (float)ShellsFired;
     public float DecidedShare => RoundsDecided + RoundsDrawn == 0 ? 0.0f : RoundsDecided / (float)(RoundsDecided + RoundsDrawn);
+    public float LongestStuckRunSeconds => LongestStuckRunUpdates / (float)Tuning.Timing.UpdatesPerSecond;
     public float StuckSecondsPerMinute => StuckUpdates / (float)Tuning.Timing.UpdatesPerSecond / (Seconds / 60.0f);
 
     public override string ToString() =>
-        $"{Seconds:0}s: hits {Hits} ({HitsPerMinute:0.0}/min), fired {ShellsFired}, accuracy {Accuracy:P0}, rounds decided {RoundsDecided} drawn {RoundsDrawn} (decided {DecidedShare:P0}), matches {MatchesFinished}, stuck {StuckUpdates} updates ({StuckSecondsPerMinute:0.0}s/min)";
+        $"{Seconds:0}s: hits {Hits} ({HitsPerMinute:0.0}/min), fired {ShellsFired}, accuracy {Accuracy:P0}, rounds decided {RoundsDecided} drawn {RoundsDrawn} (decided {DecidedShare:P0}), matches {MatchesFinished}, stuck {StuckUpdates} updates ({StuckSecondsPerMinute:0.0}s/min, longest run {LongestStuckRunSeconds:0.0}s)";
 
     // Several seeds added together.
     public static BalanceReport Sum(IEnumerable<BalanceReport> reports)
@@ -177,6 +191,7 @@ internal sealed class BalanceReport
             total.RoundsDrawn += report.RoundsDrawn;
             total.MatchesFinished += report.MatchesFinished;
             total.StuckUpdates += report.StuckUpdates;
+            total.LongestStuckRunUpdates = Math.Max(total.LongestStuckRunUpdates, report.LongestStuckRunUpdates);
         }
         return total;
     }

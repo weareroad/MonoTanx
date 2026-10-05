@@ -489,6 +489,203 @@ public class ComputerControllerTests
         Assert.True(inside.Fire);
     }
 
+    // Stuck detection and recovery
+
+    // On the 24x5 divided map (a wall down column 11 with a gap in the bottom row), seat one on the
+    // left and the opponent at the far right in the same row, 336px away (and still more than 192px away at the wall): beyond long range, so
+    // the computer drives straight at the opponent, straight into the wall.
+    private static (ComputerController Controller, Player Self, Player Opponent, WorldMap Map) IntoTheWall(Random random = null)
+    {
+        var map = new WorldMap(FixturePath("divided.tmx"));
+        var self = NewPlayer(Centre(2, 2), 0.0f, "Self");
+        var opponent = NewPlayer(Centre(23, 2), 0.0f, "Opponent");
+        return (new ComputerController(map, self, opponent, random), self, opponent, map);
+    }
+
+    // Runs until the computer has started backing away (at most 10 seconds, so a bug fails rather than hangs).
+    private static void DriveUntilRecovering(ComputerController controller, WorldMap map, Player self, Player opponent)
+    {
+        for (var frame = 0; frame < 600 && !controller.Recovering; frame++)
+            Drive(controller, map, self, opponent, Step);
+        Assert.True(controller.Recovering, "it never got stuck");
+    }
+
+    // Plays the movement phase only for the given seconds, applying each command as the stage would.
+    private static void Drive(ComputerController controller, WorldMap map, Player self, Player opponent, float seconds, Action<float> each = null)
+    {
+        for (var elapsed = 0.0f; elapsed < seconds; elapsed += Step)
+        {
+            TankMovement.ApplyInput(map, self, opponent, controller.PlanMove(Step, NoPickups), Step);
+            each?.Invoke(elapsed);
+        }
+    }
+
+    [Fact]
+    public void DrivingIntoAWallWithoutMovingIsStuckAfterTheWindowAndNotBefore()
+    {
+        var (controller, self, opponent, map) = IntoTheWall();
+        // the first window is spent driving up to the wall, so it has moved and is not stuck
+        Drive(controller, map, self, opponent, Tuning.Ai.StuckWindowSeconds + 0.1f);
+        Assert.Equal(0, controller.StuckCount);
+        Assert.True(Vector2.Distance(self.Position, Centre(2, 2)) > 50.0f);
+
+        // now it sits against the wall still being told to drive: stuck once a whole window has passed
+        Drive(controller, map, self, opponent, Tuning.Ai.StuckWindowSeconds - 0.3f);
+        Assert.Equal(0, controller.StuckCount);
+        Drive(controller, map, self, opponent, 0.5f);
+
+        Assert.Equal(1, controller.StuckCount);
+    }
+
+    [Fact]
+    public void RecoveryBacksAwayTurningForTheRecoveryTimeThenSteersAgain()
+    {
+        var (controller, self, opponent, map) = IntoTheWall();
+        DriveUntilRecovering(controller, map, self, opponent);
+        var before = self.Position;
+        var recoveryFrames = 0;
+
+        while (controller.Recovering && recoveryFrames < 600)
+        {
+            Assert.Equal(ComputerMode.Recover, controller.Mode(NoPickups));
+            Drive(controller, map, self, opponent, Step);
+            recoveryFrames++;
+            Assert.Equal(-1.0f, controller.LastMove.Drive);
+            Assert.NotEqual(0.0f, controller.LastMove.Turn);
+        }
+
+        Assert.InRange(recoveryFrames * Step, Tuning.Ai.StuckRecoverySeconds - 0.05f, Tuning.Ai.StuckRecoverySeconds + 0.05f);
+        Assert.True(Vector2.Distance(before, self.Position) > 10.0f, "it did not back away");
+        Assert.NotEqual(ComputerMode.Recover, controller.Mode(NoPickups));
+    }
+
+    [Fact]
+    public void AfterGettingStuckHeadingStraightAtTheOpponentItFollowsARouteAroundTheWall()
+    {
+        var (controller, self, opponent, map) = IntoTheWall();
+
+        Drive(controller, map, self, opponent, 20.0f);
+
+        // it found its way to the gap in the bottom row (y from 64) and into the wall's column (x 176 to 192)
+        // instead of staying wedged against the wall's face
+        Assert.True(self.Position.Y > 64.0f && self.Position.X > 176.0f, $"never got through the gap: at {self.Position}");
+        Assert.InRange(controller.StuckCount, 1, 3);
+    }
+
+    [Fact]
+    public void WaitingWithAClearViewIsNotBeingStuck()
+    {
+        var (controller, self, opponent) = Duel(0, 3); // in range with a clear view: it holds position
+        var map = LoadTerrainMap();
+
+        Drive(controller, map, self, opponent, 8.0f);
+
+        Assert.Equal(0, controller.StuckCount);
+        Assert.False(controller.Recovering);
+    }
+
+    [Fact]
+    public void WithoutFuelItCannotDriveSoItIsNotStuck()
+    {
+        var (controller, self, opponent, map) = IntoTheWall();
+        self.Fuel = 0.0f;
+
+        Drive(controller, map, self, opponent, 8.0f);
+
+        Assert.Equal(0, controller.StuckCount);
+        Assert.True(controller.LastMove.IsIdle);
+    }
+
+    [Fact]
+    public void TurningOnTheSpotAfterAHitIsNotBeingStuck()
+    {
+        var (controller, self, opponent, map) = IntoTheWall();
+        self.Heading = MathHelper.Pi; // facing away: retaliation turns it round without driving
+        controller.Hit();
+
+        Drive(controller, map, self, opponent, Tuning.Ai.RetaliationSeconds - 0.1f);
+
+        Assert.Equal(0, controller.StuckCount);
+    }
+
+    [Fact]
+    public void WhichSideItBacksAwayToComesFromItsOwnStream()
+    {
+        var sides = new HashSet<float>();
+        for (var seed = 0; seed < 12; seed++)
+        {
+            var (controller, self, opponent, map) = IntoTheWall(new Random(seed));
+            DriveUntilRecovering(controller, map, self, opponent);
+            sides.Add(controller.LastMove.Turn);
+        }
+
+        Assert.Equal(new HashSet<float> { -1.0f, 1.0f }, sides);
+    }
+
+    [Fact]
+    public void TheSameSeedBacksAwayTheSameWay()
+    {
+        float FirstSide(int seed)
+        {
+            var (controller, self, opponent, map) = IntoTheWall(new Random(seed));
+            DriveUntilRecovering(controller, map, self, opponent);
+            return controller.LastMove.Turn;
+        }
+
+        Assert.Equal(FirstSide(5), FirstSide(5));
+    }
+
+    [Fact]
+    public void WhileBackingAwayTheAimPhaseDoesNotTurnTheTankBack()
+    {
+        var (controller, self, opponent, map) = IntoTheWall();
+        DriveUntilRecovering(controller, map, self, opponent);
+        self.Heading = 1.0f; // well off the opponent
+
+        var command = controller.PlanAim(Step);
+
+        Assert.False(command.Fire);
+        Assert.Equal(0.0f, command.Turn);
+    }
+
+    [Fact]
+    public void PickupSeekingNowOnlyDrivesWhenRoughlyFacingTheWaypoint()
+    {
+        var (controller, self, _) = Duel(0, 7);
+        self.Fuel = self.MaximumFuel * 0.1f;
+        self.Heading = MathHelper.Pi; // the pickup is straight ahead along the row, but it faces away
+        var pickups = new[] { FuelDrop(1, Centre(3, 0)) };
+
+        var command = controller.PlanMove(Step, pickups);
+
+        Assert.Equal(0.0f, command.Drive);
+        Assert.NotEqual(0.0f, command.Turn);
+    }
+
+    [Fact]
+    public void TheStuckBehaviourIsTheSameForEitherSeat()
+    {
+        var map = new WorldMap(FixturePath("divided.tmx"));
+
+        List<(float Turn, float Drive)> Moves(bool firstSeat)
+        {
+            var one = NewPlayer(Centre(2, 2), 0.0f, "One");
+            var two = NewPlayer(Centre(23, 2), 0.0f, "Two");
+            var (self, opponent) = firstSeat ? (one, two) : (two, one);
+            if (!firstSeat)
+            {
+                (self.Position, opponent.Position) = (opponent.Position, self.Position);
+                (self.Heading, opponent.Heading) = (opponent.Heading, self.Heading);
+            }
+            var controller = new ComputerController(map, self, opponent, new Random(4));
+            var moves = new List<(float, float)>();
+            Drive(controller, map, self, opponent, 6.0f, _ => moves.Add((controller.LastMove.Turn, controller.LastMove.Drive)));
+            return moves;
+        }
+
+        Assert.Equal(Moves(true), Moves(false));
+    }
+
     // The same situation with the seats swapped must give the same command: the
     // controller knows only "self" and "the opponent".
     [Theory]
