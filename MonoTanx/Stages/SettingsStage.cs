@@ -37,6 +37,7 @@ namespace MonoTanx.Stages
         private readonly Button backButton;
         private readonly List<Rectangle> tabRectangles = new List<Rectangle>();
         private MouseState previousMouse;
+        private readonly MouseMovement pointer = new MouseMovement();
         private float heldSeconds;
         private float nextRepeat;
         private int heldDirection;
@@ -123,13 +124,15 @@ namespace MonoTanx.Stages
             foreach (var component in components)
                 component.Update(gameTime);
 
-            // the mouse moves the highlight and clicks, so both inputs agree
+            // the mouse moves the highlight when it moves (a pointer resting on a row must not hold
+            // the keyboard's highlight there) and clicks the row it is over
+            var mouseMoved = pointer.Moved(mouse.X, mouse.Y);
             for (var index = 0; index < rows.Count; index++)
             {
                 var rowIndex = page.FirstVisible + index;
                 if (rowIndex >= page.Rows.Count)
                     continue;
-                if (rows[index].IsHovering)
+                if (mouseMoved && rows[index].IsHovering)
                     page.Select(rowIndex);
                 if (rows[index].ClickedSide != 0)
                 {
@@ -137,8 +140,8 @@ namespace MonoTanx.Stages
                     Change(rows[index].ClickedSide, keyboard.IsKeyDown(Keys.LeftShift) || keyboard.IsKeyDown(Keys.RightShift));
                 }
             }
-            if (resetButton.IsHovering) page.Select(page.Rows.Count);
-            if (backButton.IsHovering) page.Select(page.Rows.Count + 1);
+            if (mouseMoved && resetButton.IsHovering) page.Select(page.Rows.Count);
+            if (mouseMoved && backButton.IsHovering) page.Select(page.Rows.Count + 1);
             if (mouse.LeftButton == ButtonState.Released && previousMouse.LeftButton == ButtonState.Pressed)
                 for (var tab = 0; tab < tabRectangles.Count; tab++)
                 {
