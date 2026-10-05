@@ -434,6 +434,8 @@ namespace MonoTanx.Stages
             var score = $"{setup.LabelOf(Seat.One)} {state.ScoreOf(Seat.One)} - {state.ScoreOf(Seat.Two)} {setup.LabelOf(Seat.Two)}   Round {state.Round}";
             DrawCentred(spriteBatch, score, HudHeight + 6.0f, 1.0f, Color.White, panel: true);
             var banner = BannerText(state, setup);
+            if (banner == null && state.TimerMessage is RoundTimerMessage timer)
+                banner = (timer.Text, timer.IsCountdown ? 4.0f : 2.0f);
             if (banner != null)
                 DrawCentred(spriteBatch, banner.Value.Text, HudHeight + (Tanx.DesignedHeight - HudHeight) / 2.0f - 20.0f, banner.Value.Scale, Color.White, panel: true);
         }

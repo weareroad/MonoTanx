@@ -6,7 +6,7 @@ The project is at a playable prototype stage: the core loop works, with rounds, 
 
 ## The playable loop
 
-Drive around the arena, manage your fuel and shells, collect fuel and ammunition pickups, and shoot the opposing tank. A tank reaching 0 health loses the round: the other seat scores, the arena resets after a short pause and a 3-2-1 count, and the first to win 3 rounds wins the match, after which an end screen shows the winner and offers Play again, Home screen and Quit. A round that runs 90 seconds without a winner is a draw and is replayed. The score and round number are shown at the top of the playfield.
+Drive around the arena, manage your fuel and shells, collect fuel and ammunition pickups, and shoot the opposing tank. A tank reaching 0 health loses the round: the other seat scores, the arena resets after a short pause and a 3-2-1 count, and the first to win 3 rounds wins the match, after which an end screen shows the winner and offers Play again, Home screen and Quit. A round that runs 90 seconds without a winner is a draw and is replayed. The score and round number are shown at the top of the playfield. In a round with more than 60 seconds on its clock, "60s remaining" flashes up for three seconds when 60 are left, and the last 10 seconds are counted down on screen (10, 9, ... 1) while play carries on.
 
 ## Current systems
 

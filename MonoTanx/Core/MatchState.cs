@@ -95,6 +95,28 @@ namespace MonoTanx.Core
 
         public float CountdownRemaining => Phase == MatchPhase.Countdown ? Math.Max(0.0f, countdownSeconds - PhaseTimer) : 0.0f;
 
+        // Seconds left before a live round is a draw on the time limit; 0 outside a live round.
+        public float RoundTimeRemaining => Phase == MatchPhase.Playing ? Math.Max(0.0f, roundTimeLimitSeconds - PhaseTimer) : 0.0f;
+
+        // What to flash on screen about the round's time, or null for nothing: "60s remaining"
+        // for a few seconds when a long enough round reaches that mark, then in the last
+        // seconds the whole number left as a countdown. Only during a live round.
+        public RoundTimerMessage? TimerMessage
+        {
+            get
+            {
+                if (Phase != MatchPhase.Playing)
+                    return null;
+                var remaining = RoundTimeRemaining;
+                if (remaining <= Tuning.Match.FinalCountdownSeconds)
+                    return new RoundTimerMessage(((int)Math.Ceiling(remaining)).ToString(System.Globalization.CultureInfo.InvariantCulture), isCountdown: true);
+                if (roundTimeLimitSeconds > Tuning.Match.TimeWarningSeconds
+                    && remaining <= Tuning.Match.TimeWarningSeconds && remaining > Tuning.Match.TimeWarningSeconds - Tuning.Match.TimeWarningShownSeconds)
+                    return new RoundTimerMessage(((int)Tuning.Match.TimeWarningSeconds) + "s remaining", isCountdown: false);
+                return null;
+            }
+        }
+
         // What has happened since the stage last cleared the list.
         public IReadOnlyList<MatchStateEvent> Events => events;
 
@@ -178,6 +200,20 @@ namespace MonoTanx.Core
         {
             Phase = phase;
             PhaseTimer = 0.0f;
+        }
+    }
+
+    // Something to show about the time left in a round: the text, and whether it is one of
+    // the final countdown's numbers (shown large, like the 3-2-1) or a message (smaller).
+    public readonly struct RoundTimerMessage
+    {
+        public string Text { get; }
+        public bool IsCountdown { get; }
+
+        public RoundTimerMessage(string text, bool isCountdown)
+        {
+            Text = text;
+            IsCountdown = isCountdown;
         }
     }
 }
