@@ -2,11 +2,11 @@
 
 MonoTanx is a top-down, tile-map-based tank combat game built with MonoGame DesktopGL and .NET 10, inspired by the Tanks mode in Atari 2600 Combat. Two tanks navigate a hand-authored arena, use terrain tactically, and try to destroy one another. Player 1 is human; Player 2 is currently computer controlled.
 
-The project is at a playable prototype stage: the core loop works, but there is no game-over screen yet (a finished match returns to the home screen). The next step is the end-of-match screen (see [`docs/roadmap.md`](docs/roadmap.md)).
+The project is at a playable prototype stage: the core loop works, with rounds, a score and an end-of-match screen. The next steps are polish (settings, a demo mode that starts itself, a run log; see [`docs/roadmap.md`](docs/roadmap.md)).
 
 ## The playable loop
 
-Drive around the arena, manage your fuel and shells, collect fuel and ammunition pickups, and shoot the opposing tank. A tank reaching 0 health loses the round: the other seat scores, the arena resets after a short pause and a 3-2-1 count, and the first to win 3 rounds wins the match, after which the game returns to the home screen. A round that runs 90 seconds without a winner is a draw and is replayed. The score and round number are shown at the top of the playfield.
+Drive around the arena, manage your fuel and shells, collect fuel and ammunition pickups, and shoot the opposing tank. A tank reaching 0 health loses the round: the other seat scores, the arena resets after a short pause and a 3-2-1 count, and the first to win 3 rounds wins the match, after which an end screen shows the winner and offers Play again, Home screen and Quit. A round that runs 90 seconds without a winner is a draw and is replayed. The score and round number are shown at the top of the playfield.
 
 ## Current systems
 
