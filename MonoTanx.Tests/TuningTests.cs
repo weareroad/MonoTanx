@@ -125,4 +125,22 @@ public class TuningTests
         Assert.Equal(Tuning.Ai.ReactionDelaySeconds, player.ComputerReactionDelaySeconds);
         Assert.Equal(Tuning.Ai.FireCooldownSeconds, player.ComputerFireCooldownSeconds);
     }
+
+    [Fact]
+    public void TheRoundTimeLimitCoversAFullTankOfDrivingPlusTheFastestKill()
+    {
+        var drivingSeconds = Tuning.Tank.MaximumFuel / Tuning.Tank.ForwardFuelPerSecond;
+        var hitsToKill = (int)Math.Ceiling(Tuning.Tank.MaximumHealth / (float)Player.DefaultAmmunition.Damage);
+        var fastestKillSeconds = (hitsToKill - 1) * Player.DefaultAmmunition.ReloadTimeSeconds;
+
+        Assert.Equal(24.0f, fastestKillSeconds, 1);
+        Assert.True(Tuning.Match.RoundTimeLimitSeconds >= drivingSeconds + fastestKillSeconds);
+    }
+
+    [Fact]
+    public void AMatchIsAtMostFiveDecidedRounds()
+    {
+        Assert.Equal(3, Tuning.Match.RoundsToWin);
+        Assert.Equal(5, 2 * (Tuning.Match.RoundsToWin - 1) + 1);
+    }
 }

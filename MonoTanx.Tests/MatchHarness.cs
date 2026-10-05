@@ -19,6 +19,7 @@ internal sealed class MatchHarness
     public Player PlayerOne { get; }
     public Player PlayerTwo { get; }
     public MatchSimulation Simulation { get; }
+    public MatchSession Session { get; }
     public List<(int Frame, MatchEventKind Kind, Seat? Seat)> Log { get; } = new();
     public int Frame { get; private set; }
 
@@ -34,6 +35,7 @@ internal sealed class MatchHarness
         Simulation = new MatchSimulation(Map, PlayerOne, PlayerTwo, Map.PickupSpawns, streams.Gameplay,
             new SimulationSettings(MuzzleOffset, MuzzleOffset));
         Simulation.PlaceAtStart();
+        Session = new MatchSession(Simulation);
     }
 
     // Runs for the simulated seconds, calling check(harness) after each update.
@@ -53,12 +55,36 @@ internal sealed class MatchHarness
         return this;
     }
 
+    // Plays the match through its rounds (countdowns, pauses, resets) until it is
+    // over or the simulated seconds run out, with the same per-update check. Use
+    // this or Run on a harness, not both.
+    public MatchHarness RunMatch(float maxSeconds, Action<MatchHarness> check = null)
+    {
+        var updates = (int)Math.Round(maxSeconds * Tuning.Timing.UpdatesPerSecond);
+        for (var i = 0; i < updates && Session.State.Phase != MatchPhase.MatchOver; i++)
+        {
+            Frame++;
+            Session.Step(Step, null, null);
+            foreach (var matchEvent in Simulation.Events)
+                Log.Add((Frame, matchEvent.Kind, matchEvent.Seat));
+            Simulation.ClearEvents();
+            foreach (var stateEvent in Session.State.Events)
+                StateLog.Add((Frame, stateEvent.Kind, stateEvent.Seat));
+            Session.State.ClearEvents();
+            check?.Invoke(this);
+        }
+        return this;
+    }
+
+    public List<(int Frame, MatchStateEventKind Kind, Seat? Seat)> StateLog { get; } = new();
+
     public int Count(MatchEventKind kind, Seat? seat = null) =>
         Log.Count(e => e.Kind == kind && (seat == null || e.Seat == seat));
 
     // Everything that identifies where a match ended up.
     public string Fingerprint() => string.Join("|",
-        Frame, FormatTank(PlayerOne), FormatTank(PlayerTwo), Log.Count, string.Join(",", Log.Select(e => $"{e.Frame}{e.Kind}{e.Seat}")));
+        Frame, FormatTank(PlayerOne), FormatTank(PlayerTwo), Log.Count, string.Join(",", Log.Select(e => $"{e.Frame}{e.Kind}{e.Seat}")),
+        string.Join(",", StateLog.Select(e => $"{e.Frame}{e.Kind}{e.Seat}")));
 
     private static string FormatTank(Player tank) =>
         $"{tank.Position.X:R},{tank.Position.Y:R},{tank.Heading:R},{tank.Fuel:R},{tank.Health},{tank.RemainingAmmunition}";

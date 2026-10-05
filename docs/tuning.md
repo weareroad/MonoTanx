@@ -23,6 +23,7 @@ Per-tank values are defaults: `Player` copies them into instance properties, so 
 | `Ai` | Computer opponent behaviour: combat distance, aim, cadence, retaliation, pickup thresholds, route tolerances | `Player` defaults, `GameStage` |
 | `Vision` | Line-of-sight sample spacing | `WorldMap` |
 | `Audio` | Master and per-cue volumes, Player 2's pitch offset, engine volumes and pitches, fade and glide times, motion thresholds | `SoundMix`, `EngineMix`, `TankMotionClassifier` |
+| `Match` | Rounds to win, countdown and round-over pauses, round time limit, demo restart pause | `MatchState`, `MatchSession` |
 | `Shake` | Screen shake size, length and jitter rate | `GameStage`, `ScreenShake` |
 | `Presentation` | Sprite-sheet frame counts and timing, placeholder shell size, muzzle clearance, overview smoothing, HUD height | `GameStage` |
 
@@ -37,7 +38,11 @@ These follow from the values above and are checked by `TuningTests`.
 - The computer fires every 3.25s (3.0s cooldown plus 0.25s reaction), slightly slower than the 3.0s reload.
 - Turning costs 0.25 fuel/s against 4/s for driving, so turning is almost free (a full turn costs about 0.6 fuel against about 10 for driving the same 2.5s). Reversing is half speed at double fuel rate, 4 times the fuel per pixel.
 
+- A round is a draw after 90s (`Match.RoundTimeLimitSeconds`): more than a full tank of driving (50s) plus the fastest possible kill (24s), pinned by `TuningTests`. A match is first to 3 rounds, so at most 5 decided rounds; drawn rounds are replayed.
+
 ## Known tuning notes
+
+- **Most computer versus computer rounds draw on the time limit.** Over the seeds in the headless tests (computer in both seats) about three rounds in four are drawn: the computers hit often (60 to 130 hits a match) but rarely land the nine hits a kill needs before time runs out, so a whole match takes 10 to 36 minutes of simulated play. A human against the computer will differ; revisit the time limit, damage, or the computer's accuracy (#52) if demo matches feel endless.
 
 - **Hit shake is probably too weak.** Camera offsets are rounded to whole pixels, so the 1.0px hit shake rounds to no offset about half the time. 2 to 3px would show. The 1.8px fire shake is more visible. Tune by eye.
 - **Turning is nearly free.** Intentional or not, it makes fuel almost irrelevant for steering. Raise `Tank.TurnFuelPerSecond` if turning should matter.

@@ -133,6 +133,35 @@ namespace MonoTanx.Core
             public const int DefaultAmmunitionAmount = 5;
         }
 
+        // Rounds, score and the match flow. See docs/match-rounds-spec.md.
+        public static class Match
+        {
+            // Rounds a seat must win to win the match. First to 3 means a match
+            // is at most 5 decided rounds, long enough for a comeback and short
+            // enough to finish in one sitting. Drawn rounds are replayed and do
+            // not count.
+            public const int RoundsToWin = 3;
+
+            // Pause before each round while the count runs down (seconds), so
+            // both players can see where the tanks start. Nothing moves or fires.
+            public const float CountdownSeconds = 3.0f;
+
+            // Pause after a round is decided (seconds), so a hit and its
+            // explosion are seen before the reset. Shells already in flight
+            // finish, but no tank can act.
+            public const float RoundOverSeconds = 2.0f;
+
+            // Longest a round can last (seconds) before it is a draw. Two
+            // computers can stall once their ammunition runs out, so every mode
+            // needs a way to end a round. 90s covers a full tank of fuel (50s of
+            // driving) and the 24s minimum it takes to kill, with room to spare.
+            public const float RoundTimeLimitSeconds = 90.0f;
+
+            // How long a finished match stays up in a demo (no human) before the
+            // next one starts by itself (seconds); long enough to see who won.
+            public const float DemoRestartSeconds = 5.0f;
+        }
+
         // Computer opponent. The first group are per-Player defaults; the
         // rest are used directly by GameStage.
         public static class Ai

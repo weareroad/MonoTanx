@@ -363,4 +363,93 @@ public class MatchSimulationTests
         Assert.Equal(Math.Atan2(two.Position.Y - one.Position.Y, two.Position.X - one.Position.X), one.Heading, 4);
         Assert.Equal(Math.Atan2(one.Position.Y - two.Position.Y, one.Position.X - two.Position.X), two.Heading, 4);
     }
+
+    // ResetRound
+
+    [Fact]
+    public void ResettingARoundPutsEverythingBackAsAtTheStart()
+    {
+        var map = new WorldMap(FixturePath("arena", "arena_01.tmx"));
+        var one = NewPlayer(Vector2.Zero);
+        var two = NewPlayer(Vector2.Zero);
+        var simulation = new MatchSimulation(map, one, two, map.PickupSpawns, new Random(1), new SimulationSettings(20.0f, 20.0f));
+        simulation.PlaceAtStart();
+        var startOne = (one.Position, one.Heading);
+        var startTwo = (two.Position, two.Heading);
+        // wreck the round: damage, move, spend, fire, collect
+        one.Health = 10; two.Health = 0;
+        one.Fuel = 3; two.Fuel = 0;
+        foreach (var slot in one.AmmunitionSlots) slot.Remaining = 0;
+        one.Position += new Vector2(40, 40);
+        one.Heading = 2.0f;
+        two.ReloadTimer = 2.0f;
+        simulation.Launch(one, Launch(one.Position, new Vector2(100, 0)));
+        foreach (var pickup in simulation.Pickups) pickup.Active = false;
+        simulation.ControllerOf(Seat.One).Hit();
+        simulation.ClearEvents();
+
+        simulation.ResetRound();
+
+        Assert.Equal(startOne, (one.Position, one.Heading));
+        Assert.Equal(startTwo, (two.Position, two.Heading));
+        foreach (var tank in new[] { one, two })
+        {
+            Assert.Equal(tank.MaximumHealth, tank.Health);
+            Assert.Equal(tank.MaximumFuel, tank.Fuel);
+            Assert.Equal(tank.StartingAmmunition, tank.RemainingAmmunition);
+            Assert.Equal(0.0f, tank.ReloadTimer);
+        }
+        Assert.Empty(simulation.Shells);
+        Assert.All(simulation.Pickups, p => Assert.True(p.Active));
+        Assert.Equal(0.0f, simulation.ControllerOf(Seat.One).RetaliationTimer);
+        Assert.False(simulation.Moved(Seat.One));
+        Assert.Equal(TankMotion.Idle, simulation.Motion(Seat.One));
+    }
+
+    [Fact]
+    public void ResettingARoundKeepsWhoControlsEachSeatAndTheEventsNotYetRead()
+    {
+        var one = NewPlayer(Centre(0, 0));
+        var two = NewPlayer(Centre(7, 3));
+        var simulation = NewSimulation(one, two);
+        simulation.SetComputerControlled(Seat.One, true);
+        simulation.Launch(one, Launch(Centre(1, 0), new Vector2(100, 0)));
+
+        simulation.ResetRound();
+
+        Assert.True(one.IsComputerControlled);
+        Assert.False(two.IsComputerControlled);
+        Assert.Equal(MatchEventKind.ShellFired, Assert.Single(simulation.Events).Kind);
+    }
+
+    [Fact]
+    public void ARoundResetDoesNotRewindTheRandomStream()
+    {
+        // the heading disruption of each of two hits, with and without a reset between them
+        float[] Disruptions(bool resetBetween)
+        {
+            var map = new WorldMap(FixturePath("arena", "arena_01.tmx"));
+            var one = NewPlayer(Vector2.Zero);
+            var two = NewPlayer(Vector2.Zero);
+            var simulation = new MatchSimulation(map, one, two, new PickupSpawn[0], new Random(5), new SimulationSettings(20.0f, 20.0f));
+            simulation.PlaceAtStart();
+            var deltas = new List<float>();
+            for (var hit = 0; hit < 2; hit++)
+            {
+                if (hit == 1 && resetBetween) simulation.ResetRound();
+                two.Position = one.Position + new Vector2(60, 0);
+                var before = two.Heading;
+                simulation.Launch(one, Launch(one.Position + new Vector2(20, 0), new Vector2(200, 0)));
+                RunShells(simulation);
+                deltas.Add(MathHelper.WrapAngle(two.Heading - before));
+            }
+            return deltas.ToArray();
+        }
+
+        var plain = Disruptions(resetBetween: false);
+        var reset = Disruptions(resetBetween: true);
+
+        Assert.NotEqual(plain[0], plain[1]);
+        Assert.Equal(plain[1], reset[1], 4); // the reset did not start the stream over
+    }
 }
