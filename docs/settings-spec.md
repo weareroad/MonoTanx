@@ -1,6 +1,6 @@
 # Settings page and config file — spec
 
-Tracks GitHub issue #62. Started now because Rob is about to run a long parameter-tuning session: the values in `Core/Tuning.cs` are `const`s, so every experiment is an edit and a rebuild. The goal is to change them from a screen (or a file) and see the effect at once. Follows the design tenet that either seat can be human or computer (`AGENTS.md`, #63).
+Tracks GitHub issue #62. Built in four pull requests (the model and file, the rules reading the settings, the page, this documentation); the page keeps the design below except that Left/Right on a row change its value, so tabs change with PgUp/PgDn or Tab, and the mouse left-clicks a row to increase it and right-clicks to decrease it. Started now because Rob is about to run a long parameter-tuning session: the values in `Core/Tuning.cs` are `const`s, so every experiment is an edit and a rebuild. The goal is to change them from a screen (or a file) and see the effect at once. Follows the design tenet that either seat can be human or computer (`AGENTS.md`, #63).
 
 Rob's decisions (2026-10-05): settings persist in a **JSON config file**, introduced now; **surface as many settings as possible** for now (some will be hidden again once the game is tuned); the page must make **tuning quick**.
 

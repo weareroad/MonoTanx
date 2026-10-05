@@ -2,7 +2,7 @@
 
 MonoTanx is a top-down, tile-map-based tank combat game built with MonoGame DesktopGL and .NET 10, inspired by the Tanks mode in Atari 2600 Combat. Two tanks navigate a hand-authored arena, use terrain tactically, and try to destroy one another. Player 1 is human; Player 2 is currently computer controlled.
 
-The project is at a playable prototype stage: the core loop works, with rounds, a score and an end-of-match screen. The next steps are polish (settings, a demo mode that starts itself, a run log; see [`docs/roadmap.md`](docs/roadmap.md)).
+The project is at a playable prototype stage: the core loop works, with rounds, a score and an end-of-match screen. There is a settings page for tuning (below). The next steps are polish (a demo mode that starts itself, more of the run log; see [`docs/roadmap.md`](docs/roadmap.md)).
 
 ## The playable loop
 
@@ -28,6 +28,10 @@ Drive around the arena, manage your fuel and shells, collect fuel and ammunition
 ### Computer opponent
 
 Player 2 pursues, dodges shells it sees coming (including rebounds), routes around terrain, seeks pickups when low on fuel or ammunition, retaliates when hit, backs away when it gets stuck, closes in to about six tiles before it shoots, moves to a new firing position after each shot, and only fires with a clear line of sight and some aiming error.
+
+### Settings
+
+The home screen has a **Settings** page for changing about 60 gameplay values without rebuilding: match rules (rounds, countdown, time limit), tanks (health, fuel, speeds, fuel use), shells (reload, damage, speed), the computer (skill, distances, aim, evasion, stuck recovery) and per-seat speed, fuel and reload multipliers. Up/Down select, Left/Right (or left-click and right-click) change a value, Shift changes it ten steps at a time, Delete resets one, Esc leaves and saves; changes apply when a game starts. Values are saved as JSON in your application data folder (`%AppData%\MonoTanx\settings.json` on Windows, `~/.config/MonoTanx/settings.json` on Linux and macOS), holding only what differs from the defaults, so it can be edited by hand. `--settings <path>` and `--set <key>=<value>` (see the launch options) keep named sets and one-off overrides; the keys, ranges and defaults are in [`docs/tuning.md`](docs/tuning.md).
 
 ## Build and run
 

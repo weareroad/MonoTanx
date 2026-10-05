@@ -8,6 +8,20 @@ Every gameplay and feel value lives in [`MonoTanx/Core/Tuning.cs`](../MonoTanx/C
 2. Run `dotnet test MonoTanx.slnx`. `TuningTests` pins the pacing figures below; if one fails, update this document and the test together.
 3. Play it. These numbers are about feel, and the tests only check the arithmetic.
 
+## Changing values without rebuilding (settings)
+
+About 60 of these values can be changed while the game runs, from the **Settings** page on the home screen or in a JSON file (design: [`settings-spec.md`](settings-spec.md)). `Tuning.cs` is still where the defaults, their units and the reasons for them live; the settings only override them, and they apply when a match starts. The catalogue of what can be changed (key, label, default, range and step) is `SettingsCatalogue`, and the reference below is generated from it; a test fails if this document misses a key.
+
+- **The page.** Tabs for Match, Tanks, Shells, Computer and Per seat. Left/Right (or left-click / right-click) change a value a step, Shift makes it ten steps, Delete puts one back to its default, Reset all resets everything, Esc leaves and saves.
+- **The file.** `settings.json` in the per-user application data folder (`%AppData%\MonoTanx` on Windows, `~/.config/MonoTanx` on Linux and macOS), holding only the values that differ from the defaults, keyed by the names below. It can be edited by hand. A bad value is clamped to its range, an unknown key or a non-number is skipped, and the game says so on the console rather than failing.
+- **Named sets.** `--settings <path>` reads and saves a different file, so a tuning experiment can be kept beside the usual settings. `--set <key>=<value>` (repeatable) overrides single values for one run without saving them; those rows show `*` on the page.
+- **Reproducing a run.** The run log header has a `# settings` line listing every value that differs from the defaults, next to the seed, so a run is reproducible from the seed plus those values.
+- **Headless.** `MatchHarness` takes a `GameSettings` (default: the defaults) and never reads the user's file, so tests and `MatchHarness.Measure` are not affected by what is saved. Build the settings in code, or `SettingsFile.Load(path)` a named set, to measure how a change plays.
+- **Multipliers per seat.** The Per seat tab has speed, fuel use and reload multipliers for Player 1 (human), Player 2 (human) and the computer. Which group a tank uses follows **who controls it now**, so a computer in either seat uses the Computer group, and toggling control in play switches group.
+- **Pacing numbers hold at the defaults only.** `TuningTests` checks the defaults from `Tuning`, never a user's file. The page shows each default beside the value.
+
+A short tuning session: find the value in the reference below; try it on the page; check the effect by playing and, for the computer, with `MatchHarness.Measure` on the same seeds before and after; once a value is settled, change its constant in `Tuning.cs` (with the reason in its comment) and update the pacing numbers if one moved. A settings file is a personal experiment; `Tuning.cs` is what everyone gets.
+
 Per-tank values are defaults: `Player` copies them into instance properties, so individual players can still differ. The default shell's values are built into `Player.DefaultAmmunition`; the shell speed lives on `Ammunition`, so a new ammunition type can have its own.
 
 ## What controls what
@@ -20,7 +34,7 @@ Per-tank values are defaults: `Player` copies them into instance properties, so 
 | `Projectile` | How shells fly: hit radius, reflection limit, cooldown and nudge, sub-step length | `Shell` |
 | `Damage` | Knockback distance and random heading disruption when hit | `TankDamage` |
 | `Pickups` | Collection radius and default amounts | `PickupRules`, `WorldMap` |
-| `Ai` | Computer opponent behaviour: combat and firing distances, aim window and its random error, skill, relocation, evasion, stuck recovery, cadence, retaliation, pickup thresholds, route tolerances | `Player` defaults, `GameStage` |
+| `Ai` | Computer opponent behaviour: combat and firing distances, aim window and its random error, skill, relocation, evasion, stuck recovery, cadence, retaliation, pickup thresholds, route tolerances | `Player` defaults, `ComputerController` |
 | `Vision` | Line-of-sight sample spacing | `WorldMap` |
 | `Audio` | Master and per-cue volumes, Player 2's pitch offset, engine volumes and pitches, fade and glide times, motion thresholds | `SoundMix`, `EngineMix`, `TankMotionClassifier` |
 | `Match` | Rounds to win, countdown and round-over pauses, round time limit, match-over pause | `MatchState`, `MatchSession` |
@@ -127,6 +141,93 @@ It is deliberately imperfect, so a human can still hit it: only shells within `E
 - **What the run log shows** (`--log`, below; eight seeds of computer against computer, 1200s each, 1144 hits in all): 301 dodges, of which 213 worked and 88 failed (a hit within 1.6s); 307 shells were unavoidable (no move gets clear in time) and 201 were not noticed (the per-shell draw). The dodges start with the shell a median of 26px away and the unavoidable ones at 18px: the computers fight from 64 to 80px, a shell crosses that in about 0.2s, and the computer needs 0.12s to notice it and 0.17s to sidestep the 15px a shell needs to hit, so most close shots cannot be dodged and a dodge is usually a last-moment shuffle that works only when the shot was already marginal. Dodging mostly matters for rebounds and shots from further away (over about 110px). To dodge more, the dials are the reaction time, firing from further out (at a cost in its own accuracy), or noticing a shell when it is fired.
 - **Cost.** Predicting costs about twice the simulation time per update (about 75 microseconds for both tanks against about 35), only 0.5% of a 16.7ms frame.
 - **Dials for the tuning pass.** The notice chance (`EvadeNoticeChanceAtSkillZero`, and skill), the detection distance and the reaction time set how often it dodges successfully; the lookahead sets how far ahead rebounds are seen.
+
+## Settings reference
+
+Every setting in the catalogue, by page. Whole-number settings are rounded. Fire distance is never below engage distance: setting one moves the other with it. Ranges keep the game playable and the rules safe: speeds are capped (240 px/s forward, a little under three times the default) until tunnelling protection exists (#49), the collision radius cannot exceed what fits a one-tile corridor, and the aim tolerance cannot go below 0.07 (the computer turns up to 0.04 rad a step, so a tighter window is missed over and over).
+
+### Match
+
+| Key | Setting | Default | Range | Step |
+|---|---|---|---|---|
+| `match.roundsToWin` | Rounds to win | 3 | 1 to 9 | 1 |
+| `match.countdownSeconds` | Countdown (s) | 3.0 | 0.0 to 10.0 | 0.5 |
+| `match.roundOverSeconds` | Round over pause (s) | 2.0 | 0.0 to 10.0 | 0.5 |
+| `match.roundTimeLimitSeconds` | Round time limit (s) | 90 | 10 to 600 | 5 |
+| `match.matchOverSeconds` | Match over pause (s) | 5 | 1 to 30 | 1 |
+
+### Tanks
+
+| Key | Setting | Default | Range | Step |
+|---|---|---|---|---|
+| `tank.maximumHealth` | Health | 100 | 10 to 1000 | 10 |
+| `tank.maximumFuel` | Fuel | 200 | 20 to 1000 | 10 |
+| `tank.startingShells` | Starting shells | 20 | 1 to 200 | 1 |
+| `tank.forwardSpeed` | Forward speed (px/s) | 90 | 20 to 240 | 5 |
+| `tank.reverseSpeed` | Reverse speed (px/s) | 45 | 10 to 120 | 5 |
+| `tank.turnSpeed` | Turn speed (rad/s) | 2.5 | 0.5 to 6.0 | 0.1 |
+| `tank.collisionRadius` | Collision radius (px) | 6.0 | 3.0 to 7.0 | 0.5 |
+| `tank.forwardFuelPerSecond` | Forward fuel use (/s) | 4.0 | 0.0 to 20.0 | 0.5 |
+| `tank.reverseFuelMultiplier` | Reverse fuel multiplier | 2.0 | 0.0 to 8.0 | 0.5 |
+| `tank.turnFuelPerSecond` | Turn fuel use (/s) | 0.25 | 0.00 to 5.00 | 0.05 |
+| `tank.pickupCollectRadius` | Pickup radius (px) | 12 | 6 to 32 | 1 |
+| `tank.defaultFuelAmount` | Fuel pickup amount | 50 | 5 to 200 | 5 |
+| `tank.defaultAmmunitionAmount` | Ammo pickup amount | 5 | 1 to 50 | 1 |
+
+### Shells
+
+| Key | Setting | Default | Range | Step |
+|---|---|---|---|---|
+| `shell.reloadSeconds` | Reload time (s) | 3.0 | 0.2 to 10.0 | 0.1 |
+| `shell.maxFlightSeconds` | Flight time (s) | 5.0 | 1.0 to 10.0 | 0.5 |
+| `shell.damage` | Damage | 12 | 1 to 100 | 1 |
+| `shell.speed` | Shell speed (px/s) | 260 | 100 to 500 | 10 |
+| `shell.knockbackDistance` | Knockback (px) | 1.5 | 0.0 to 8.0 | 0.5 |
+| `shell.headingDisruptionRadians` | Heading disruption (rad) | 0.16 | 0.00 to 0.60 | 0.02 |
+| `shell.maxReflections` | Max reflections | 8 | 0 to 20 | 1 |
+
+### Computer
+
+| Key | Setting | Default | Range | Step |
+|---|---|---|---|---|
+| `ai.skill` | Skill | 0.50 | 0.00 to 1.00 | 0.05 |
+| `ai.engageDistanceTiles` | Engage distance (tiles) | 6 | 2 to 12 | 1 |
+| `ai.fireDistanceTiles` | Fire distance (tiles) | 8 | 2 to 16 | 1 |
+| `ai.aimToleranceRadians` | Aim tolerance (rad) | 0.07 | 0.07 to 0.50 | 0.01 |
+| `ai.maximumAimErrorRadians` | Extra aim error (rad) | 0.50 | 0.00 to 1.00 | 0.05 |
+| `ai.reactionDelaySeconds` | Reaction delay (s) | 0.25 | 0.00 to 2.00 | 0.05 |
+| `ai.fireCooldownSeconds` | Fire cooldown (s) | 3.00 | 0.50 to 10.00 | 0.25 |
+| `ai.retaliationSeconds` | Retaliation (s) | 1.50 | 0.00 to 5.00 | 0.25 |
+| `ai.longRangePursuitDistanceFraction` | Long range pursuit | 0.50 | 0.10 to 1.00 | 0.05 |
+| `ai.needsFuelBelowFraction` | Seeks fuel below | 0.50 | 0.00 to 1.00 | 0.05 |
+| `ai.needsAmmoBelowFraction` | Seeks ammo below | 0.50 | 0.00 to 1.00 | 0.05 |
+| `ai.relocationChoices` | Relocation choices | 3 | 1 to 8 | 1 |
+| `ai.relocationMinimumTiles` | Relocation min (tiles) | 2 | 1 to 5 | 1 |
+| `ai.relocationCloserTiles` | Relocation closer (tiles) | 1 | 0 to 3 | 1 |
+| `ai.evadeNoticeChanceAtSkillZero` | Evade notice at skill 0 | 0.50 | 0.00 to 1.00 | 0.05 |
+| `ai.evadeReactionSeconds` | Evade reaction (s) | 0.12 | 0.00 to 1.00 | 0.02 |
+| `ai.evadeDetectionDistance` | Evade detection (px) | 240 | 0 to 480 | 10 |
+| `ai.evadeLookaheadSeconds` | Evade lookahead (s) | 1.5 | 0.2 to 3.0 | 0.1 |
+| `ai.evadeHoldSeconds` | Evade hold (s) | 0.50 | 0.10 to 1.50 | 0.05 |
+| `ai.stuckWindowSeconds` | Stuck window (s) | 1.50 | 0.50 to 5.00 | 0.25 |
+| `ai.stuckMinimumDistance` | Stuck distance (px) | 6 | 1 to 30 | 1 |
+| `ai.stuckRecoverySeconds` | Stuck recovery (s) | 0.8 | 0.2 to 3.0 | 0.1 |
+
+### Per seat
+
+| Key | Setting | Default | Range | Step |
+|---|---|---|---|---|
+| `playerOne.speedMultiplier` | Player 1 speed x | 1.00 | 0.25 to 2.00 | 0.05 |
+| `playerOne.fuelUseMultiplier` | Player 1 fuel use x | 1.00 | 0.00 to 4.00 | 0.05 |
+| `playerOne.reloadMultiplier` | Player 1 reload x | 1.00 | 0.25 to 4.00 | 0.05 |
+| `playerTwo.speedMultiplier` | Player 2 speed x | 1.00 | 0.25 to 2.00 | 0.05 |
+| `playerTwo.fuelUseMultiplier` | Player 2 fuel use x | 1.00 | 0.00 to 4.00 | 0.05 |
+| `playerTwo.reloadMultiplier` | Player 2 reload x | 1.00 | 0.25 to 4.00 | 0.05 |
+| `computer.speedMultiplier` | Computer speed x | 1.00 | 0.25 to 2.00 | 0.05 |
+| `computer.fuelUseMultiplier` | Computer fuel use x | 1.00 | 0.00 to 4.00 | 0.05 |
+| `computer.reloadMultiplier` | Computer reload x | 1.00 | 0.25 to 4.00 | 0.05 |
+
+Not surfaced (they stay in `Tuning.cs`): the fixed update rate, the projectile sub-step, reflection cooldown and nudge, the hit radius of a shell, the computer's route tolerances (waypoint distance, drive angle, route rebuild distance), combat ring size and tolerance, evade step, stuck repeat, route pursuit and pickup ignore times, line-of-sight spacing, screen shake, all audio, and all presentation values. These are either not gameplay, or so tightly tied to other values that changing them alone would break something; any can be added to the catalogue when tuning needs it.
 
 ## Deliberately kept elsewhere
 
