@@ -62,6 +62,13 @@ namespace MonoTanx.Core
             // should matter.
             public const float TurnFuelPerSecond = 0.25f;
 
+            // Longest distance a tank moves in one collision sub-step (pixels). Well
+            // under the 12px two tanks need between centres and the 16px of a thin wall,
+            // so however long a step is, or however fast the tank, it cannot skip over
+            // terrain or the other tank. A normal move (90px/s at 60 updates a second is
+            // 1.5px) is under it, so nothing changes at the defaults. Same as the shell's.
+            public const float MovementSubStepLength = 4.0f;
+
             // Shells a tank starts with.
             public const int StartingShells = 20;
         }

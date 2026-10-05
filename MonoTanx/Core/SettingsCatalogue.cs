@@ -150,15 +150,16 @@ namespace MonoTanx.Core
             Number(match, SettingKeys.RoundTimeLimitSeconds, "Round time limit (s)", 10.0f, 600.0f, 5.0f, Tuning.Match.RoundTimeLimitSeconds);
             Number(match, SettingKeys.MatchOverSeconds, "Match over pause (s)", 1.0f, 30.0f, 1.0f, Tuning.Match.MatchOverSeconds);
 
-            // Speeds are capped (240 is under three times the default) until
-            // tunnelling protection exists (#49); the radius cannot exceed what
-            // fits a one-tile corridor.
+            // Tank movement is sub-stepped (#49), so speed cannot make a tank skip
+            // a wall or the other tank. The caps are for playability instead: 480 is
+            // over five times the default (a per-seat multiplier of 2 doubles it
+            // again). The radius cannot exceed what fits a one-tile corridor.
             const SettingGroup tanks = SettingGroup.Tanks;
             Whole(tanks, SettingKeys.MaximumHealth, "Armour", 10, 1000, 10, Tuning.Tank.MaximumHealth);
             Number(tanks, SettingKeys.MaximumFuel, "Fuel", 20.0f, 1000.0f, 10.0f, Tuning.Tank.MaximumFuel);
             Whole(tanks, SettingKeys.StartingShells, "Starting shells", 1, 200, 1, Tuning.Tank.StartingShells);
-            Number(tanks, SettingKeys.ForwardSpeed, "Forward speed (px/s)", 20.0f, 240.0f, 5.0f, Tuning.Tank.ForwardSpeed);
-            Number(tanks, SettingKeys.ReverseSpeed, "Reverse speed (px/s)", 10.0f, 120.0f, 5.0f, Tuning.Tank.ReverseSpeed);
+            Number(tanks, SettingKeys.ForwardSpeed, "Forward speed (px/s)", 20.0f, 480.0f, 5.0f, Tuning.Tank.ForwardSpeed);
+            Number(tanks, SettingKeys.ReverseSpeed, "Reverse speed (px/s)", 10.0f, 240.0f, 5.0f, Tuning.Tank.ReverseSpeed);
             Number(tanks, SettingKeys.TurnSpeed, "Turn speed (rad/s)", 0.5f, 6.0f, 0.1f, Tuning.Tank.TurnSpeed);
             Number(tanks, SettingKeys.CollisionRadius, "Collision radius (px)", 3.0f, 7.0f, 0.5f, Tuning.Tank.CollisionRadius);
             Number(tanks, SettingKeys.ForwardFuelPerSecond, "Forward fuel use (/s)", 0.0f, 20.0f, 0.5f, Tuning.Tank.ForwardFuelPerSecond);

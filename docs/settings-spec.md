@@ -52,7 +52,7 @@ Seat-specific values follow the **controller** of a seat, not the seat: the grou
 
 ## Limits
 
-- Every value has a **range** that keeps the game playable and the rules safe: for example speed is capped until tunnelling protection exists (#49), the collision radius cannot exceed what fits a one-tile corridor with the shell radius, durations are not negative, fractions stay 0 to 1, and `FireDistanceTiles` is not below `EngageDistanceTiles` (a pair rule, applied when the value is set: the other is moved with it). The ranges are in the catalogue next to each default, with the reason.
+- Every value has a **range** that keeps the game playable and the rules safe: for example speed was capped until tunnelling protection existed (#49, now done: movement is sub-stepped and the caps are for playability), the collision radius cannot exceed what fits a one-tile corridor with the shell radius, durations are not negative, fractions stay 0 to 1, and `FireDistanceTiles` is not below `EngageDistanceTiles` (a pair rule, applied when the value is set: the other is moved with it). The ranges are in the catalogue next to each default, with the reason.
 - The **derived pacing numbers** in `docs/tuning.md` hold only at the defaults. `TuningTests` keeps testing the defaults (from `Tuning`, not from a user's file), and the page shows a value's default beside it so a change from it is visible.
 - **Randomness is untouched**: settings change values, not streams, so a run is still reproducible from its seed plus its settings (both are in the log header).
 

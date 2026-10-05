@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 20x3 test map for collision hardening. Gids: 1 ground, 4 wall (see terrain.tsx).
+     A one-tile (16px) corridor along the middle row between two wall rows: a tank (6px radius)
+     fits with 4px to spare, and centre y = 24. -->
+<map version="1.10" tiledversion="1.12.2" orientation="orthogonal" renderorder="right-down" width="20" height="3" tilewidth="16" tileheight="16" infinite="0" nextlayerid="2" nextobjectid="1">
+ <tileset firstgid="1" source="terrain.tsx"/>
+ <layer id="1" name="Terrain" width="20" height="3">
+  <data encoding="csv">
+4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,
+1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4
+</data>
+ </layer>
+</map>
